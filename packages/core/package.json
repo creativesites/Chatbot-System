@@ -1,0 +1,16 @@
+{
+    "name": "myavana-bot-test-core",
+    "version": "1.0.4",
+    "description": "Shared bot functionality",
+    "main": "index.js",
+    "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "dependencies": {
+      "@genkit-ai/googleai": "^0.9.12",
+      "dotenv": "^16.4.7",
+      "genkit": "^0.9.12",
+      "pg": "^8.13.1",
+      "redis": "^4.7.0"
+    }
+  }

@@ -1,0 +1,19 @@
+{
+  "name": "myavana-chatbot",
+  "version": "1.0.0",
+  "description": "Myavana AI Chatbot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MyavanaTechnology/Myavana-Chatbot.git"
+  },
+  "author": "Winston",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MyavanaTechnology/Myavana-Chatbot/issues"
+  },
+  "homepage": "https://github.com/MyavanaTechnology/Myavana-Chatbot#readme"
+}

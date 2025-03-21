@@ -218,7 +218,11 @@ const postProcessingPrompt = (chatHistory, message) => {
     `;
 };
 
-const imageAnalysisPrompt = () => {
+const imageAnalysisPrompt = async () => {
+  const allProducts = await getAllProducts();
+  const productRecommendations = allProducts.length > 0
+            ? `Sienna Naturals Products:\n${JSON.stringify(allProducts, null, 2)}`
+            : 'No products found. DO NOT RECOMMEND PRODUCTS.';
     return `
 You are an AI assistant for Sienna Naturals, specializing in analyzing hair and providing personalized haircare advice.
 
@@ -254,6 +258,8 @@ For visual styling and emphasis, please utilize the following CSS classes and in
 *   **Highlight Key Phrases:** Use \`<span class='highlight'>[text to highlight]</span>\` to emphasize important terms or phrases, like service names, key hair characteristics, or crucial advice points. Use this sparingly for impactful highlighting.
 *   **Italics for Emphasis or Nuance:** Use \`<i>[text in italics]</i>\` for adding emphasis, providing nuanced explanations, or for disclaimers.
 
+ONLY reccommend Sienna Naturals products:
+${productRecommendations}
 Maintain a clear and logical flow in your HTML structure, using headings, paragraphs, and lists as needed to present the hair analysis and advice in an easy-to-understand format.
 
 Enclose your ENTIRE response within the following basic HTML boilerplate structure, including the provided CSS styles in the \`<head>\` section:

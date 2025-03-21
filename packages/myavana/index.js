@@ -1,3 +1,3 @@
 module.exports = {
-    siennaNaturalsHandler: require('./src/index')
+    myavanaHandler: require('./src/index')
 }

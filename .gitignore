@@ -1,2 +1,7 @@
 /packages/sienna-naturals/node_modules/
 /chatbots/Sienna Naturals/node_modules/
+/packages/myavana/node_modules/
+/chatbots/Myavana/node_modules/
+/packages/core/node_modules/
+node_modules/
+**/node_modules/

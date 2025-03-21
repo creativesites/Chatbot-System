@@ -9,6 +9,13 @@ module.exports = {
         database: process.env.DB_NAME,
         port: parseInt(process.env.DB_PORT, 10) || 5432, // Default PostgreSQL port
     },
+    myavanaDbConfig: {
+        host: process.env.MYAVANA_DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.MYAVANA_DB_NAME,
+        port: parseInt(process.env.DB_PORT, 10) || 5432, // Default PostgreSQL port
+    },
     redisConfig: {
         username: process.env.REDIS_USERNAME,
         password: process.env.REDIS_PASSWORD,

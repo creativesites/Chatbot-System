@@ -1,6 +1,6 @@
 {
   "name": "myavana-sienna-naturals-bot-test",
-  "version": "1.0.4",
+  "version": "1.0.8",
   "description": "Sienna Naturals-specific bot implementation",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.0.5",
-    "myavana-bot-test-core": "^1.0.4",
+    "myavana-bot-test-core": "^1.0.6",
     "openai": "^4.86.1",
     "perf_hooks": "^0.0.1"
   }

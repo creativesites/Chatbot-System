@@ -16,14 +16,14 @@ async function constructPrompt(userId, userDetails, chatHistory, allConversation
         // --- Fetch ALL products ---
         const allProducts = await getAllProducts();
         const productRecommendations = allProducts.length > 0
-            ? `Sienna Naturals Products:\n${JSON.stringify(allProducts, null, 2)}`
-            : 'No products found. DO NOT RECOMMEND PRODUCTS.';
+            ? `Myavana Services:\n${JSON.stringify(allProducts, null, 2)}`
+            : 'No services found.';
 
         // --- Fetch ALL FAQs ---
         const allFaqs = await getAllFaqs(); // Get ALL FAQs
         const faqsSummary = allFaqs.length > 0
-            ? `FAQs:\n${JSON.stringify(allFaqs, null, 2)}`
-            : 'No FAQs found.';
+            ? `Myavana Responses and FAQs:\n${JSON.stringify(allFaqs, null, 2)}`
+            : 'No Myavana Responses and  FAQs found.';
 
         // --- Fetch ALL YouTube Videos ---
         const allYoutubeVideos = await getAllYoutubeVideos();
@@ -80,7 +80,7 @@ async function constructPrompt(userId, userDetails, chatHistory, allConversation
 }
 const postProcessingPrompt = (chatHistory, message) => {
     return `
-    You are a Sienna Naturals expert AI assistant designed to analyze user conversations and user's name and extract structured information related to hair care.
+    You are a Myavana expert AI assistant designed to analyze user conversations and user's name and extract structured information related to hair care.
 
     **Task:** Analyze the following conversation history and the user's latest message to:
 
@@ -220,7 +220,7 @@ const postProcessingPrompt = (chatHistory, message) => {
 
 const imageAnalysisPrompt = () => {
     return `
-You are an AI assistant for Sienna Naturals, specializing in analyzing hair and providing personalized haircare advice.
+You are an AI assistant for Myavana, specializing in analyzing hair and providing personalized haircare advice.
 
 **Task:** Analyze the user's hair as depicted in the uploaded image. Based on your visual analysis, provide a comprehensive assessment and personalized recommendations.
 
@@ -237,7 +237,7 @@ You are an AI assistant for Sienna Naturals, specializing in analyzing hair and 
 1.  **Hair Analysis Summary:** Briefly summarize your visual analysis of the user's hair based on the points above (texture, type, condition, density, scalp).
 2.  **Personalized Haircare Advice:** Provide actionable and personalized haircare advice tailored to the user's hair as seen in the image. This should include:
     *   **Recommendations for Haircare Practices:** Suggest specific haircare practices that would benefit their hair type and condition (e.g., moisturizing routines, protein treatments, gentle cleansing, protective styling, etc.).
-    *   **Product Recommendations (Sienna Naturals-focused):**  Recommend relevant Sienna Naturals products.*
+    *   **Recommendations (Myavana-focused):**  Recommend relevant Myavana service.*
     *   **Tips for Addressing any Issues:** If you identified any apparent hair issues (dryness, damage, frizz, etc.), provide specific tips to address these concerns.
 
 **Important Considerations:**
@@ -247,7 +247,7 @@ You are an AI assistant for Sienna Naturals, specializing in analyzing hair and 
 *   **Avoid Medical Diagnoses:** Do not provide medical diagnoses or treatments for scalp conditions. If you observe concerning scalp issues, gently suggest consulting a dermatologist.
 **Response Format Instructions:**
 
-Your ENTIRE response MUST be valid HTML code, styled to match Sienna Naturals branding.  Use semantic HTML elements (like \`<p>\`, \`<ul>\`, \`<li>\`, \`<h3>\`, etc.) to structure your analysis and recommendations logically.
+Your ENTIRE response MUST be valid HTML code, styled to match Myavana branding.  Use semantic HTML elements (like \`<p>\`, \`<ul>\`, \`<li>\`, \`<h3>\`, etc.) to structure your analysis and recommendations logically.
 
 For visual styling and emphasis, please utilize the following CSS classes and inline styles *as you deem appropriate* to enhance readability and highlight key information:
 
@@ -259,89 +259,89 @@ Maintain a clear and logical flow in your HTML structure, using headings, paragr
 Enclose your ENTIRE response within the following basic HTML boilerplate structure, including the provided CSS styles in the \`<head>\` section:
 
 
-                html
-                < html >
-                < head >
-                < link
-                href = 'https://db.onlinewebfonts.com/c/79e533eca247728ccfc8113ddc2c56ca?family=Archivo+Expanded+Medium'
-                rel = 'stylesheet'
-                type = 'text/css' >
-                    < link
-                href = 'https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&display=swap'
-                rel = 'stylesheet' >
-                    < style >
-                    body
-                {
-                    font - family
-                :
-                    'Archivo', sans - serif;
-                    background - color
-                :
-                    #f5f5f7;
-                    color:#
-                    222323;
-                    font - size
-                :
-                    15
-                    px;
-                    line - height
-                :
-                    1.5;
-                }
-            .
-                highlight
-                {
-                    font - family
-                :
-                    'Archivo Expanded Black', sans - serif;
-                    font - size
-                :
-                    14
-                    px;
-                    text - transform
-                :
-                    uppercase;
-                    background - color
-                :
-                    #fce5d7;
-                    color:#
-                    222323;
-                    padding:2
-                    px
-                    6
-                    px;
-                    border - radius
-                :
-                    4
-                    px;
-                }
-                i
-                {
-                    font - style
-                :
-                    italic;
-                    color:#
-                    4
-                    a4d68;
-                }
-                span
-                {
-                    font - weight
-                :
-                    600;
-                    letter - spacing
-                :
-                    -0.04
-                    em;
-                    color:#
-                    222323;
-                }
-            </style>
-            </head>
-                <body>
-                <!--  YOUR GENERATED HTML CONTENT GOES HERE -->
-                </body>
-            </html>
+    html
+    < html >
+    < head >
+    < link
+    href = 'https://db.onlinewebfonts.com/c/79e533eca247728ccfc8113ddc2c56ca?family=Archivo+Expanded+Medium'
+    rel = 'stylesheet'
+    type = 'text/css' >
+        < link
+    href = 'https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&display=swap'
+    rel = 'stylesheet' >
+        < style >
+        body
+    {
+        font - family
+    :
+        'Archivo', sans - serif;
+        background - color
+    :
+        #f5f5f7;
+        color:#
+        222323;
+        font - size
+    :
+        15
+        px;
+        line - height
+    :
+        1.5;
+    }
+.
+    highlight
+    {
+        font - family
+    :
+        'Archivo Expanded Black', sans - serif;
+        font - size
+    :
+        14
+        px;
+        text - transform
+    :
+        uppercase;
+        background - color
+    :
+        #fce5d7;
+        color:#
+        222323;
+        padding:2
+        px
+        6
+        px;
+        border - radius
+    :
+        4
+        px;
+    }
+    i
+    {
+        font - style
+    :
+        italic;
+        color:#
+        4
+        a4d68;
+    }
+    span
+    {
+        font - weight
+    :
+        600;
+        letter - spacing
+    :
+        -0.04
+        em;
+        color:#
+        222323;
+    }
+</style>
+</head>
+    <body>
+    <!--  YOUR GENERATED HTML CONTENT GOES HERE -->
+    </body>
+</html>
            
 `
 }

@@ -19,6 +19,7 @@ module.exports = {
     // Post-processing and hair issues
     postProcessConversation: require('./src/postResponseProcessing').postProcessConversation,
     postResponseProcessing: require('./src/postResponseProcessing').postResponseProcessing,
+    updateUserProfile: require('./src/postResponseProcessing').updateUserProfile, 
     saveHairIssue: require('./src/hairIssues').saveHairIssue,
     getHairIssuesForUser: require('./src/hairIssues').getHairIssuesForUser,
     postResponseProductCheck: require('./src/postResponseProcessing').postResponseProductCheck,

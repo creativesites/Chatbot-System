@@ -9,7 +9,7 @@ const {getProductByName, addProductRecommendation} = require("./utils");
 
 const postProcessingPrompt = (chatHistory, message) => {
     return `
-    You are a Sienna Naturals expert AI assistant designed to analyze user conversations and user's name and extract structured information related to hair care.
+    You are a hair expert AI assistant designed to analyze user conversations and user's name and extract structured information related to hair care.
 
     **Task:** Analyze the following conversation history and the user's latest message to:
 
@@ -223,7 +223,7 @@ const postProcessConversation = async (chatHistory, message) => {
 
 
     const extractionPrompt = await postProcessingPrompt(chatHistory, message);
-    console.log('Extraction prompt: ', extractionPrompt);
+    //console.log('Extraction prompt: ', extractionPrompt);
     try {
         const chat = ai.chat({
             model: gemini15Flash,
@@ -233,7 +233,7 @@ const postProcessConversation = async (chatHistory, message) => {
 
         });
         const { output } = await chat.send(extractionPrompt);
-        console.log("Raw post-processing output:", JSON.stringify(output));
+        //console.log("Raw post-processing output:", JSON.stringify(output));
 
         if (!output) {
             console.warn("Post-processing output is empty. Returning default empty JSON.");
@@ -316,8 +316,7 @@ const updateUserProfile = async (userId, updates) => {
 
 const postResponseProcessing = async (postProcessData, userId, output, allchatsSummary, conversationId, chatHistory, botMessage )=>{
     if (postProcessData.user_profile_updates) {
-        // TODO: Update user profile in database based on postProcessData.user_profile_updates
-        console.log("User profile updates to be applied:", postProcessData.user_profile_updates);
+        //console.log("User profile updates to be applied:", postProcessData.user_profile_updates);
         await updateUserProfile(userId, postProcessData.user_profile_updates);
     }
 
@@ -333,7 +332,7 @@ const postResponseProcessing = async (postProcessData, userId, output, allchatsS
         await generateAndSaveSummary(userId, conversationId, chatHistory);
     }
     const recommendedProductsData = await postResponseProductCheck(chatHistory, botMessage); // Get array of product objects
-    //console.log("Recommended Products (with reasons):", recommendedProductsData);
+    console.log("Recommended Products (with reasons):", JSON.stringify(recommendedProductsData));
 
     if (recommendedProductsData && recommendedProductsData.length > 0) {
         // --- Loop through recommended products and save to DB (Corrected for reasons) ---
@@ -386,7 +385,7 @@ const postResponseProductCheck = async (chatHistory, message) => {
             },
         });
         const { output } = await chat.send(extractionPrompt);
-        console.log("Raw post-processing output for product check (with reason):", JSON.stringify(output)); // Updated log
+        //console.log("Raw post-processing output for product check (with reason):", JSON.stringify(output)); // Updated log
 
         if (!output) {
             console.warn("Post-processing output for product check (with reason) is empty. Returning default empty array."); // Updated log

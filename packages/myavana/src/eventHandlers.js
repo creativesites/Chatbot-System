@@ -2,16 +2,27 @@
 const {DatabaseSessionStore} = require("myavana-bot-test-core");
 const core = require('myavana-bot-test-core');
 const OpenAI = require('openai');
-const {saveConversation, generateConversationSummary} = require("myavana-bot-test-core");
+const {saveConversation, generateConversationSummary, getHairIssuesForUser} = require("myavana-bot-test-core");
 const {imageAnalysisPrompt} = require("./constructPrompt");
 const {postProcessConversation, updateUserProfile} = require("myavana-bot-test-core");
 const {saveHairIssue} = require("myavana-bot-test-core");
 const {gemini15Flash} = require("@genkit-ai/googleai");
+const format = require("html-format");
 require('dotenv').config();
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+let openai;
+try {
+    if (process.env.OPENAI_API_KEY) {
+        openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY
+        });
+        console.log('✅ OpenAI client initialized for event handlers');
+    } else {
+        console.warn('⚠️ WARNING: OPENAI_API_KEY not found, image analysis may be limited');
+    }
+} catch (error) {
+    console.error('❌ Failed to initialize OpenAI client for event handlers:', error);
+}
 
 const handleWelcomeEvent = async (res, userId) => {
     //get username if available
@@ -91,6 +102,11 @@ const handleImageMessage1 = async (eventName, metadata, userId, conversationId, 
         const fileUrl = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.payload?.url || '';
         if (fileUrl) {
             try {
+                if (!openai) {
+                    console.warn('⚠️ OpenAI client not available, skipping image analysis');
+                    return false; // Skip image processing
+                }
+                
                 const analysisPrompt = imageAnalysisPrompt();
                 const response = await openai.chat.completions.create({
                     model: "gpt-4o-mini",
@@ -174,18 +190,57 @@ function removeHtmlCodeBlocks(text) {
     }
   
     return result;
+}
+function extractHtmlFromMarkdownCodeBlock(markdownHtmlString) {
+  // Check if the string starts with '```html\n'
+  if (markdownHtmlString.startsWith('```html\n')) {
+    // Remove '```html\n' from the beginning
+    let htmlContent = markdownHtmlString.substring('```html\n'.length);
+
+    // Check if the string ends with '```\n' or '```'
+    if (htmlContent.endsWith('```\n')) {
+      // Remove '```\n' from the end
+      htmlContent = htmlContent.slice(0, -('```\n'.length));
+    } else if (htmlContent.endsWith('```')) {
+      // Remove '```' from the end
+      htmlContent = htmlContent.slice(0, -('```'.length));
+    }
+
+    // Remove any trailing newline if it exists after removing the backticks
+    if (htmlContent.endsWith('\n')) {
+        htmlContent = htmlContent.slice(0, -1);
+    }
+    
+    return htmlContent;
+  } else {
+    // If it doesn't start with the expected delimiter, return the original string
+    // or handle the error as appropriate for your application
+    console.warn("The provided string does not start with '```html\\n'. Returning original string.");
+    return markdownHtmlString;
   }
-const handleImageMessage = async (eventName, metadata, userId, conversationId, chatHistory, res, message) => {
+}
+const handleImageMessage = async (eventName, metadata, userId, conversationId, chatHistory, res, message, userInfo, session) => {
     const mediaType = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.type || '';
     if (mediaType.startsWith("image/")) {
         const fileUrl = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.payload?.url || '';
         if (fileUrl) {
             try {
-                const analysisPrompt = imageAnalysisPrompt();
+                const recentHairIssues = await getHairIssuesForUser(userId);
+                const issueSummary = recentHairIssues.length > 0
+                    ? `Recent Hair Issues: ${JSON.stringify(recentHairIssues)}`
+                    : 'No recent hair issues reported.';
+                const analysisPrompt = imageAnalysisPrompt(userInfo, issueSummary);
 
                 // Use GenKit's Gemini model for image analysis
-                const chat = core.ai.chat({
-                    model: gemini15Flash, // or gemini20FlashExp
+//                const chat = core.ai.chat({
+//                    model: gemini15Flash, // or gemini20FlashExp
+//                    config: {
+//                        temperature: 0.9,
+//                    },
+//                    image: { url: fileUrl },
+//                });
+                const chat = session.chat({
+                    model: gemini15Flash,
                     config: {
                         temperature: 0.9,
                     },
@@ -193,13 +248,17 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
                 });
                 const { text } = await chat.send(`${analysisPrompt} \n\n User's Text Input: ${message}. Provided image url: ${fileUrl}`,);
                 
-                //console.log('Image analysis output:', text);
+                // console.log('Image analysis output:', {data: text});
 
                 // Format the response as JSON
                 const resp = [{
                     "messageType": "html",
-                    "message": removeHtmlCodeBlocks(text)
-                    //"message": `<html><head><link href='https://db.onlinewebfonts.com/c/79e533eca247728ccfc8113ddc2c56ca?family=Archivo+Expanded+Medium' rel='stylesheet' type='text/css'><link href='https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&display=swap' rel='stylesheet'><style>body{font-family:'Archivo',sans-serif;background-color:#f5f5f7;color:#222323;font-size:15px;line-height:1.5;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}i{font-style:italic;color:#4a4d68;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}</style></head><body><p>${text}</p></body></html>`
+                    "message": format(extractHtmlFromMarkdownCodeBlock(text))
+                    //"message": `<html><head><link href='https://db.onlinewebfonts.com/c/79e533eca247728ccfc8113ddc2c56ca?family=Archivo+Expanded+Medium' rel='stylesheet' type='text/css'>
+                    // <link href='https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&display=swap' rel='stylesheet'>
+                    // <style>body{font-family:'Archivo',sans-serif;background-color:#f5f5f7;color:#222323;font-size:15px;line-height:1.5;}
+                    // .highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}
+                    // i{font-style:italic;color:#4a4d68;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}</style></head><body><p>${text}</p></body></html>`
                 }];
 
                 // Send response to user

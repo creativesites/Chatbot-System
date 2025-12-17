@@ -1,0 +1,85 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: myavana-chatbot
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/memory: "2Gi"
+        run.googleapis.com/cpu: "1000m"
+        run.googleapis.com/max-scale: "100"
+        run.googleapis.com/min-scale: "0"
+        run.googleapis.com/timeout: "300s"
+    spec:
+      containerConcurrency: 80
+      containers:
+      - image: gcr.io/PROJECT_ID/myavana-chatbot:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "8080"
+        # Add your environment variables here
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: myavana-secrets
+              key: db_host
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: myavana-secrets
+              key: db_user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: myavana-secrets
+              key: db_password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: myavana-secrets
+              key: db_name
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: myavana-secrets
+              key: redis_host
+        - name: GOOGLE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: myavana-secrets
+              key: google_api_key
+        - name: XAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: myavana-secrets
+              key: xai_api_key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: myavana-secrets
+              key: openai_api_key
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5

@@ -1,19 +1,90 @@
 {
-  "name": "myavana-chatbot",
-  "version": "1.0.0",
-  "description": "Myavana AI Chatbot",
-  "main": "index.js",
+  "name": "myavana-chatbot-monorepo",
+  "version": "2.0.0",
+  "description": "Industry-grade AI chatbot system for Myavana hair care platform",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node packages/myavana/src/enhancedIndex.js",
+    "start:dev": "NODE_ENV=development LOG_LEVEL=debug node packages/myavana/src/enhancedIndex.js",
+    "start:myavana": "node packages/myavana/src/enhancedIndex.js",
+    "start:sienna": "node packages/sienna-naturals/src/index.js",
+    "start:xai": "node packages/myavana-xai/src/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:core": "jest packages/core",
+    "test:integration": "jest tests/integration",
+    "lint": "eslint packages/*/src/",
+    "lint:fix": "eslint packages/*/src/ --fix",
+    "build": "npm run lint && npm run test",
+    "docker:build": "docker build -t myavana-chatbot .",
+    "docker:run": "docker run -p 3000:3000 myavana-chatbot",
+    "health-check": "curl -f http://localhost:3000/health || exit 1",
+    "setup": "npm install && npm run build",
+    "clean": "rm -rf node_modules packages/*/node_modules coverage logs",
+    "logs": "mkdir -p logs && tail -f logs/combined.log",
+    "monitor": "node scripts/monitor.js"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.23.6",
+    "babel-jest": "^29.7.0",
+    "eslint": "^8.56.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MyavanaTechnology/Myavana-Chatbot.git"
   },
+  "keywords": [
+    "chatbot",
+    "ai",
+    "hair-care",
+    "customer-service",
+    "nlp",
+    "machine-learning"
+  ],
   "author": "Winston",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/MyavanaTechnology/Myavana-Chatbot/issues"
   },
-  "homepage": "https://github.com/MyavanaTechnology/Myavana-Chatbot#readme"
+  "homepage": "https://github.com/MyavanaTechnology/Myavana-Chatbot#readme",
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test"
+    }
+  },
+  "lint-staged": {
+    "packages/*/src/**/*.js": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
+  "jest": {
+    "projects": [
+      "<rootDir>/jest.config.js"
+    ]
+  }
 }

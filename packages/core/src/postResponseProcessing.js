@@ -365,51 +365,79 @@ const postResponseProductCheckPrompt = async (chatHistory, message) => {
     Identify and list the names of the products recommended in the bot's last response AND provide a brief reason for each recommendation based on the conversation.
     If no products were explicitly recommended, return an empty list.
 
-    Response Format:
+    IMPORTANT: Your response must be ONLY valid JSON. Do not include any explanatory text, markdown formatting, or code blocks. 
+    
+    Expected Response Format (JSON only):
     [
       { "productName": "Product Name 1", "reason": "Reason for recommendation 1" },
-      { "productName": "Product Name 2", "reason": "Reason for recommendation 2" },
-      ...
-    ] or [] if no products recommended.
+      { "productName": "Product Name 2", "reason": "Reason for recommendation 2" }
+    ]
+
+    If no products were recommended, respond with:
+    []
     `;
 };
 
 const postResponseProductCheck = async (chatHistory, message) => {
     const extractionPrompt = await postResponseProductCheckPrompt(chatHistory, message);
     //console.log('Extraction prompt for product check (with reason): ', extractionPrompt); // Updated log message
+    
+    // Try Gemini first
     try {
         const chat = ai.chat({
             model: gemini15Flash, // or gemini20FlashExp
             config: {
-                temperature: 0.9,
+                temperature: 0.3, // Reduced temperature for more consistent JSON formatting
             },
         });
         const { output } = await chat.send(extractionPrompt);
-        //console.log("Raw post-processing output for product check (with reason):", JSON.stringify(output)); // Updated log
+        console.log("Raw post-processing output for product check (with reason):", JSON.stringify(output)); // Enable logging to debug
 
         if (!output) {
             console.warn("Post-processing output for product check (with reason) is empty. Returning default empty array."); // Updated log
             return [];
         }
 
+        // Clean the output to handle markdown code blocks and extra whitespace
+        let cleanOutput = output.toString().trim();
+        
+        // Remove markdown code blocks if present
+        if (cleanOutput.startsWith('```json') && cleanOutput.endsWith('```')) {
+            cleanOutput = cleanOutput.slice(7, -3).trim();
+        } else if (cleanOutput.startsWith('```') && cleanOutput.endsWith('```')) {
+            cleanOutput = cleanOutput.slice(3, -3).trim();
+        }
+
+        // Handle case where AI returns just "[]" without quotes
+        if (cleanOutput === '[]' || cleanOutput === '') {
+            return [];
+        }
+
         try {
             // Attempt to parse the output as JSON (array of product objects)
-            const recommendedProductsData = JSON.parse(output); // Renamed variable
+            const recommendedProductsData = JSON.parse(cleanOutput); // Renamed variable
             if (Array.isArray(recommendedProductsData)) {
                 return recommendedProductsData; // Return the array of product objects
             } else {
                 console.warn("Post-processing output is not an array. Returning empty array.");
+                console.warn("Parsed data:", recommendedProductsData);
                 return [];
             }
         } catch (jsonError) {
             console.error("Error parsing post-processing JSON output:", jsonError);
+            console.error("Raw output was:", JSON.stringify(output));
+            console.error("Cleaned output was:", cleanOutput);
             console.warn("Returning default empty array due to JSON parsing error.");
             return [];
         }
 
     } catch (error) {
-        console.error("Error in postResponseProductCheck:", error);
+        console.error("Gemini model failed in postResponseProductCheck:", error);
+        console.warn("Returning default empty array due to API call error - skipping xAI fallback for post-processing to avoid additional costs.");
         return [];
+        
+        // Note: We're not adding xAI fallback here to avoid extra API costs for post-processing
+        // The main conversation flow is more critical than product extraction
     }
 };
 

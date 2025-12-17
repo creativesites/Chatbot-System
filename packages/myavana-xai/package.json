@@ -1,0 +1,16 @@
+{
+  "name": "myavana-ai-bot-xai",
+  "version": "1.1.2",
+  "description": "Myavana-specific bot implementation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "html-format": "^1.1.7",
+    "myavana-bot-test-core": "^1.0.7",
+    "node-cache": "^5.1.2",
+    "openai": "^4.86.1",
+    "perf_hooks": "^0.0.1"
+  }
+}

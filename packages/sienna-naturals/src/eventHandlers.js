@@ -1,17 +1,36 @@
-// eventHandlers.js
+// eventHandlers.js - Enhanced for Sienna Naturals
 const {DatabaseSessionStore} = require("myavana-bot-test-core");
 const core = require('myavana-bot-test-core');
 const OpenAI = require('openai');
-const {saveConversation, generateConversationSummary} = require("myavana-bot-test-core");
+const {saveConversation, generateConversationSummary, getHairIssuesForUser} = require("myavana-bot-test-core");
 const {imageAnalysisPrompt} = require("./constructPrompt");
 const {postProcessConversation, updateUserProfile} = require("myavana-bot-test-core");
 const {saveHairIssue} = require("myavana-bot-test-core");
-const {gemini15Flash} = require("@genkit-ai/googleai");
+const {gemini15Flash, gemini20FlashExp} = require("@genkit-ai/googleai");
 require('dotenv').config();
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+// Simple HTML formatter function (replacement for html-format)
+function formatHtml(html) {
+    if (!html || typeof html !== 'string') {
+        return html;
+    }
+    // Basic HTML formatting - just ensure it's clean
+    return html.trim();
+}
+
+let openai;
+try {
+    if (process.env.OPENAI_API_KEY) {
+        openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY
+        });
+        console.log('✅ OpenAI client initialized for Sienna Naturals event handlers');
+    } else {
+        console.warn('⚠️ WARNING: OPENAI_API_KEY not found, image analysis may be limited');
+    }
+} catch (error) {
+    console.error('❌ Failed to initialize OpenAI client for Sienna Naturals event handlers:', error);
+}
 function removeHtmlCodeBlocks(text) {
     if (!text) {
       return ""; // Handle null or undefined input
@@ -33,6 +52,35 @@ function removeHtmlCodeBlocks(text) {
   
     return result;
 }
+
+function extractHtmlFromMarkdownCodeBlock(markdownHtmlString) {
+  // Check if the string starts with '```html\n'
+  if (markdownHtmlString.startsWith('```html\n')) {
+    // Remove '```html\n' from the beginning
+    let htmlContent = markdownHtmlString.substring('```html\n'.length);
+
+    // Check if the string ends with '```\n' or '```'
+    if (htmlContent.endsWith('```\n')) {
+      // Remove '```\n' from the end
+      htmlContent = htmlContent.slice(0, -('```\n'.length));
+    } else if (htmlContent.endsWith('```')) {
+      // Remove '```' from the end
+      htmlContent = htmlContent.slice(0, -('```'.length));
+    }
+
+    // Remove any trailing newline if it exists after removing the backticks
+    if (htmlContent.endsWith('\n')) {
+        htmlContent = htmlContent.slice(0, -1);
+    }
+    
+    return htmlContent;
+  } else {
+    // If it doesn't start with the expected delimiter, return the original string
+    console.warn("The provided string does not start with '```html\\n'. Returning original string.");
+    return markdownHtmlString;
+  }
+}
+
 function cleanText(text) {
     if (!text) {
       return ""; // Handle null or undefined input
@@ -46,7 +94,7 @@ function cleanText(text) {
   
     // Trim leading and trailing spaces
     return text.trim();
-  }
+}
 
 const handleWelcomeEvent = async (res, userId) => {
     //get username if available
@@ -111,102 +159,37 @@ const handleWelcomeEvent = async (res, userId) => {
     });
 };
 
-const handleImageMessage1 = async (eventName, metadata, userId, conversationId, chatHistory, res, message) => {
+
+const handleImageMessage = async (eventName, metadata, userId, conversationId, chatHistory, res, message, userInfo, session) => {
     const mediaType = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.type || '';
     if (mediaType.startsWith("image/")) {
         const fileUrl = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.payload?.url || '';
         if (fileUrl) {
             try {
-                const analysisPrompt = imageAnalysisPrompt();
-                const response = await openai.chat.completions.create({
-                    model: "gpt-4o-mini",
-                    messages: [
-                        {
-                            role: "user",
-                            content: [
-                                { type: "text", text: `${analysisPrompt} \n\n User's Text Input: ${message}` }, // Combine prompt with user's text
-                                {
-                                    type: "image_url",
-                                    image_url: {
-                                        "url": fileUrl,
-                                    },
-                                },
-                            ],
-                        },
-                    ],
-                    store: true,
-                });
+                // Get recent hair issues for context
+                const recentHairIssues = await getHairIssuesForUser(userId);
+                const issueSummary = recentHairIssues.length > 0
+                    ? `Recent Hair Issues: ${JSON.stringify(recentHairIssues)}`
+                    : 'No recent hair issues reported.';
+                
+                const analysisPrompt = imageAnalysisPrompt(userInfo, issueSummary);
 
-                //console.log(response.choices[0].message.content);
-                const analysisText = response.choices[0].message.content;
-                console.log('Image analysis response: ', response.choices[0].message.content)
-                const resp = [ {
-                    "messageType": "html",
-                    "message": `<html><head><link href='https://db.onlinewebfonts.com/c/79e533eca247728ccfc8113ddc2c56ca?family=Archivo+Expanded+Medium' rel='stylesheet' type='text/css'><link href='https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&display=swap' rel='stylesheet'><style>body{font-family:'Archivo',sans-serif;background-color:#f5f5f7;color:#222323;font-size:15px;line-height:1.5;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}i{font-style:italic;color:#4a4d68;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}</style></head><body><p>${analysisText}</p></body></html>`
-                }
-                ]
-                // Send response to user
-                res.json(resp);
-                // Add user and bot messages to chat history
-                chatHistory.push({ role: 'user', content: `User uploaded an image: ${fileUrl}, and said: ${message}` });
-                chatHistory.push({ role: 'assistant', content: analysisText });
-                const postProcessData = await postProcessConversation(chatHistory, message);
-                //console.log("Post-processed data:", postProcessData);
-
-                if (postProcessData.user_profile_updates) {
-                    // TODO: Update user profile in database based on postProcessData.user_profile_updates
-                    console.log("User profile updates to be applied:", postProcessData.user_profile_updates);
-                    await updateUserProfile(userId, postProcessData.user_profile_updates);
-                }
-
-                if (postProcessData.hair_issue_extractions && postProcessData.hair_issue_extractions.hair_issues_reported && postProcessData.hair_issue_extractions.hair_issues_reported.length > 0) {
-                    for (const issue of postProcessData.hair_issue_extractions.hair_issues_reported) {
-                        await saveHairIssue(userId, issue, analysisText); // Or refine advice from output
-                        console.log(`Hair issue reported and saved: ${issue}`);
-                    }
-                }
-
-                // Save updated chat history
-                await saveConversation(conversationId, userId, chatHistory, await generateConversationSummary(chatHistory));
-
-
-                return true;
-            } catch (imageError) {
-                console.error("Error analyzing image with Gemini:", imageError);
-                res.status(500).json({ message: "Sorry, I couldn't analyze your image. Please try again." });
-                return true; // Indicate that the image event was handled
-            }
-        }
-    }
-
-    return false; // Not an image event
-};
-
-const handleImageMessage = async (eventName, metadata, userId, conversationId, chatHistory, res, message) => {
-    const mediaType = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.type || '';
-    if (mediaType.startsWith("image/")) {
-        const fileUrl = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.payload?.url || '';
-        if (fileUrl) {
-            try {
-                const analysisPrompt = imageAnalysisPrompt();
-
-                // Use GenKit's Gemini model for image analysis
-                const chat = core.ai.chat({
-                    model: gemini15Flash, // or gemini20FlashExp
+                // Use GenKit's Gemini model for image analysis with session
+                const chat = session.chat({
+                    model: gemini15Flash,
                     config: {
                         temperature: 0.9,
                     },
                     image: { url: fileUrl },
                 });
-                const { text } = await chat.send(`${analysisPrompt} \n\n User's Text Input: ${message}. Provided image url: ${fileUrl}`,);
+                const { text } = await chat.send(`${analysisPrompt} \n\n User's Text Input: ${message}. Provided image url: ${fileUrl}`);
                 
-                //console.log('Image analysis output:', text);
+                console.log('Sienna Naturals image analysis output:', {data: text});
 
-                // Format the response as JSON
+                // Format the response as JSON with enhanced HTML formatting
                 const resp = [{
                     "messageType": "html",
-                    "message": cleanText(text)
-                    //"message": `<html><head><link href='https://db.onlinewebfonts.com/c/79e533eca247728ccfc8113ddc2c56ca?family=Archivo+Expanded+Medium' rel='stylesheet' type='text/css'><link href='https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&display=swap' rel='stylesheet'><style>body{font-family:'Archivo',sans-serif;background-color:#f5f5f7;color:#222323;font-size:15px;line-height:1.5;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}i{font-style:italic;color:#4a4d68;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}</style></head><body><p>${text}</p></body></html>`
+                    "message": formatHtml(extractHtmlFromMarkdownCodeBlock(text))
                 }];
 
                 // Send response to user
@@ -218,7 +201,7 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
 
                 // Post-process the conversation
                 const postProcessData = await postProcessConversation(chatHistory, message);
-                console.log("Post-processed data:", JSON.stringify(postProcessData));
+                console.log("Sienna Naturals post-processed data:", JSON.stringify(postProcessData));
 
                 // Update user profile if needed
                 if (postProcessData.user_profile_updates) {
@@ -228,8 +211,8 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
                 // Save hair issues if reported
                 if (postProcessData.hair_issue_extractions && postProcessData.hair_issue_extractions.hair_issues_reported && postProcessData.hair_issue_extractions.hair_issues_reported.length > 0) {
                     for (const issue of postProcessData.hair_issue_extractions.hair_issues_reported) {
-                        await saveHairIssue(userId, issue, analysisText);
-                        console.log(`Hair issue reported and saved: ${issue}`);
+                        await saveHairIssue(userId, issue, text);
+                        console.log(`Sienna Naturals hair issue reported and saved: ${issue}`);
                     }
                 }
 
@@ -238,8 +221,8 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
 
                 return true;
             } catch (imageError) {
-                console.error("Error analyzing image with GenKit:", imageError);
-                //res.status(500).json({ message: "Sorry, I couldn't analyze your image. Please try again." });
+                console.error("Error analyzing image with GenKit for Sienna Naturals:", imageError);
+                res.status(500).json({ message: "Sorry, I couldn't analyze your image. Please try again." });
                 return true; // Indicate that the image event was handled
             }
         }

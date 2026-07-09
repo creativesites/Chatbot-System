@@ -6,7 +6,7 @@ const {saveConversation, generateConversationSummary, getHairIssuesForUser} = re
 const {imageAnalysisPrompt} = require("./constructPrompt");
 const {postProcessConversation, updateUserProfile} = require("myavana-bot-test-core");
 const {saveHairIssue} = require("myavana-bot-test-core");
-const {gemini15Flash, gemini20FlashExp} = require("@genkit-ai/googleai");
+const { googleAI } = require('@genkit-ai/google-genai');
 require('dotenv').config();
 
 // Simple HTML formatter function (replacement for html-format)
@@ -176,7 +176,7 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
 
                 // Use GenKit's Gemini model for image analysis with session
                 const chat = session.chat({
-                    model: gemini15Flash,
+                    model: googleAI.model('gemini-3-flash-preview'),
                     config: {
                         temperature: 0.9,
                     },

@@ -1,37 +1,40 @@
 {
     "name": "myavana-bot-test-core",
-    "version": "2.0.6",
+    "version": "2.2.0",
     "description": "Shared bot functionality with enhanced features",
     "main": "index.js",
     "scripts": {
-      "test": "jest",
-      "test:watch": "jest --watch",
-      "test:coverage": "jest --coverage",
-      "lint": "eslint src/",
-      "lint:fix": "eslint src/ --fix"
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "lint": "eslint src/",
+        "lint:fix": "eslint src/ --fix"
     },
     "dependencies": {
-      "@genkit-ai/googleai": "^0.9.12",
-      "dotenv": "^16.4.7",
-      "genkit": "^0.9.12",
-      "pg": "^8.13.1",
-      "redis": "^4.7.0",
-      "winston": "^3.11.0",
-      "joi": "^17.11.0",
-      "isomorphic-dompurify": "^2.9.0",
-      "express-rate-limit": "^7.1.5",
-      "express-slow-down": "^2.0.1",
-      "node-cache": "^5.1.2",
-      "uuid": "^9.0.1"
+        "@genkit-ai/google-genai": "^1.28.0",
+        "@genkit-ai/googleai": "^1.28.0",
+        "@google/genai": "^1.39.0",
+        "dotenv": "^16.4.7",
+        "express-rate-limit": "^7.1.5",
+        "express-slow-down": "^2.0.1",
+        "genkit": "^1.28.0",
+        "isomorphic-dompurify": "^2.9.0",
+        "joi": "^17.11.0",
+        "node-cache": "^5.1.2",
+        "pg": "^8.13.1",
+        "redis": "^4.7.0",
+        "uuid": "^9.0.1",
+        "winston": "^3.11.0",
+        "zod": "^3.25.76"
     },
     "devDependencies": {
-      "jest": "^29.7.0",
-      "babel-jest": "^29.7.0",
-      "@babel/preset-env": "^7.23.6",
-      "eslint": "^8.56.0",
-      "supertest": "^6.3.3"
+        "@babel/preset-env": "^7.23.6",
+        "babel-jest": "^29.7.0",
+        "eslint": "^8.56.0",
+        "jest": "^29.7.0",
+        "supertest": "^6.3.3"
     },
     "engines": {
-      "node": ">=18.0.0"
+        "node": ">=18.0.0"
     }
-  }
+}

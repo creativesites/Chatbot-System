@@ -1,16 +1,25 @@
 //constructPrompt.js
 const systemPrompt = require("./system");
 const {getHairIssuesForUser} = require("myavana-bot-test-core");
-const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions } = require('myavana-bot-test-core');
+const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions, getTrainingData } = require('myavana-bot-test-core');
 
 
-async function constructPrompt(userId, userDetails, chatHistory, allConversationsSummary, onError) {
+/**
+ * Builds the full system prompt for the AI model by fetching all context data from the DB.
+ * This is only called on a cache miss — the result is passed to cacheManager.getOrCreateCache().
+ *
+ * @param {string} userId
+ * @param {object|null} userDetails - Row from the users table (or null for a new user)
+ * @param {string|null} allConversationsSummary - Latest conversation summary
+ * @param {boolean} onError - Legacy flag (unused; kept for backward compatibility)
+ * @returns {Promise<string>} Full system prompt string (~8k tokens typical)
+ */
+async function constructPrompt(userId, userDetails, allConversationsSummary, onError) {
     console.log('🧠 ===== CONSTRUCT PROMPT START =====');
     console.log('📊 Input Parameters:', {
         userId: userId || 'undefined',
         hasUserDetails: !!userDetails,
         userDetailsKeys: userDetails ? Object.keys(userDetails) : [],
-        chatHistoryLength: chatHistory ? chatHistory.length : 0,
         hasSummary: !!allConversationsSummary,
         summaryLength: allConversationsSummary ? allConversationsSummary.length : 0,
         onError: typeof onError
@@ -83,7 +92,21 @@ async function constructPrompt(userId, userDetails, chatHistory, allConversation
             hasTestimonials: allTestimonials.length > 0
         });
 
-        console.log('📋 Fetching additional instructions...');
+        
+        console.log('📚 Fetching training data...');
+        const trainingData = await getTrainingData(20);
+        const trainingDataSummary = trainingData.length > 0
+            ? `Training Data (Latest ${trainingData.length}):\n${JSON.stringify(trainingData.map(item => ({
+                title: item.title || 'Untitled',
+                sourceType: item.source_type || 'text',
+                excerpt: (item.extracted_text || '').slice(0, 1200)
+            })), null, 2)}`
+            : 'No training data available.';
+        console.log('✅ Training data fetched:', {
+            trainingCount: trainingData.length,
+            hasTraining: trainingData.length > 0
+        });
+console.log('📋 Fetching additional instructions...');
         const additionalInstructions = await getAdditionalInstructions();
         const instructionsSummary = additionalInstructions.length > 0
             ? `Additional Bot Instructions:\n${JSON.stringify(additionalInstructions, null, 2)}`
@@ -108,7 +131,8 @@ async function constructPrompt(userId, userDetails, chatHistory, allConversation
             ${youtubeVideosSummary}
             ${testimonialsSummary}
             ${instructionsSummary}
-        `;
+                    ${trainingDataSummary}
+`;
         
         console.log('📊 Initial user details string stats:', {
             length: userDetailsString.length,
@@ -122,17 +146,16 @@ async function constructPrompt(userId, userDetails, chatHistory, allConversation
                 User Information: ${userInfo}
                 Previous Conversations Summary: ${summary}
                 Previous hair issues: ${issueSummary}
-                Chat History: ${JSON.stringify(chatHistory)}
                 ${productRecommendations}
                 ${faqsSummary}
                 ${youtubeVideosSummary}
                 ${testimonialsSummary}
                 ${instructionsSummary}
-            `;
+                    ${trainingDataSummary}
+    `;
             console.log('📊 Enhanced user details string stats (with chat history):', {
                 length: userDetailsString.length,
                 lines: userDetailsString.split('\n').length,
-                chatHistorySize: JSON.stringify(chatHistory).length
             });
         }
 
@@ -189,7 +212,6 @@ async function constructPrompt(userId, userDetails, chatHistory, allConversation
             stack: error.stack,
             userId: userId || 'undefined',
             hasUserDetails: !!userDetails,
-            hasChatHistory: !!chatHistory,
             hasSummary: !!allConversationsSummary,
             errorTime: new Date(errorTime).toISOString()
         });
@@ -211,146 +233,6 @@ async function constructPrompt(userId, userDetails, chatHistory, allConversation
         return fallbackPrompt;
     }
 }
-const postProcessingPrompt = (chatHistory, message) => {
-    return `
-    You are a Myavana expert AI assistant designed to analyze user conversations and user's name and extract structured information related to hair care.
-
-    **Task:** Analyze the following conversation history and the user's latest message to:
-
-    1.  **Extract User Profile Parameters:** Identify any mentions of the user's name, hair characteristics, concerns, goals, habits, and preferences. Extract these as structured parameters based on the provided Zod schema for UserProfileUpdateSchema. If a parameter is not mentioned or cannot be inferred, leave it as null or optional as defined in the schema.  **Specifically, try to identify and extract the user's name if they mention it during the conversation.**
-
-    2.  **Extract Hair Issues:** Identify any specific hair issues the user mentions in their latest message. List these issues as an array of strings in the "hair_issues_reported" field, as defined in the HairIssueExtractionSchema. If no issues are mentioned, return an empty array or null for this field as defined in the schema.
-
-    **Conversation History:**
-    ${JSON.stringify(chatHistory)}
-
-    **User's Latest Message:**
-    "${message}"
-    
-    **Response Schema**
-    {
-  "type": "OBJECT",
-  "properties": {
-    "user_profile_updates": {
-      "type": "OBJECT",
-      "properties": {
-        "name": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "hair_type": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "hair_texture": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "porosity": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "elasticity": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "density": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "curl_pattern": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "hair_color_natural": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "hair_color_treated": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "hair_concerns": {
-          "type": "ARRAY",
-          "items": {
-            "type": "STRING"
-          },
-          "nullable": true
-        },
-        "hair_goals": {
-          "type": "ARRAY",
-          "items": {
-            "type": "STRING"
-          },
-          "nullable": true
-        },
-        "hair_history_treatments": {
-          "type": "ARRAY",
-          "items": {
-            "type": "STRING"
-          },
-          "nullable": true
-        },
-        "hair_styling_habits": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "product_preferences_brands": {
-          "type": "ARRAY",
-          "items": {
-            "type": "STRING"
-          },
-          "nullable": true
-        },
-        "product_preferences_ingredients": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "journey_stage_intent": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "damage_level_self_reported": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "experimenting_interest": {
-          "type": "BOOLEAN",
-          "nullable": true
-        },
-        "boredom_expression": {
-          "type": "BOOLEAN",
-          "nullable": true
-        },
-        "confidence_level_inferred": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "desperation_level_inferred": {
-          "type": "STRING",
-          "nullable": true
-        }
-      },
-      "nullable": true
-    },
-    "hair_issue_extractions": {
-      "type": "OBJECT",
-      "properties": {
-        "hair_issues_reported": {
-          "type": "ARRAY",
-          "items": {
-            "type": "STRING"
-          },
-          "nullable": true
-        }
-      },
-      "nullable": true
-    }
-  }
-}
-    `;
-};
-
 const imageAnalysisPrompt =  (userInfo, issueSummary) => {
     return `
 You are an AI assistant for Myavana, specializing in analyzing hair and providing personalized haircare advice.
@@ -484,6 +366,5 @@ Enclose your ENTIRE response within the following basic HTML boilerplate structu
 }
 module.exports = {
     constructPrompt,
-    postProcessingPrompt,
     imageAnalysisPrompt
 }

@@ -1,5 +1,6 @@
 // packages/core/index.js - Fixed exports with proper module loading
 const path = require('path');
+const cacheManager = require('./src/cacheManager');
 
 // Helper function to safely load modules
 function safeRequire(modulePath, moduleName) {
@@ -28,6 +29,8 @@ const modules = {
     // AI and session management
     ai: safeRequire('./src/ai', 'ai'),
     DatabaseSessionStore: safeRequire('./src/session', 'DatabaseSessionStore'),
+    cacheManager: safeRequire('./src/cacheManager', 'cacheManager'),
+    
   
     // User and conversation management
     getUserDetails: safeRequire('./src/user', 'user')?.getUserDetails,
@@ -50,6 +53,8 @@ const modules = {
     getAllYoutubeVideos: safeRequire('./src/utils', 'utils')?.getAllYoutubeVideos,
     getAllTestimonials: safeRequire('./src/utils', 'utils')?.getAllTestimonials,
     getAdditionalInstructions: safeRequire('./src/utils', 'utils')?.getAdditionalInstructions,
+    getTrainingData: safeRequire('./src/utils', 'utils')?.getTrainingData,
+    getChatbotWelcomeSettings: safeRequire('./src/utils', 'utils')?.getChatbotWelcomeSettings,
 };
 
 // Smart systems - Load with proper error handling and fallbacks
@@ -118,6 +123,32 @@ for (const [moduleName, modulePath] of Object.entries(smartModulePaths)) {
     }
 }
 
+// Trend-aware knowledge
+const trendModules = {
+    trendManager: safeRequire('./src/trendManager', 'trendManager'),
+    getTrendContext: safeRequire('./src/trendManager', 'trendManager')?.getTrendContext,
+    generateTrends: safeRequire('./src/trendManager', 'trendManager')?.generateTrends,
+};
+
+// Conversation-driving behavior
+const conversationDriverModules = {
+    conversationDriver: safeRequire('./src/conversationDriver', 'conversationDriver'),
+    getConversationDirective: safeRequire('./src/conversationDriver', 'conversationDriver')?.getConversationDirective,
+};
+
+// Adaptive Personality Engine
+const personalityModules = {
+    personaClassifier: safeRequire('./src/personaClassifier', 'personaClassifier'),
+    buildMessageContext: safeRequire('./src/messageContextBuilder', 'messageContextBuilder')?.buildMessageContext,
+};
+
+// Tool-enabled agents
+const agentToolModules = {
+    agentTools: safeRequire('./src/agentTools', 'agentTools'),
+    globalTools: safeRequire('./src/agentTools', 'agentTools')?.globalTools,
+    createUserTools: safeRequire('./src/agentTools', 'agentTools')?.createUserTools,
+};
+
 // Enhanced systems
 const enhancedModules = {
     Logger: safeRequire('./src/logger', 'Logger')?.Logger,
@@ -132,7 +163,11 @@ const enhancedModules = {
 module.exports = {
     ...modules,
     ...smartModules,
-    ...enhancedModules
+    ...enhancedModules,
+    ...trendModules,
+    ...conversationDriverModules,
+    ...personalityModules,
+    ...agentToolModules,
 };
 
 // Log export summary

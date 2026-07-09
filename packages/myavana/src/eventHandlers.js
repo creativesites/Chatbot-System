@@ -1,12 +1,12 @@
 // eventHandlers.js
-const {DatabaseSessionStore} = require("myavana-bot-test-core");
+// const {DatabaseSessionStore} = require("myavana-bot-test-core");
 const core = require('myavana-bot-test-core');
 const OpenAI = require('openai');
-const {saveConversation, generateConversationSummary, getHairIssuesForUser} = require("myavana-bot-test-core");
+const {saveConversation, generateConversationSummary, getHairIssuesForUser, getChatbotWelcomeSettings} = require("myavana-bot-test-core");
 const {imageAnalysisPrompt} = require("./constructPrompt");
 const {postProcessConversation, updateUserProfile} = require("myavana-bot-test-core");
 const {saveHairIssue} = require("myavana-bot-test-core");
-const {gemini15Flash} = require("@genkit-ai/googleai");
+const { googleAI } = require('@genkit-ai/google-genai');
 const format = require("html-format");
 require('dotenv').config();
 
@@ -25,16 +25,59 @@ try {
 }
 
 const handleWelcomeEvent = async (res, userId) => {
-    //get username if available
+    const defaultWelcomeMessage = "<html><head><style>body{font-family:'Archivo',sans-serif;}h3{font-size:1.0em;font-weight:600;color:#222323;}p{color:#222323;font-size:0.9em;line-height:1.5;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}</style></head><body><p><i>Hey there, beautiful! 👋 I'm Mya, your</i> <span class='highlight'>MYAVANA Hair AI</span> guide! I'm here to help you understand your hair and get the best recommendations. How can I assist you today?</p></body></html>";
+
+    const buildWelcomeMessage = (text) => {
+        if (!text) return defaultWelcomeMessage;
+        const safeText = String(text).replace(/\n/g, '<br />');
+        
+        return `<html><head><style>body{font-family:'Archivo',sans-serif;}h3{font-size:1.0em;font-weight:600;color:#222323;}p{color:#222323;font-size:0.9em;line-height:1.5;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}</style></head><body><p>${safeText}</p></body></html>`;
+    };
+
+    const normalizeImages = (value) => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value.filter(Boolean);
+        if (typeof value === 'string') {
+            try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+            } catch (error) {
+                return [];
+            }
+        }
+        return [];
+    };
+
+    let welcomeSettings = null;
+    try {
+        welcomeSettings = await getChatbotWelcomeSettings();
+    } catch (error) {
+        console.warn('⚠️ Failed to load welcome settings:', error.message);
+    }
+
+    const welcomeImages = normalizeImages(welcomeSettings?.image_urls);
+    const welcomeText = welcomeSettings?.welcome_text || null;
+
+    const headerImage = welcomeImages[0] || "https://cdn.shopify.com/s/files/1/0890/7956/files/IMG_4043.webp";
+    const fallbackImages = [
+        "https://cdn.shopify.com/s/files/1/0890/7956/files/pic13.jpg",
+        "https://cdn.shopify.com/s/files/1/0890/7956/files/Consultation.jpg",
+        "https://cdn.shopify.com/s/files/1/0890/7956/files/image-asset_10.png",
+        "https://pbs.twimg.com/media/E0-9K5kWQAEDTuG.jpg",
+        "https://cdn.shopify.com/s/files/1/0890/7956/files/image-asset_10.png"
+    ];
+
+    const getImage = (index) => welcomeImages[index + 1] || fallbackImages[index];
+
     const welcome = [{
         "messageType": "html",
         "metadata": {
             "templateId": "7",
             "payload": {
-                "headerImgSrc": "https://cdn.shopify.com/s/files/1/0890/7956/files/IMG_4043.webp",
+                "headerImgSrc": headerImage,
                 "elements": [
                     {
-                        "imgSrc": "https://cdn.shopify.com/s/files/1/0890/7956/files/pic13.jpg",
+                        "imgSrc": getImage(0),
                         "title": "MYAVANA Company",
                         "description": "Learn about the company’s mission, vision, core values and Team MYAVANA. Explore to view MYAVANA Moments.",
                         "action": {
@@ -43,7 +86,7 @@ const handleWelcomeEvent = async (res, userId) => {
                         }
                     },
                     {
-                        "imgSrc": "https://cdn.shopify.com/s/files/1/0890/7956/files/Consultation.jpg",
+                        "imgSrc": getImage(1),
                         "action": {
                             "text": "What is MYAVANA SI?",
                             "type": "quick_reply"
@@ -52,7 +95,7 @@ const handleWelcomeEvent = async (res, userId) => {
                         "title": "MYAVANA SI"
                     },
                     {
-                        "imgSrc": "https://cdn.shopify.com/s/files/1/0890/7956/files/image-asset_10.png",
+                        "imgSrc": getImage(2),
                         "action": {
                             "type": "quick_reply",
                             "text": "What is MYAVANA HAIR AI Technology?"
@@ -61,7 +104,7 @@ const handleWelcomeEvent = async (res, userId) => {
                         "description": "Learn about your current hair texture & type and receive instant results in a few seconds including product recommendations through HAIR AI Technology. Explore here to experience MYAVANA HAIR AI with Instant Results."
                     },
                     {
-                        "imgSrc": "https://pbs.twimg.com/media/E0-9K5kWQAEDTuG.jpg",
+                        "imgSrc": getImage(3),
                         "description": "Learn about your journey to hair nirvana …. Because We C.A.R.E. We Consult. Analyze. Recommend. Educate. Beginning with a digital assessment, or you can book a virtual consultation. Explore here for MYAVANA Healthy Hair Tips.",
                         "action": {
                             "type": "quick_reply",
@@ -70,7 +113,7 @@ const handleWelcomeEvent = async (res, userId) => {
                         "title": "MYAVANA C.A.R.E. System"
                     },
                     {
-                        "imgSrc": "https://cdn.shopify.com/s/files/1/0890/7956/files/image-asset_10.png",
+                        "imgSrc": getImage(4),
                         "title": "Ask my own question",
                         "action": {
                             "text": "Ask my own question",
@@ -83,7 +126,7 @@ const handleWelcomeEvent = async (res, userId) => {
             },
             "contentType": "300"
         },
-        "message": "<html><head><style>body{font-family:'Archivo',sans-serif;}h3{font-size:1.0em;font-weight:600;color:#222323;}p{color:#222323;font-size:0.9em;line-height:1.5;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}</style></head><body><p><i>Hey there, beautiful! 👋 I'm Mya, your</i> <span class='highlight'>MYAVANA Hair AI</span> guide! I'm here to help you understand your hair and get the best recommendations. How can I assist you today?</p></body></html>",
+        "message": buildWelcomeMessage(welcomeText),
         "platform": "kommunicate"
     }];
     res.json(welcome);
@@ -91,10 +134,12 @@ const handleWelcomeEvent = async (res, userId) => {
         initialState: {
             userId: userId,
         },
-        store: new DatabaseSessionStore(),
+        store: new core.DatabaseSessionStore(),
         sessionId: userId
     });
 };
+
+
 
 const handleImageMessage1 = async (eventName, metadata, userId, conversationId, chatHistory, res, message) => {
     const mediaType = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.type || '';
@@ -220,84 +265,205 @@ function extractHtmlFromMarkdownCodeBlock(markdownHtmlString) {
   }
 }
 const handleImageMessage = async (eventName, metadata, userId, conversationId, chatHistory, res, message, userInfo, session) => {
+    console.log('🖼️ ===== IMAGE MESSAGE HANDLER START =====');
+    
     const mediaType = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.type || '';
+    
     if (mediaType.startsWith("image/")) {
         const fileUrl = metadata?.KM_CHAT_CONTEXT?.attachments[0]?.payload?.url || '';
+        
         if (fileUrl) {
+            console.log('📸 Image detected:', {
+                mediaType: mediaType,
+                fileUrl: fileUrl.substring(0, 100) + '...',
+                userId: userId
+            });
+            
             try {
+                console.log('🔍 Fetching user hair issues...');
                 const recentHairIssues = await getHairIssuesForUser(userId);
                 const issueSummary = recentHairIssues.length > 0
                     ? `Recent Hair Issues: ${JSON.stringify(recentHairIssues)}`
                     : 'No recent hair issues reported.';
-                const analysisPrompt = imageAnalysisPrompt(userInfo, issueSummary);
-
-                // Use GenKit's Gemini model for image analysis
-//                const chat = core.ai.chat({
-//                    model: gemini15Flash, // or gemini20FlashExp
-//                    config: {
-//                        temperature: 0.9,
-//                    },
-//                    image: { url: fileUrl },
-//                });
-                const chat = session.chat({
-                    model: gemini15Flash,
-                    config: {
-                        temperature: 0.9,
-                    },
-                    image: { url: fileUrl },
-                });
-                const { text } = await chat.send(`${analysisPrompt} \n\n User's Text Input: ${message}. Provided image url: ${fileUrl}`,);
                 
-                // console.log('Image analysis output:', {data: text});
+                console.log('✅ Hair issues fetched:', {
+                    issueCount: recentHairIssues.length,
+                    hasIssues: recentHairIssues.length > 0
+                });
+                
+                console.log('🧠 Generating image analysis prompt...');
+                const analysisPrompt = imageAnalysisPrompt(userInfo, issueSummary);
+                console.log('✅ Analysis prompt generated:', {
+                    promptLength: analysisPrompt.length,
+                    estimatedTokens: Math.ceil(analysisPrompt.length / 4)
+                });
 
-                // Format the response as JSON
+                // ===== NEW: CACHE MANAGEMENT FOR IMAGE ANALYSIS =====
+                console.log('🗄️ ===== IMAGE ANALYSIS CACHE MANAGEMENT =====');
+                const cacheStartTime = performance.now();
+                
+                // Get database connection
+                
+                // Use a different cache key pattern for image analysis
+                const imageCacheUserId = `${userId}_image_analysis`;
+                const cacheResult = await core.cacheManager.getOrCreateCache(imageCacheUserId, analysisPrompt);
+                const cacheEndTime = performance.now();
+                
+                console.log('📊 Image Analysis Cache Summary:', {
+                    cacheName: cacheResult.cacheName,
+                    isNewCache: cacheResult.isNewCache,
+                    hasError: !!cacheResult.error,
+                    cacheTime: (cacheEndTime - cacheStartTime).toFixed(2) + 'ms'
+                });
+                console.log('🗄️ ===== IMAGE ANALYSIS CACHE COMPLETE =====');
+
+                // Use Gemini model for image analysis with caching
+                console.log('🤖 Initializing Gemini for image analysis with caching...');
+                const modelStartTime = performance.now();
+                
+                let chat;
+                if (cacheResult.cacheName) {
+                    console.log('✅ Using cached analysis prompt:', cacheResult.cacheName);
+                    
+                    chat = session.chat({
+                        model: googleAI.model('gemini-3-flash-preview'),
+                        cache: cacheResult.cacheName, // Use cached system instructions
+                        config: {
+                            temperature: 0.9,
+                        },
+                        image: { url: fileUrl },
+                    });
+                } else {
+                    console.log('⚠️ Cache unavailable, using standard chat for image analysis');
+                    
+                    chat = session.chat({
+                        model: googleAI.model('gemini-3-flash-preview'),
+                        system: analysisPrompt, // Fallback to regular system prompt
+                        config: {
+                            temperature: 0.9,
+                        },
+                        image: { url: fileUrl },
+                    });
+                }
+                
+                const modelInitTime = performance.now() - modelStartTime;
+                console.log('✅ Image analysis model initialized in', modelInitTime.toFixed(2), 'ms');
+                console.log('📊 Analysis Configuration:', {
+                    model: 'gemini-3-flash-preview',
+                    temperature: 0.9,
+                    hasImage: true,
+                    imageUrl: fileUrl.substring(0, 100) + '...',
+                    usedCache: !!cacheResult.cacheName,
+                    userMessage: message
+                });
+                
+                console.log('📤 Sending image to Gemini for analysis...');
+                const analysisStartTime = performance.now();
+                
+                const { text } = await chat.send(
+                    `${analysisPrompt} \n\n User's Text Input: ${message}. Provided image url: ${fileUrl}`
+                );
+                
+                const analysisTime = performance.now() - analysisStartTime;
+                console.log('✅✅✅ IMAGE ANALYSIS COMPLETE!');
+                console.log('📊 Analysis Stats:', {
+                    analysisTime: analysisTime.toFixed(2) + 'ms',
+                    responseLength: text.length,
+                    estimatedTokens: Math.ceil(text.length / 4),
+                    usedCache: !!cacheResult.cacheName,
+                    costSavings: cacheResult.cacheName ? 'Significant (cached prompt)' : 'None'
+                });
+
+                console.log('🎨 Formatting HTML response...');
                 const resp = [{
                     "messageType": "html",
                     "message": format(extractHtmlFromMarkdownCodeBlock(text))
-                    //"message": `<html><head><link href='https://db.onlinewebfonts.com/c/79e533eca247728ccfc8113ddc2c56ca?family=Archivo+Expanded+Medium' rel='stylesheet' type='text/css'>
-                    // <link href='https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&display=swap' rel='stylesheet'>
-                    // <style>body{font-family:'Archivo',sans-serif;background-color:#f5f5f7;color:#222323;font-size:15px;line-height:1.5;}
-                    // .highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}
-                    // i{font-style:italic;color:#4a4d68;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}</style></head><body><p>${text}</p></body></html>`
                 }];
+                console.log('✅ Response formatted');
 
-                // Send response to user
+                console.log('📤 Sending response to user...');
                 res.json(resp);
+                console.log('✅ Response sent successfully');
 
-                // Add user and bot messages to chat history
-                chatHistory.push({ role: 'user', content: `User uploaded an image: ${fileUrl}, and said: ${message}` });
-                chatHistory.push({ role: 'assistant', content: text });
+                console.log('💾 Updating chat history...');
+                chatHistory.push({ 
+                    role: 'user', 
+                    content: `User uploaded an image: ${fileUrl}, and said: ${message}` 
+                });
+                chatHistory.push({ 
+                    role: 'assistant', 
+                    content: text 
+                });
+                console.log('✅ Chat history updated');
 
-                // Post-process the conversation
+                // Post-processing
+                console.log('🔄 Starting post-processing...');
+                const postProcessStartTime = performance.now();
+                
                 const postProcessData = await postProcessConversation(chatHistory, message);
-                console.log("Post-processed data:", JSON.stringify(postProcessData));
+                console.log("📊 Post-processed data:", JSON.stringify(postProcessData).substring(0, 200) + '...');
 
-                // Update user profile if needed
                 if (postProcessData.user_profile_updates) {
+                    console.log('👤 Updating user profile...');
                     await updateUserProfile(userId, postProcessData.user_profile_updates);
+                    console.log('✅ User profile updated');
                 }
 
-                // Save hair issues if reported
-                if (postProcessData.hair_issue_extractions && postProcessData.hair_issue_extractions.hair_issues_reported && postProcessData.hair_issue_extractions.hair_issues_reported.length > 0) {
+                if (postProcessData.hair_issue_extractions && 
+                    postProcessData.hair_issue_extractions.hair_issues_reported && 
+                    postProcessData.hair_issue_extractions.hair_issues_reported.length > 0) {
+                    
+                    console.log('🔍 Saving hair issues...');
                     for (const issue of postProcessData.hair_issue_extractions.hair_issues_reported) {
-                        await saveHairIssue(userId, issue, analysisText);
-                        console.log(`Hair issue reported and saved: ${issue}`);
+                        await saveHairIssue(userId, issue, text);
+                        console.log(`✅ Hair issue saved: ${issue}`);
                     }
                 }
 
-                // Save updated chat history
-                await saveConversation(conversationId, userId, chatHistory, await generateConversationSummary(chatHistory));
+                console.log('💾 Saving conversation...');
+                await saveConversation(
+                    conversationId, 
+                    userId, 
+                    chatHistory, 
+                    await generateConversationSummary(chatHistory)
+                );
+                
+                const postProcessTime = performance.now() - postProcessStartTime;
+                console.log('✅ Post-processing completed in', postProcessTime.toFixed(2), 'ms');
+                
+                console.log('🎉 ===== IMAGE MESSAGE HANDLER COMPLETE =====');
+                console.log('📊 Total Image Processing Summary:', {
+                    totalTime: (performance.now() - cacheStartTime).toFixed(2) + 'ms',
+                    cacheUsed: !!cacheResult.cacheName,
+                    cacheStatus: cacheResult.isNewCache ? 'Created new' : (cacheResult.cacheName ? 'Used existing' : 'Not available'),
+                    analysisTime: analysisTime.toFixed(2) + 'ms',
+                    postProcessTime: postProcessTime.toFixed(2) + 'ms',
+                    success: true
+                });
 
                 return true;
+                
             } catch (imageError) {
-                console.error("Error analyzing image with GenKit:", imageError);
-                res.status(500).json({ message: "Sorry, I couldn't analyze your image. Please try again." });
-                return true; // Indicate that the image event was handled
+                console.error("❌❌❌ IMAGE ANALYSIS ERROR!");
+                console.error("❌ Error details:", {
+                    message: imageError.message,
+                    stack: imageError.stack,
+                    userId: userId,
+                    imageUrl: fileUrl.substring(0, 100) + '...'
+                });
+                
+                res.status(500).json({ 
+                    message: "Sorry, I couldn't analyze your image. Please try again." 
+                });
+                
+                console.log('🏁 ===== IMAGE MESSAGE HANDLER FAILED =====');
+                return true;
             }
         }
     }
 
-    return false; // Not an image event
+    console.log('ℹ️ Not an image event, returning false');
+    return false;
 };
 
 module.exports = {

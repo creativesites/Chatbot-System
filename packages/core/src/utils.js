@@ -50,10 +50,6 @@ async function getAdditionalInstructions() { // New function to get ALL Bot Inst
     return [];
   }
 }
-async function getHairIssuesForUser(userId){
-  //return empty for now
-  return []
-}
 async function getProductByName(productName) {
   try {
     const result = await pgClient.query('SELECT product_id FROM products WHERE product_name = $1', [productName]);
@@ -81,13 +77,39 @@ async function addProductRecommendation(userId, conversationId, productId, reaso
   }
 }
 
+
+async function getTrainingData(limit = 50) {
+  try {
+    const result = await pgClient.query(
+      'SELECT title, source_type, extracted_text, created_at FROM training_data ORDER BY created_at DESC LIMIT $1',
+      [limit]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error("Error fetching training data:", error);
+    return [];
+  }
+}
+
+async function getChatbotWelcomeSettings() {
+  try {
+    const result = await pgClient.query(
+      'SELECT welcome_text, image_urls, flow_data FROM chatbot_welcome_settings WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1'
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error("Error fetching chatbot welcome settings:", error);
+    return null;
+  }
+}
 module.exports = {
   getAllProducts,
   getAllFaqs,
   getAllYoutubeVideos,
   getAllTestimonials,
   getAdditionalInstructions,
-  getHairIssuesForUser,
+  getTrainingData,
+  getChatbotWelcomeSettings,
   getProductByName,
   addProductRecommendation
 };

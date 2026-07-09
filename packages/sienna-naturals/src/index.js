@@ -1,7 +1,7 @@
 // Cloud Run compatible Sienna Naturals Chatbot Server
 const core = require('myavana-bot-test-core');
 const express = require('express');
-const { gemini15Flash, googleAI, gemini20FlashExp } = require('@genkit-ai/googleai');
+const { googleAI } = require('@genkit-ai/google-genai');
 const { performance } = require('perf_hooks');
 const { constructPrompt } = require('./constructPrompt');
 const { handleWelcomeEvent, handleImageMessage } = require('./eventHandlers');
@@ -382,7 +382,7 @@ class SiennaNaturalsChatbotServer {
                     console.log('🚀 Trying PRIMARY MODEL: GEMINI 2.0 FLASH EXPERIMENTAL');
                     
                     const chat = session.chat({
-                        model: gemini20FlashExp,
+                        model: googleAI.model('gemini-3-flash-preview'),
                         system: aiPrompt,
                         config: {
                             temperature: 1.1,
@@ -410,7 +410,7 @@ class SiennaNaturalsChatbotServer {
                         console.log('🔄 Trying FALLBACK MODEL: GEMINI 1.5 FLASH');
                         
                         const chat = core.ai.chat({
-                            model: gemini15Flash,
+                            model: googleAI.model('gemini-2.5-flash'),
                             system: aiPrompt,
                             config: {
                                 temperature: 1.1,

@@ -1,13 +1,14 @@
 // ai.js
-const { genkit } = require('genkit');
-const { googleAI, gemini15Flash, gemini20FlashExp } = require('@genkit-ai/googleai');
+const { genkit } = require('genkit/beta');
+const { googleAI } = require('@genkit-ai/google-genai');
+
 const config = require('./config');
 
 const ai = genkit({
     plugins: [googleAI({
         apiKey: config.genkitApiKey,
     })],
-    model: gemini20FlashExp,
+    model: googleAI.model('gemini-3-flash-preview'),
 });
 
 module.exports = ai;

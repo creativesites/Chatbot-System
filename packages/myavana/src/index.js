@@ -1,11 +1,12 @@
 // Cloud Run compatible MyavanaChatbotServer
 const core = require('myavana-bot-test-core');
 const express = require('express');
-const { gemini15Flash, googleAI, gemini20FlashExp } = require('@genkit-ai/googleai');
+const { googleAI } = require('@genkit-ai/google-genai');
 const { performance } = require('perf_hooks');
 const { constructPrompt } = require('./constructPrompt');
 const { handleWelcomeEvent, handleImageMessage } = require('./eventHandlers');
-const OpenAI = require('openai');
+const { buildMessageContext } = require('myavana-bot-test-core/src/messageContextBuilder');
+const { globalTools, createUserTools } = require('myavana-bot-test-core/src/agentTools');
 require('dotenv').config();
 
 // Helper functions
@@ -54,23 +55,6 @@ class MyavanaChatbotServer {
                 console.log('❌ Database connections not established');
             }
             //console.log('✅ skipped Database connections established');
-
-            // Initialize xAI client as fallback
-            try {
-                this.xai = new OpenAI({
-                    apiKey: process.env.XAI_API_KEY,
-                    baseURL: 'https://api.x.ai/v1',
-                    timeout: 360000,
-                });
-                
-                if (process.env.XAI_API_KEY) {
-                    console.log('✅ xAI client initialized successfully');
-                } else {
-                    console.warn('⚠️ WARNING: XAI_API_KEY not found in environment variables');
-                }
-            } catch (xaiError) {
-                console.error('❌ ERROR: Failed to initialize xAI client:', xaiError);
-            }
 
             // Setup Express middleware
             this.setupMiddleware();
@@ -221,100 +205,14 @@ class MyavanaChatbotServer {
         console.log('   POST /chat     - Alternative chat endpoint');
     }
 
-    async callXAIFallback(aiPrompt, message, chatHistory) {
-        console.log('🔄 ===== xAI GROK FALLBACK PROCESSING =====');
-        console.log('📊 xAI Input Analysis:', {
-            promptLength: aiPrompt.length,
-            estimatedPromptTokens: Math.ceil(aiPrompt.length / 4),
-            messageLength: message.length,
-            chatHistoryLength: chatHistory.length,
-            historyItemsToInclude: Math.min(chatHistory.length, 10),
-            timestamp: new Date().toISOString()
-        });
-        
-        try {
-            console.log('🔧 Preparing xAI message structure...');
-            const messages = [
-                { role: 'system', content: aiPrompt },
-                ...chatHistory.slice(-10),
-                { role: 'user', content: message }
-            ];
-            
-            console.log('📊 xAI Message Structure:', {
-                totalMessages: messages.length,
-                systemMessageLength: aiPrompt.length,
-                historyMessages: chatHistory.slice(-10).length,
-                userMessageLength: message.length,
-                estimatedTotalTokens: Math.ceil(JSON.stringify(messages).length / 4)
-            });
-            
-            console.log('📤 Sending request to xAI Grok API...');
-            const xaiApiStartTime = performance.now();
-            const response = await this.xai.chat.completions.create({
-                model: 'grok-3-mini-fast',
-                messages: messages,
-                temperature: 1.1,
-                response_format: { type: 'json_object' },
-            });
-            const xaiApiTime = performance.now() - xaiApiStartTime;
-            
-            console.log('✅ xAI API response received in', xaiApiTime.toFixed(2), 'ms');
-            console.log('📊 xAI API Response Info:', {
-                hasResponse: !!response,
-                hasChoices: !!(response && response.choices),
-                choicesCount: response?.choices?.length || 0,
-                hasMessage: !!(response?.choices?.[0]?.message),
-                messageRole: response?.choices?.[0]?.message?.role,
-                apiResponseTime: xaiApiTime.toFixed(2) + 'ms'
-            });
-            
-            const output = response.choices[0].message.content;
-            console.log('📝 xAI Raw Output Analysis:', {
-                outputLength: output.length,
-                outputType: typeof output,
-                estimatedTokens: Math.ceil(output.length / 4),
-                isJsonString: output.trim().startsWith('{') && output.trim().endsWith('}'),
-                preview: output.substring(0, 200) + (output.length > 200 ? '...' : '')
-            });
-            
-            console.log('🔄 Parsing xAI JSON response...');
-            const parseStartTime = performance.now();
-            const parsedOutput = JSON.parse(output);
-            const parseTime = performance.now() - parseStartTime;
-            
-            console.log('✅ JSON parsing successful in', parseTime.toFixed(2), 'ms');
-            console.log('📊 Parsed Output Analysis:', {
-                outputType: typeof parsedOutput,
-                isObject: typeof parsedOutput === 'object',
-                hasMessages: !!(parsedOutput && parsedOutput.messages),
-                keys: parsedOutput && typeof parsedOutput === 'object' ? Object.keys(parsedOutput) : [],
-                stringifiedLength: JSON.stringify(parsedOutput).length
-            });
-            
-            console.log('✅✅✅ xAI Grok fallback completed successfully!');
-            console.log('🔄 ===== xAI GROK FALLBACK COMPLETE =====');
-            
-            return parsedOutput;
-        } catch (xaiError) {
-            const errorTime = performance.now();
-            console.error('❌❌❌ xAI GROK FALLBACK FAILED!');
-            console.error('❌ xAI Error Details:', {
-                message: xaiError.message,
-                name: xaiError.name,
-                status: xaiError.status,
-                code: xaiError.code,
-                stack: xaiError.stack,
-                timestamp: new Date(errorTime).toISOString(),
-                promptLength: aiPrompt.length,
-                messageLength: message.length,
-                historyLength: chatHistory.length
-            });
-            console.log('🔄 ===== xAI GROK FALLBACK FAILED =====');
-            throw xaiError;
-        }
-    }
-
-    // Main chat request handler (based on working implementation)
+    /**
+     * Main request handler for all chat POST endpoints.
+     * Handles WELCOME, image, and text message events.
+     * Sends the AI response synchronously, then runs post-processing non-blocking.
+     *
+     * @param {import('express').Request} req
+     * @param {import('express').Response} res
+     */
     async handleChatRequest(req, res) {
         const requestId = Math.random().toString(36).substr(2, 9);
         console.log('🚀 ===== NEW REQUEST START =====');
@@ -324,13 +222,20 @@ class MyavanaChatbotServer {
         try {
             const start = performance.now();
             const { message, from: userId, groupId: conversationId, eventName, metadata } = req.body;
+            const safeMessage = message || '';
+            // 1. Start fetching everything in parallel immediately
+            const dataPromise = Promise.all([
+                core.getAllConversationsSummary(userId),
+                core.getUserDetails(userId),
+                core.ai.loadSession(userId, { store: new core.DatabaseSessionStore() })
+            ]);
             
             console.log('📊 Request Details:', {
                 requestId,
                 userId: userId || 'undefined',
                 conversationId: conversationId || 'undefined',
                 eventName: eventName || 'undefined',
-                messageLength: message ? message.length : 0
+                messageLength: safeMessage.length
             });
 
             if (eventName === "WELCOME") {
@@ -341,35 +246,23 @@ class MyavanaChatbotServer {
                 return;
             }
 
-            // Load session using core's DatabaseSessionStore
-            console.log('📂 Loading session for user:', userId);
-            const session = await core.ai.loadSession(userId, {
-                store: new core.DatabaseSessionStore(),
-            });
-            console.log('✅ Session loaded successfully');
-
-            // Fetch user details and conversation history using core functions
-            console.log('📊 Fetching user data and conversation history...');
-            const [allchatsSummary, userInfo] = await Promise.all([
-                core.getAllConversationsSummary(userId),
-                core.getUserDetails(userId),
-            ]);
+            // 3. Destructure the results
+            const [allchatsSummary, userInfo, session] = await dataPromise;
             
             console.log('✅ User data fetched successfully');
 
-            console.log('📜 Loading conversation history...');
-            let chatHistory = await core.getConversationHistory(conversationId, userId);
+            if (eventName === "KOMMUNICATE_MEDIA_EVENT") {
+                console.log('🖼️ Processing KOMMUNICATE_MEDIA_EVENT (image message)...');
+                console.log('📜 Loading conversation history...');
+            let fastchatHistory = await core.getConversationHistory(conversationId, userId);
             
-            if (!Array.isArray(chatHistory)) {
+            if (!Array.isArray(fastchatHistory)) {
                 console.log('⚠️ Chat history is not an array, initializing empty array');
-                chatHistory = [];
+                fastchatHistory = [];
             }
             
             console.log('✅ Conversation history loaded');
-
-            if (eventName === "KOMMUNICATE_MEDIA_EVENT") {
-                console.log('🖼️ Processing KOMMUNICATE_MEDIA_EVENT (image message)...');
-                const handled = await handleImageMessage(eventName, metadata, userId, conversationId, chatHistory, res, message, userInfo, session);
+                const handled = await handleImageMessage(eventName, metadata, userId, conversationId, fastchatHistory, res, message, userInfo, session);
                 
                 if (handled) {
                     console.log('✅ Image message handled successfully');
@@ -378,87 +271,176 @@ class MyavanaChatbotServer {
                 }
             }
 
-            // Add user message to chat history
-            const timestampedUserSaid = `${new Date().toISOString()} - User Said: ${message}`;
-            chatHistory.push({ role: 'user', content: timestampedUserSaid });
-            console.log('✅ User message added to chat history');
+             // ===== NEW: CHECK CACHE VALIDITY FIRST =====
+            // This is a fast DB lookup - no expensive prompt construction yet!
+            console.log('🔍 Checking cache validity...');
+            const cacheCheckStart = performance.now();
+            const cacheStatus = await core.cacheManager.checkCacheValidity(userId);
+            console.log('✅ Cache check complete:', (performance.now() - cacheCheckStart).toFixed(0), 'ms');
+            console.log('📊 Cache status:', cacheStatus);
 
-            // Build prompt using constructPrompt function
-            console.log('🧠 ===== PROMPT GENERATION PHASE =====');
-            console.log('🧠 Starting prompt construction with enhanced logging...');
-            const promptStartTime = performance.now();
-            const aiPrompt = await constructPrompt(userId, userInfo, chatHistory, allchatsSummary, false);
-            const promptEndTime = performance.now();
-            console.log('✅ Prompt generation completed in', (promptEndTime - promptStartTime).toFixed(2), 'ms');
-            console.log('🧠 ===== PROMPT GENERATION COMPLETE =====');
+            let aiPrompt = null;
+            let cacheResult = null;
 
-            // Try primary model first (Gemini 2.0)
+            // ===== CONDITIONAL PROMPT CONSTRUCTION =====
+            // Only construct prompt if we need to create/refresh cache OR use it without cache
+            if (!cacheStatus.hasValidCache) {
+                console.log('🧠 No valid cache - constructing prompt...');
+                const promptStart = performance.now();
+
+                aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false);
+                console.log('✅ Prompt built:', (performance.now() - promptStart).toFixed(0), 'ms');
+
+                // Create cache with the new prompt
+                console.log('🗄️ Creating cache...');
+                const cacheStart = performance.now();
+                cacheResult = await core.cacheManager.getOrCreateCache(userId, aiPrompt);
+                console.log('✅ Cache ready:', (performance.now() - cacheStart).toFixed(0), 'ms');
+            } else {
+                console.log('✅ Valid cache exists - skipping prompt construction!');
+                
+                // Use existing cache - no prompt construction needed!
+                cacheResult = {
+                    cacheName: cacheStatus.cacheName,
+                    isNewCache: false
+                };
+
+                // Optionally refresh cache in background if it's expiring soon
+                if (cacheStatus.needsRefresh) {
+                    console.log('🔄 Scheduling background cache refresh');
+                    setImmediate(async () => {
+                        try {
+                            const freshPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false);
+                            await core.cacheManager.getOrCreateCache(userId, freshPrompt);
+                            console.log('✅ Background cache refresh complete');
+                        } catch (error) {
+                            console.error('❌ Background cache refresh failed:', error.message);
+                        }
+                    });
+                }
+            }
+
+            // Build per-message dynamic context (persona, style directives)
+            // Prepended to the user message — keeps the 24h cached system prompt intact
+            const messageContext = await buildMessageContext(userId, chatHistory);
+            const messageWithContext = messageContext ? `${messageContext}${safeMessage}` : safeMessage;
+
+            // Assemble tools for this request: global (searchServices, lookupFAQ)
+            // + per-user dynamic tools (saveHairGoal, getUserHairProfile)
+            const chatTools = [...globalTools, ...createUserTools(userId)];
+
+            // Try primary model first (Gemini 3.0 Flash Preview with caching)
             console.log('🤖 ===== AI MODEL PROCESSING PHASE =====');
-            console.log('🤖 Starting AI model processing with extensive logging...');
-            console.log('📊 AI Processing Parameters:', {
-                promptLength: aiPrompt.length,
-                estimatedPromptTokens: Math.ceil(aiPrompt.length / 4),
-                messageLength: message.length,
-                userMessage: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
-                temperature: 1.1,
-                userId: userId,
-                conversationId: conversationId
-            });
-            
+            console.log('🤖 Starting AI model processing with caching...');
+            if (messageContext) console.log('🎭 Persona context injected:', messageContext.trim());
+
             let aiOutput = null;
             let modelUsed = '';
             let responseStartTime = performance.now();
+            console.log('⏱️ Response timer started', responseStartTime.toFixed(2), 'ms');
             
             try {
-                console.log('🚀 ===== TRYING PRIMARY MODEL: GEMINI 2.0 FLASH EXPERIMENTAL =====');
-                console.log('📤 Initializing Gemini 2.0 Flash Experimental...');
-                console.log('📊 Model Configuration:', {
-                    model: 'gemini20FlashExp',
-                    temperature: 1.1,
-                    systemPromptLength: aiPrompt.length,
-                    userMessageLength: message.length
-                });
+                console.log('🚀 ===== TRYING PRIMARY MODEL: GEMINI 3.0 FLASH PREVIEW WITH CACHE =====');
+                console.log('📤 Initializing Gemini 3.0 Flash Preview...');
+               
                 
                 const modelInitStartTime = performance.now();
-                const chat = session.chat({
-                    model: gemini20FlashExp,
-                    system: aiPrompt,
-                    config: {
-                        temperature: 1.1,
-                    },
-                });
-                console.log('✅ Chat session initialized in', (performance.now() - modelInitStartTime).toFixed(2), 'ms');
                 
-                console.log('💬 Sending message to Gemini 2.0:', {
-                    messagePreview: message.substring(0, 200) + (message.length > 200 ? '...' : ''),
-                    fullMessageLength: message.length,
-                    timestamp: new Date().toISOString()
-                });
-                
+                // Create chat with or without cache
+                let chat;
+                if (cacheResult.cacheName) {
+                    console.log('✅ Using cached system instructions:', cacheResult.cacheName);
+                    
+                    chat = session.chat({
+                        model: googleAI.model('gemini-3-flash-preview'),
+                        cache: cacheResult.cacheName, // Use cached system instructions
+                        tools: chatTools,
+                        config: {
+                            temperature: 1.1,
+                        },
+                    });
+                } else {
+                    console.log('⚠️ Cache unavailable, using standard chat without cache');
+                    
+                    chat = session.chat({
+                        model: googleAI.model('gemini-3-flash-preview'),
+                        system: aiPrompt, // Fallback to regular system prompt
+                        tools: chatTools,
+                        config: {
+                            temperature: 1.1,
+                        },
+                    });
+                }
+
+
                 const apiCallStartTime = performance.now();
-                const { output } = await chat.send(message);
+                const { output } = await chat.send(messageWithContext);
                 const apiCallTime = performance.now() - apiCallStartTime;
                 
-                aiOutput = output;
-                modelUsed = 'gemini20FlashExp';
+                console.log('⏱️ API Call Duration:', apiCallTime.toFixed(2) + 'ms');
                 
-                console.log('✅✅✅ GEMINI 2.0 FLASH EXPERIMENTAL SUCCESS!');
+                // Guard against null/empty outputs (can happen with cached requests)
+                const isEmptyOutput =
+                    output == null ||
+                    (typeof output === 'string' && output.trim().length === 0) ||
+                    (Array.isArray(output) && output.length === 0) ||
+                    (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
+                
+                if (isEmptyOutput) {
+                    if (cacheResult.cacheName) {
+                        console.warn('⚠️ Empty output with cache. Retrying Gemini 3.0 without cache...');
+                        if (!aiPrompt) {
+                            aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false);
+                        }
+                        const retryChat = session.chat({
+                            model: googleAI.model('gemini-3-flash-preview'),
+                            system: aiPrompt,
+                            tools: chatTools,
+                            config: {
+                                temperature: 1.1,
+                            },
+                        });
+                        const { output: retryOutput } = await retryChat.send(safeMessage);
+                        
+                        const isEmptyRetryOutput =
+                            retryOutput == null ||
+                            (typeof retryOutput === 'string' && retryOutput.trim().length === 0) ||
+                            (Array.isArray(retryOutput) && retryOutput.length === 0) ||
+                            (typeof retryOutput === 'object' && !Array.isArray(retryOutput) && Object.keys(retryOutput).length === 0);
+                        
+                        if (isEmptyRetryOutput) {
+                            throw new Error('Empty AI output from Gemini 3.0 (retry without cache)');
+                        }
+                        
+                        aiOutput = retryOutput;
+                        modelUsed = 'gemini30FlashPreview-retry';
+                    } else {
+                        throw new Error('Empty AI output from Gemini 3.0 Flash Preview');
+                    }
+                } else {
+                    aiOutput = output;
+                    modelUsed = cacheResult.cacheName ? 'gemini30FlashPreview-cached' : 'gemini30FlashPreview';
+                }
+                
+                console.log('✅✅✅ GEMINI 3.0 FLASH PREVIEW SUCCESS!');
                 console.log('📊 Response Stats:', {
                     responseTime: apiCallTime.toFixed(2) + 'ms',
                     outputLength: typeof output === 'string' ? output.length : JSON.stringify(output).length,
                     outputType: typeof output,
                     estimatedResponseTokens: typeof output === 'string' ? Math.ceil(output.length / 4) : Math.ceil(JSON.stringify(output).length / 4),
-                    model: 'gemini20FlashExp'
+                    model: 'gemini3FlashPreview',
+                    usedCache: !!cacheResult.cacheName,
+                    cacheImpact: cacheResult.cacheName ? 'Prompt tokens from cache (reduced cost)' : 'Full prompt sent'
                 });
                 
                 // Log output preview
                 const outputPreview = typeof output === 'string' ? output : JSON.stringify(output);
                 console.log('📝 Response Preview (first 300 chars):', outputPreview.substring(0, 300) + (outputPreview.length > 300 ? '...' : ''));
-                console.log('🚀 ===== GEMINI 2.0 SUCCESS - SKIPPING FALLBACKS =====');
+                console.log('🚀 ===== GEMINI 3.0 SUCCESS - SKIPPING FALLBACKS =====');
                 
             } catch (primaryError) {
                 const primaryFailTime = performance.now() - responseStartTime;
-                console.error('❌❌❌ PRIMARY MODEL FAILED: GEMINI 2.0 FLASH EXPERIMENTAL');
+                console.error('❌❌❌ PRIMARY MODEL FAILED: GEMINI 3.0 FLASH PREVIEW');
                 console.error('❌ Primary Error Details:', {
                     message: primaryError.message,
                     name: primaryError.name,
@@ -467,59 +449,78 @@ class MyavanaChatbotServer {
                     failureTime: primaryFailTime.toFixed(2) + 'ms',
                     requestId: requestId,
                     userId: userId,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    wasUsingCache: !!cacheResult.cacheName
                 });
                 
                 try {
-                    console.log('🔄 ===== TRYING FALLBACK MODEL: GEMINI 1.5 FLASH =====');
-                    console.log('📤 Initializing Gemini 1.5 Flash fallback...');
+                    console.log('🔄 ===== TRYING FALLBACK MODEL: GEMINI 2.5 FLASH =====');
+                    console.log('📤 Initializing Gemini 2.5 Flash fallback...');
                     console.log('📊 Fallback Model Configuration:', {
-                        model: 'gemini15Flash',
+                        model: 'gemini25Flash',
                         temperature: 1.1,
-                        systemPromptLength: aiPrompt.length,
-                        userMessageLength: message.length,
-                        reason: 'Primary model (Gemini 2.0) failed'
+                        systemPromptLength: aiPrompt ? aiPrompt.length : 0,
+                        userMessageLength: safeMessage.length,
+                        reason: 'Primary model (Gemini 3.0) failed',
+                        cacheAvailable: false // Gemini 2.5 doesn't support the same caching
                     });
                     
                     const fallbackInitStartTime = performance.now();
+                    // Ensure we have a prompt for fallback (cache path may skip construction)
+                    if (!aiPrompt) {
+                        aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false);
+                    }
+                    
                     const chat = core.ai.chat({
-                        model: gemini15Flash,
-                        system: aiPrompt,
+                        model: googleAI.model('gemini-2.5-flash'),
+                        system: aiPrompt, // Use full prompt for fallback
+                        tools: chatTools,
                         config: {
                             temperature: 1.1,
                         },
                     });
                     console.log('✅ Fallback chat session initialized in', (performance.now() - fallbackInitStartTime).toFixed(2), 'ms');
 
-                    console.log('💬 Sending message to Gemini 1.5:', {
-                        messagePreview: message.substring(0, 200) + (message.length > 200 ? '...' : ''),
-                        fullMessageLength: message.length,
+                    console.log('💬 Sending message to Gemini 2.5:', {
+                        messagePreview: safeMessage.substring(0, 200) + (safeMessage.length > 200 ? '...' : ''),
+                        fullMessageLength: safeMessage.length,
                         timestamp: new Date().toISOString()
                     });
                     
                     const fallbackApiCallStartTime = performance.now();
-                    const { output } = await chat.send(message);
+                    const { output } = await chat.send(messageWithContext);
                     const fallbackApiCallTime = performance.now() - fallbackApiCallStartTime;
                     
-                    aiOutput = output;
-                    modelUsed = 'gemini15Flash';
+                    // Guard against null/empty outputs
+                    const isEmptyFallbackOutput =
+                        output == null ||
+                        (typeof output === 'string' && output.trim().length === 0) ||
+                        (Array.isArray(output) && output.length === 0) ||
+                        (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
                     
-                    console.log('✅✅✅ GEMINI 1.5 FLASH FALLBACK SUCCESS!');
+                    if (isEmptyFallbackOutput) {
+                        throw new Error('Empty AI output from Gemini 2.5 Flash');
+                    }
+                    
+                    aiOutput = output;
+                    modelUsed = 'gemini25Flash';
+                    
+                    console.log('✅✅✅ GEMINI 2.5 FLASH FALLBACK SUCCESS!');
                     console.log('📊 Fallback Response Stats:', {
                         responseTime: fallbackApiCallTime.toFixed(2) + 'ms',
                         outputLength: typeof output === 'string' ? output.length : JSON.stringify(output).length,
                         outputType: typeof output,
                         estimatedResponseTokens: typeof output === 'string' ? Math.ceil(output.length / 4) : Math.ceil(JSON.stringify(output).length / 4),
-                        model: 'gemini15Flash'
+                        model: 'gemini25Flash'
                     });
                     
                     const outputPreview = typeof output === 'string' ? output : JSON.stringify(output);
                     console.log('📝 Fallback Response Preview (first 300 chars):', outputPreview.substring(0, 300) + (outputPreview.length > 300 ? '...' : ''));
-                    console.log('🔄 ===== GEMINI 1.5 FALLBACK SUCCESS =====');
+                    console.log('🔄 ===== GEMINI 2.5 FALLBACK SUCCESS =====');
                     
                 } catch (fallbackError) {
                     const fallbackFailTime = performance.now() - responseStartTime;
-                    console.error('❌❌❌ FALLBACK MODEL FAILED: GEMINI 1.5 FLASH');
+                    console.error('❌❌❌ FALLBACK MODEL FAILED: GEMINI 2.5 FLASH');
                     console.error('❌ Fallback Error Details:', {
                         message: fallbackError.message,
                         name: fallbackError.name,
@@ -532,48 +533,10 @@ class MyavanaChatbotServer {
                         timestamp: new Date().toISOString()
                     });
                     
-                    // Use xAI as final fallback only if we have the API key
-                    if (this.xai && process.env.XAI_API_KEY) {
-                        console.log('🚨 ===== TRYING FINAL FALLBACK: xAI GROK =====');
-                        console.log('🚨 EMERGENCY FALLBACK - Both Gemini models failed!');
-                        console.log('📊 xAI Fallback Configuration:', {
-                            model: 'grok-3-mini-fast',
-                            hasXaiClient: !!this.xai,
-                            hasApiKey: !!process.env.XAI_API_KEY,
-                            reason: 'All Gemini models failed',
-                            primaryError: primaryError.message,
-                            fallbackError: fallbackError.message
-                        });
-                        
-                        const xaiStartTime = performance.now();
-                        aiOutput = await this.callXAIFallback(aiPrompt, message, chatHistory);
-                        const xaiTime = performance.now() - xaiStartTime;
-                        modelUsed = 'xai-grok-3-mini-fast';
-                        
-                        console.log('✅✅✅ xAI GROK FINAL FALLBACK SUCCESS!');
-                        console.log('📊 xAI Response Stats:', {
-                            responseTime: xaiTime.toFixed(2) + 'ms',
-                            outputLength: typeof aiOutput === 'string' ? aiOutput.length : JSON.stringify(aiOutput).length,
-                            outputType: typeof aiOutput,
-                            model: 'xai-grok-3-mini-fast',
-                            isEmergencyFallback: true
-                        });
-                        console.log('🚨 ===== xAI EMERGENCY FALLBACK SUCCESS =====');
-                    } else {
-                        console.error('❌❌❌ COMPLETE AI FAILURE - NO FALLBACK AVAILABLE');
-                        console.error('❌ System Status:', {
-                            hasXaiClient: !!this.xai,
-                            hasXaiApiKey: !!process.env.XAI_API_KEY,
-                            primaryError: primaryError.message,
-                            fallbackError: fallbackError.message,
-                            totalFailureTime: (performance.now() - responseStartTime).toFixed(2) + 'ms',
-                            requestId: requestId
-                        });
-                        throw new Error('All AI models failed and no xAI fallback available');
-                    }
+                    console.error('❌❌❌ COMPLETE AI FAILURE - NO FALLBACK AVAILABLE');
+                    throw new Error('All AI models failed');
                 }
             }
-            
             if (!aiOutput) {
                 throw new Error('No AI output received from any model');
             }
@@ -587,121 +550,66 @@ class MyavanaChatbotServer {
             console.log('🎯 ===== AI MODEL PROCESSING COMPLETE =====');
             console.log('📊 Final AI Processing Summary:', {
                 finalModelUsed: modelUsed,
+                usedCaching: modelUsed.includes('cached'),
                 aiResponseTime: (responseTime / 1000).toFixed(3) + 's',
                 totalProcessingTime: (totalTime / 1000).toFixed(3) + 's',
                 success: true,
                 outputReceived: !!aiOutput,
                 outputType: typeof aiOutput,
-                requestId: requestId
+                requestId: requestId,
+                costSavings: modelUsed.includes('cached') ? 'Significant (cached prompt tokens)' : 'None'
             });
 
             console.log('🔄 ===== RESPONSE PROCESSING PHASE =====');
             console.log('🧹 Processing and cleaning AI response...');
-            console.log('📊 Pre-processing Analysis:', {
-                modelUsed: modelUsed,
-                isXaiResponse: modelUsed.includes('xai-grok'),
-                rawOutputType: typeof aiOutput,
-                rawOutputLength: typeof aiOutput === 'string' ? aiOutput.length : JSON.stringify(aiOutput).length
-            });
 
-            // Handle different response formats depending on model used
+            // Handle response format (Gemini)
             let cleanedResponse;
-            if (modelUsed.includes('xai-grok')) {
-                console.log('🔄 Processing xAI response format...');
-                cleanedResponse = aiOutput.messages ? aiOutput.messages : aiOutput;
-                console.log('✅ xAI response processed:', {
-                    hasMessages: !!(aiOutput.messages),
-                    processedType: typeof cleanedResponse,
-                    processedLength: JSON.stringify(cleanedResponse).length
-                });
-            } else {
-                console.log('🔄 Processing Gemini response format...');
-                cleanedResponse = cleanKommunicateResponse(aiOutput);
-                console.log('✅ Gemini response cleaned via cleanKommunicateResponse:', {
-                    processedType: typeof cleanedResponse,
-                    isArray: Array.isArray(cleanedResponse),
-                    processedLength: JSON.stringify(cleanedResponse).length
-                });
-            }
+            console.log('🔄 Processing Gemini response format...');
+            cleanedResponse = cleanKommunicateResponse(aiOutput);
             
-            console.log('📊 Final Cleaned Response Analysis:', {
-                finalType: typeof cleanedResponse,
-                finalLength: JSON.stringify(cleanedResponse).length,
-                isArray: Array.isArray(cleanedResponse),
-                estimatedTokens: Math.ceil(JSON.stringify(cleanedResponse).length / 4)
-            });
-            
-            const responsePreview = JSON.stringify(cleanedResponse).substring(0, 300);
-            console.log('📝 Cleaned Response Preview:', responsePreview + (responsePreview.length >= 300 ? '...' : ''));
             console.log('✅ Response processing and cleaning completed!');
 
             // Send response to client
             console.log('📤 ===== SENDING RESPONSE TO CLIENT =====');
-            console.log('📤 Final response ready for transmission:', {
-                responseType: typeof cleanedResponse,
-                responseSize: JSON.stringify(cleanedResponse).length,
-                isArray: Array.isArray(cleanedResponse),
-                estimatedTokens: Math.ceil(JSON.stringify(cleanedResponse).length / 4),
-                timestamp: new Date().toISOString()
-            });
-            
-            const responseTransmissionStart = performance.now();
             res.json(cleanedResponse);
-            const responseTransmissionTime = performance.now() - responseTransmissionStart;
-            
             console.log('✅✅✅ RESPONSE TRANSMITTED SUCCESSFULLY!');
-            console.log('📊 Response transmission completed in', responseTransmissionTime.toFixed(2), 'ms');
-
-            // Add AI response to chat history
-            console.log('💾 Adding AI response to chat history...');
-            chatHistory.push({ role: 'assistant', content: aiOutput });
-            console.log('✅ AI response added to chat history');
 
             // Post-processing (non-blocking)
             setImmediate(async () => {
                 console.log('🔄 ===== STARTING POST-PROCESSING =====');
-                console.log('🔄 Post-processing running in background...');
-                const postProcessStart = performance.now();
                 try {
-                    const postProcessData = await core.postProcessConversation(chatHistory, message);
-                    const postResponseStart = performance.now();
-                    await core.postResponseProcessing(postProcessData, userId, aiOutput, allchatsSummary, conversationId, chatHistory, JSON.stringify(aiOutput));
-                    const postResponseTime = performance.now() - postResponseStart;
-                    const totalPostProcessTime = performance.now() - postProcessStart;
+                    console.log('📜 Loading conversation history...');
+                    let chatHistory = await core.getConversationHistory(conversationId, userId);
                     
+                    if (!Array.isArray(chatHistory)) {
+                        console.log('⚠️ Chat history is not an array, initializing empty array');
+                        chatHistory = [];
+                    }
+
+                    // Add user message to chat history
+                    const timestampedUserSaid = `${new Date().toISOString()} - User Said: ${message}`;
+                    chatHistory.push({ role: 'user', content: timestampedUserSaid });
+
+                    // Add AI response to chat history
+                    chatHistory.push({ role: 'assistant', content: aiOutput });
+                    const postProcessData = await core.postProcessConversation(chatHistory, message);
+                    await core.postResponseProcessing(postProcessData, userId, aiOutput, allchatsSummary, conversationId, chatHistory, JSON.stringify(aiOutput));
                     console.log('✅ Post-processing completed successfully!');
-                    console.log('📊 Post-processing timing:', {
-                        conversationAnalysisTime: (postResponseStart - postProcessStart).toFixed(2) + 'ms',
-                        responseProcessingTime: postResponseTime.toFixed(2) + 'ms',
-                        totalPostProcessTime: totalPostProcessTime.toFixed(2) + 'ms'
-                    });
-                    console.log('🔄 ===== POST-PROCESSING COMPLETE =====');
                 } catch (postProcessError) {
-                    console.error('❌ Post-processing failed:', {
-                        error: postProcessError.message,
-                        stack: postProcessError.stack,
-                        processingTime: (performance.now() - postProcessStart).toFixed(2) + 'ms'
-                    });
-                    console.log('🔄 ===== POST-PROCESSING FAILED =====');
+                    console.error('❌ Post-processing failed:', postProcessError.message);
                 }
             });
             
             const finalTotalTime = performance.now() - start;
             console.log('🎉 ===== COMPLETE REQUEST SUMMARY =====');
-            console.log('🎉 REQUEST COMPLETED SUCCESSFULLY!');
             console.log('📊 Complete Performance Metrics:', {
                 requestId: requestId,
-                userId: userId,
-                conversationId: conversationId,
-                totalRequestTime: finalTotalTime.toFixed(2) + 'ms',
-                promptGenerationTime: (promptEndTime - promptStartTime).toFixed(2) + 'ms',
-                aiProcessingTime: responseTime.toFixed(2) + 'ms',
-                responseProcessingTime: (performance.now() - (start + (promptEndTime - promptStartTime) + responseTime)).toFixed(2) + 'ms',
                 modelUsed: modelUsed,
-                messageLength: message.length,
-                responseLength: JSON.stringify(cleanedResponse).length,
-                success: true,
-                timestamp: new Date().toISOString()
+                usedCaching: modelUsed.includes('cached'),
+                cacheStatus: cacheResult.isNewCache ? 'Created new' : (cacheResult.cacheName ? 'Used existing' : 'Not available'),
+                totalRequestTime: finalTotalTime.toFixed(2) + 'ms',
+                success: true
             });
             console.log('🏁 ===== REQUEST LIFECYCLE COMPLETE =====');
             return;
@@ -716,9 +624,6 @@ class MyavanaChatbotServer {
                 requestId: requestId || 'unknown',
                 timestamp: new Date().toISOString()
             };
-            
-            console.log('📤 Sending error response to client:', errorResponse);
-            console.log('🏁 ===== REQUEST FAILED =====');
             
             return res.status(500).json(errorResponse);
         }

@@ -1,5 +1,5 @@
 const core = require('myavana-bot-test-core');
-const { gemini15Flash, googleAI, gemini20FlashExp } = require('@genkit-ai/googleai');
+const { googleAI } = require('@genkit-ai/google-genai');
 const { performance } = require('perf_hooks');
 const { constructPrompt } = require('./constructPrompt');
 const { handleWelcomeEvent, handleImageMessage } = require('./eventHandlers');
@@ -170,9 +170,9 @@ const myavanaHandler = async (req, res) => {
         let responseStartTime = performance.now();
         
         try {
-            console.log('📤 Trying Gemini 2.0 Flash Experimental...');
+            console.log('📤 Trying Gemini 3.0 Flash Preview...');
             const chat = session.chat({
-                model: gemini20FlashExp,
+                model: googleAI.model('gemini-3-flash-preview'),
                 system: aiPrompt,
                 config: {
                     temperature: 1.1,
@@ -182,16 +182,16 @@ const myavanaHandler = async (req, res) => {
             const { output } = await chat.send(message);
             aiOutput = output;
             modelUsed = 'gemini20FlashExp';
-            console.log('✅ Gemini 2.0 Flash Experimental SUCCESS!');
+            console.log('✅ Gemini 3.0 Flash Preview SUCCESS!');
             
         } catch (primaryError) {
-            console.error('❌ PRIMARY MODEL FAILED: Gemini 2.0 Flash Experimental');
+            console.error('❌ PRIMARY MODEL FAILED: Gemini 3.0 Flash Preview');
             console.error('❌ Primary Error:', primaryError.message);
             
             try {
-                console.log('🔄 Trying fallback to Gemini 1.5 Flash...');
+                console.log('🔄 Trying fallback to Gemini 2.5 Flash...');
                 const chat = core.ai.chat({
-                    model: gemini15Flash,
+                    model: googleAI.model('gemini-2.5-flash'),
                     system: aiPrompt,
                     config: {
                         temperature: 1.1,

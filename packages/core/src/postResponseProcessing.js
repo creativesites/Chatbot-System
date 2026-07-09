@@ -1,11 +1,12 @@
 // postResponseProcessing.js
 const ai = require("./ai");
-const {gemini15Flash} = require("@genkit-ai/googleai");
+const { googleAI } = require('@genkit-ai/google-genai');
 const DatabaseSessionStore = require("./session");
 const { pgClient, redisClient } = require('./database');
 const {generateAndSaveSummary, saveConversationSummary, saveConversation} = require("./conversation");
 const {saveHairIssue} = require("./hairIssues");
 const {getProductByName, addProductRecommendation} = require("./utils");
+const { classifyAndSavePersona } = require("./personaClassifier");
 
 const postProcessingPrompt = (chatHistory, message) => {
     return `
@@ -219,6 +220,14 @@ const processBotResponse = (botResponse) => {
     return processedResponse.trim(); // Remove trailing newline and whitespace
 };
 
+/**
+ * Uses Gemini to extract structured user profile updates and reported hair issues
+ * from the current conversation. Run non-blocking after sending the response.
+ *
+ * @param {Array<{role:string, content:string}>} chatHistory
+ * @param {string} message - User's latest message
+ * @returns {Promise<{user_profile_updates, hair_issue_extractions}>} Empty object on failure
+ */
 const postProcessConversation = async (chatHistory, message) => {
 
 
@@ -226,7 +235,7 @@ const postProcessConversation = async (chatHistory, message) => {
     //console.log('Extraction prompt: ', extractionPrompt);
     try {
         const chat = ai.chat({
-            model: gemini15Flash,
+            model: googleAI.model('gemini-2.5-flash'),
             config: {
                 temperature: 1.1,
             },
@@ -314,10 +323,31 @@ const updateUserProfile = async (userId, updates) => {
     }
 };
 
+/**
+ * Persists all post-response data: profile updates, hair issues, product recommendations,
+ * and conversation history. Run non-blocking via setImmediate after sending the response.
+ *
+ * @param {{user_profile_updates, hair_issue_extractions}} postProcessData - Output of postProcessConversation()
+ * @param {string} userId
+ * @param {any} output - Raw AI output
+ * @param {string|null} allchatsSummary - Existing summary (skips generation if truthy)
+ * @param {string} conversationId
+ * @param {Array} chatHistory - Full history including latest turn
+ * @param {string} botMessage - JSON-stringified AI output (used for product check)
+ */
 const postResponseProcessing = async (postProcessData, userId, output, allchatsSummary, conversationId, chatHistory, botMessage )=>{
     if (postProcessData.user_profile_updates) {
-        //console.log("User profile updates to be applied:", postProcessData.user_profile_updates);
         await updateUserProfile(userId, postProcessData.user_profile_updates);
+    }
+
+    // Classify and persist user persona from the latest signals — non-blocking, best-effort
+    try {
+        await classifyAndSavePersona(userId, {
+            profileUpdates: postProcessData.user_profile_updates || {},
+            chatHistory,
+        });
+    } catch (err) {
+        console.error('Persona classification failed (non-fatal):', err.message);
     }
 
     if (postProcessData.hair_issue_extractions && postProcessData.hair_issue_extractions.hair_issues_reported && postProcessData.hair_issue_extractions.hair_issues_reported.length > 0) {
@@ -385,7 +415,7 @@ const postResponseProductCheck = async (chatHistory, message) => {
     // Try Gemini first
     try {
         const chat = ai.chat({
-            model: gemini15Flash, // or gemini20FlashExp
+            model: googleAI.model('gemini-2.5-flash'),
             config: {
                 temperature: 0.3, // Reduced temperature for more consistent JSON formatting
             },

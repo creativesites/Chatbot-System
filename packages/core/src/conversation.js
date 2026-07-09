@@ -1,7 +1,7 @@
 // conversation.js
 const { pgClient, redisClient } = require('./database');
 const ai = require('./ai');
-const {gemini15Flash} = require("@genkit-ai/googleai");
+const { googleAI } = require('@genkit-ai/google-genai');
 
 const saveConversationSummary = async (conversationId, userId, summary) => {
     const query = `
@@ -28,7 +28,7 @@ const generateConversationSummary = async (chatHistory) => {
     }
     const summaryPrompt = `Summarize the following conversation, getting all important information, especially the user's hair details, name, and location: ${JSON.stringify(chatHistory)}`;
     const { text } = await ai.chat({
-        model: gemini15Flash,
+        model: googleAI.model('gemini-2.5-flash'),
         system: summaryPrompt,
     });
     return text;

@@ -1,18 +1,37 @@
 {
   "name": "myavana-ai-bot-test",
-  "version": "1.0.28",
+  "version": "1.2.2",
   "description": "Myavana-specific bot implementation",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
+    "moduleNameMapper": {
+      "^myavana-bot-test-core$": "<rootDir>/src/__tests__/__mocks__/myavana-bot-test-core.js",
+      "^@genkit-ai/google-genai$": "<rootDir>/src/__tests__/__mocks__/@genkit-ai/google-genai.js",
+      "^@genkit-ai/googleai$": "<rootDir>/src/__tests__/__mocks__/@genkit-ai/google-genai.js"
+    }
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
   },
   "dependencies": {
-    "@genkit-ai/googleai": "^1.0.5",
+    "@genkit-ai/google-genai": "^1.28.0",
+    "@genkit-ai/googleai": "^1.28.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "html-format": "^1.1.7",
-    "myavana-bot-test-core": "^1.0.6",
+    "myavana-bot-test-core": "^2.2.0",
     "openai": "^4.86.1",
     "perf_hooks": "^0.0.1"
-  }
+  },
+  "type": "commonjs"
 }

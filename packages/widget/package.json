@@ -1,0 +1,10 @@
+{
+  "name": "myavana-chat-widget",
+  "version": "0.1.0",
+  "description": "Self-hosted D2C web chat widget for myavana.com (replaces the Kommunicate embed). Framework-agnostic, no build step — a single IIFE file, script-embeddable as-is.",
+  "private": true,
+  "main": "src/myavana-widget.js",
+  "scripts": {
+    "serve:harness": "node -e \"require('http').createServer((req,res)=>{const fs=require('fs');const path=require('path');let p=req.url==='/'?'/harness.html':req.url;const file=path.join(__dirname,p);fs.readFile(file,(err,data)=>{if(err){res.writeHead(404);res.end('not found');return;}const ext=path.extname(file);const type=ext==='.js'?'text/javascript':ext==='.html'?'text/html':'text/plain';res.writeHead(200,{'Content-Type':type});res.end(data);});}).listen(4173,()=>console.log('widget harness: http://localhost:4173'))\""
+  }
+}

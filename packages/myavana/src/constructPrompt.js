@@ -12,9 +12,15 @@ const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, get
  * @param {object|null} userDetails - Row from the users table (or null for a new user)
  * @param {string|null} allConversationsSummary - Latest conversation summary
  * @param {boolean} onError - Legacy flag (unused; kept for backward compatibility)
+ * @param {'kommunicate'|'widget'} [channel='kommunicate'] - Output-format target.
+ *   'kommunicate' (default) keeps every existing call site unchanged: the model is
+ *   instructed (via system.js) to respond as a Kommunicate-JSON template array.
+ *   'widget' appends an override telling the model to respond in plain conversational
+ *   markdown instead — required for the streaming widget endpoint, since a partial
+ *   JSON blob can't be rendered incrementally.
  * @returns {Promise<string>} Full system prompt string (~8k tokens typical)
  */
-async function constructPrompt(userId, userDetails, allConversationsSummary, onError) {
+async function constructPrompt(userId, userDetails, allConversationsSummary, onError, channel = 'kommunicate') {
     console.log('🧠 ===== CONSTRUCT PROMPT START =====');
     console.log('📊 Input Parameters:', {
         userId: userId || 'undefined',
@@ -167,9 +173,17 @@ console.log('📋 Fetching additional instructions...');
             hasSystemPrompt: !!systemInstructionText
         });
 
+        const widgetOverride = channel === 'widget' ? `
+
+IMPORTANT — OUTPUT FORMAT OVERRIDE FOR THIS CHANNEL:
+Ignore the "Kommunicate Rich Message Templates" instructions above — this response is being streamed directly into MYAVANA's own web chat widget, not Kommunicate.
+Respond in plain, warm, conversational text using simple markdown (bold, bullet lists) where helpful. Do NOT wrap the response in JSON, HTML tags, or a "platform"/"messageType" object.
+` : '';
+
         const finalPrompt = `
             ${systemInstructionText}
             ${userDetailsString}
+            ${widgetOverride}
         `;
 
         const finalTime = Date.now() - startTime;

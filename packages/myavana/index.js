@@ -16,7 +16,7 @@ async function fulfillmentHandler(req, res) {
 }
 
 module.exports = {
-    myavanaHandler: require('./src/index-working'),
+    myavanaHandler: fulfillmentHandler,
     MyavanaChatbotServer: MyavanaChatbotServer,
     // For Cloud Run inline function compatibility
     fulfillmentHandler: fulfillmentHandler

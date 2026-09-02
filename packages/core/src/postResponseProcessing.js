@@ -235,7 +235,7 @@ const postProcessConversation = async (chatHistory, message) => {
     //console.log('Extraction prompt: ', extractionPrompt);
     try {
         const chat = ai.chat({
-            model: googleAI.model('gemini-2.5-flash'),
+            model: googleAI.model('gemini-3.6-flash'),
             config: {
                 temperature: 1.1,
             },
@@ -415,7 +415,7 @@ const postResponseProductCheck = async (chatHistory, message) => {
     // Try Gemini first
     try {
         const chat = ai.chat({
-            model: googleAI.model('gemini-2.5-flash'),
+            model: googleAI.model('gemini-3.6-flash'),
             config: {
                 temperature: 0.3, // Reduced temperature for more consistent JSON formatting
             },

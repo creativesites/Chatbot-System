@@ -176,7 +176,7 @@ describe('getOrCreateCache', () => {
         const result = await CacheManager.getOrCreateCache('u1', 'system prompt text');
 
         expect(mockCacheCreate).toHaveBeenCalledWith(expect.objectContaining({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3.7-flash',
             config: expect.objectContaining({ systemInstruction: 'system prompt text' }),
         }));
         expect(result.cacheName).toBe('new-cache-name');

@@ -149,6 +149,17 @@ const agentToolModules = {
     createUserTools: safeRequire('./src/agentTools', 'agentTools')?.createUserTools,
 };
 
+// D2C funnel-event tracking
+const funnelEventModules = {
+    logFunnelEvent: safeRequire('./src/funnelEvents', 'funnelEvents')?.logFunnelEvent,
+};
+
+// Local Agent Memory (self-hosted, TAM-inspired)
+const agentMemoryModules = {
+    extractAndStoreMemories: safeRequire('./src/agentMemory', 'agentMemory')?.extractAndStoreMemories,
+    retrieveRelevantMemories: safeRequire('./src/agentMemory', 'agentMemory')?.retrieveRelevantMemories,
+};
+
 // Enhanced systems
 const enhancedModules = {
     Logger: safeRequire('./src/logger', 'Logger')?.Logger,
@@ -168,6 +179,8 @@ module.exports = {
     ...conversationDriverModules,
     ...personalityModules,
     ...agentToolModules,
+    ...funnelEventModules,
+    ...agentMemoryModules,
 };
 
 // Log export summary

@@ -7,11 +7,10 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "node packages/myavana/src/enhancedIndex.js",
-    "start:dev": "NODE_ENV=development LOG_LEVEL=debug node packages/myavana/src/enhancedIndex.js",
-    "start:myavana": "node packages/myavana/src/enhancedIndex.js",
+    "start": "node packages/myavana/src/index.js",
+    "start:dev": "NODE_ENV=development LOG_LEVEL=debug node packages/myavana/src/index.js",
+    "start:myavana": "node packages/myavana/src/index.js",
     "start:sienna": "node packages/sienna-naturals/src/index.js",
-    "start:xai": "node packages/myavana-xai/src/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

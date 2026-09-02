@@ -91,7 +91,7 @@ async function generateTrends() {
         console.log('🌊 Generating fresh hair trends via AI...');
 
         const result = await ai.generate({
-            model: googleAI.model('gemini-2.5-flash'),
+            model: googleAI.model('gemini-3.6-flash'),
             output: { format: 'json', schema: TREND_SCHEMA },
             config: { temperature: 0.7 },
             prompt: GENERATION_PROMPT,

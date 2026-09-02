@@ -28,7 +28,7 @@ const generateConversationSummary = async (chatHistory) => {
     }
     const summaryPrompt = `Summarize the following conversation, getting all important information, especially the user's hair details, name, and location: ${JSON.stringify(chatHistory)}`;
     const { text } = await ai.chat({
-        model: googleAI.model('gemini-2.5-flash'),
+        model: googleAI.model('gemini-3.6-flash'),
         system: summaryPrompt,
     });
     return text;

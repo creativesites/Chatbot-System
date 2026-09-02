@@ -13,12 +13,22 @@ jest.mock('../trendManager', () => ({
     getTrendContext: jest.fn().mockResolvedValue(''),
 }));
 
+jest.mock('../agentMemory', () => ({
+    retrieveRelevantMemories: jest.fn().mockResolvedValue([]),
+}));
+
 const { getUserPersona, buildContextBlock } = require('../personaClassifier');
 const { getConversationDirective, inferStage, extractTrendSummary } = require('../conversationDriver');
 const { getTrendContext } = require('../trendManager');
+const { retrieveRelevantMemories } = require('../agentMemory');
 const { buildMessageContext } = require('../messageContextBuilder');
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+    jest.clearAllMocks();
+    // resetMocks (jest.config.js) wipes the jest.mock() factory default before each test,
+    // so give every test a harmless empty-memory default; tests exercising memory override it.
+    retrieveRelevantMemories.mockResolvedValue([]);
+});
 
 describe('buildMessageContext', () => {
     test('returns persona block when persona exists and no trend or driver', async () => {
@@ -130,5 +140,53 @@ describe('buildMessageContext', () => {
 
         const result = await buildMessageContext('u1');
         expect(result).toBe('[User persona: engaged, style: casual]\n[Trending in hair care: rice water]\n');
+    });
+
+    test('appends a memory block when relevant memories are found', async () => {
+        getUserPersona.mockResolvedValue(null);
+        getTrendContext.mockResolvedValue('');
+        getConversationDirective.mockReturnValue('');
+        retrieveRelevantMemories.mockResolvedValue(['prefers sulfate-free products', 'goal: length retention']);
+
+        const result = await buildMessageContext('u1', [{ role: 'user', content: 'what should I use?' }]);
+        expect(result).toContain('Relevant memory:');
+        expect(result).toContain('- prefers sulfate-free products');
+        expect(result).toContain('- goal: length retention');
+    });
+
+    test('passes currentMessage to retrieveRelevantMemories when provided', async () => {
+        getUserPersona.mockResolvedValue(null);
+        getTrendContext.mockResolvedValue('');
+        getConversationDirective.mockReturnValue('');
+        retrieveRelevantMemories.mockResolvedValue([]);
+
+        await buildMessageContext('u1', [], 'what oils should I use?');
+        expect(retrieveRelevantMemories).toHaveBeenCalledWith('u1', 'what oils should I use?');
+    });
+
+    test('falls back to the last user turn when currentMessage is omitted', async () => {
+        getUserPersona.mockResolvedValue(null);
+        getTrendContext.mockResolvedValue('');
+        getConversationDirective.mockReturnValue('');
+        retrieveRelevantMemories.mockResolvedValue([]);
+
+        const history = [
+            { role: 'assistant', content: 'hi there' },
+            { role: 'user', content: 'my hair is dry' },
+        ];
+        await buildMessageContext('u1', history);
+        expect(retrieveRelevantMemories).toHaveBeenCalledWith('u1', 'my hair is dry');
+    });
+
+    test('does not throw when memory retrieval fails — still returns other blocks', async () => {
+        const persona = { personaType: 'engaged', communicationStyle: 'casual', toneDirectives: [] };
+        getUserPersona.mockResolvedValue(persona);
+        buildContextBlock.mockReturnValue('[User persona: engaged, style: casual]\n');
+        getTrendContext.mockResolvedValue('');
+        getConversationDirective.mockReturnValue('');
+        retrieveRelevantMemories.mockRejectedValue(new Error('pgvector error'));
+
+        const result = await buildMessageContext('u1');
+        expect(result).toBe('[User persona: engaged, style: casual]\n');
     });
 });

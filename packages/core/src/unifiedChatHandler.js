@@ -17,8 +17,8 @@ class UnifiedChatHandler {
         
         // Initialize model priority list - GEMINI FIRST!
         this.modelPriority = [
-            { name: 'gemini20FlashExp', model: googleAI.model('gemini-3-flash-preview'), type: 'primary' },
-            { name: 'gemini15Flash', model: googleAI.model('gemini-2.5-flash'), type: 'primary' },
+            { name: 'gemini20FlashExp', model: googleAI.model('gemini-3.7-flash'), type: 'primary' },
+            { name: 'gemini15Flash', model: googleAI.model('gemini-3.6-flash'), type: 'primary' },
             { name: 'gemini15Pro', model: googleAI.model('gemini-3-pro-preview'), type: 'backup' }
         ];
 

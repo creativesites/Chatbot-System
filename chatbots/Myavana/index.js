@@ -1,5 +1,8 @@
 // index.js (for Cloud Run inline function)
-const { fulfillmentHandler } = require('../../packages/myavana');
+// Imports the published npm package, not a relative monorepo path — this folder
+// is deployed in isolation (see Dockerfile: `COPY . .` from this directory only),
+// so a `require('../../packages/myavana')` would not resolve in the build context.
+const { fulfillmentHandler } = require('myavana-ai-bot-test');
 
 // Main Cloud Run handler function
 exports.myavanaBot = async (req, res) => {
@@ -17,18 +20,29 @@ exports.myavanaBot = async (req, res) => {
                     status: 'healthy',
                     service: 'Myavana Chatbot',
                     timestamp: new Date().toISOString(),
-                    version: '1.0.24'
+                    version: '1.3.2'
                 });
             } else {
                 return res.json({
                     service: 'Myavana Chatbot',
                     status: 'running',
                     timestamp: new Date().toISOString(),
-                    version: '1.0.24'
+                    version: '1.3.2'
                 });
             }
         }
         
+        // CORS preflight — the widget's cross-origin POST (Content-Type: application/json)
+        // triggers a browser preflight OPTIONS request. This must succeed here, at the
+        // wrapper level, since it never reaches the Express app's own CORS middleware
+        // otherwise (that only runs inside fulfillmentHandler, for GET/POST below).
+        if (req.method === 'OPTIONS') {
+            res.header('Access-Control-Allow-Origin', '*');
+            res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+            res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            return res.sendStatus(200);
+        }
+
         // Handle POST requests (chat requests)
         if (req.method === 'POST') {
             await fulfillmentHandler(req, res);
@@ -36,7 +50,7 @@ exports.myavanaBot = async (req, res) => {
             res.status(405).json({
                 error: true,
                 message: 'Method not allowed',
-                allowedMethods: ['GET', 'POST']
+                allowedMethods: ['GET', 'POST', 'OPTIONS']
             });
         }
     } catch (error) {

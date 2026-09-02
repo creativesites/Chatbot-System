@@ -382,7 +382,7 @@ class SiennaNaturalsChatbotServer {
                     console.log('🚀 Trying PRIMARY MODEL: GEMINI 2.0 FLASH EXPERIMENTAL');
                     
                     const chat = session.chat({
-                        model: googleAI.model('gemini-3-flash-preview'),
+                        model: googleAI.model('gemini-3.7-flash'),
                         system: aiPrompt,
                         config: {
                             temperature: 1.1,
@@ -410,7 +410,7 @@ class SiennaNaturalsChatbotServer {
                         console.log('🔄 Trying FALLBACK MODEL: GEMINI 1.5 FLASH');
                         
                         const chat = core.ai.chat({
-                            model: googleAI.model('gemini-2.5-flash'),
+                            model: googleAI.model('gemini-3.6-flash'),
                             system: aiPrompt,
                             config: {
                                 temperature: 1.1,

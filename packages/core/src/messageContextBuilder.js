@@ -4,10 +4,12 @@
 //   1. Persona   — tone, style, trend framing instruction
 //   2. Trends    — what's currently popular in hair care (48h TTL)
 //   3. Driver    — what the AI should DO this turn (trend-aware)
+//   4. Memory    — durable facts/preferences relevant to the current message (Local Agent Memory)
 
 const { getUserPersona, buildContextBlock } = require('./personaClassifier');
 const { getConversationDirective, inferStage, extractTrendSummary } = require('./conversationDriver');
 const { getTrendContext } = require('./trendManager');
+const { retrieveRelevantMemories } = require('./agentMemory');
 
 /**
  * Assembles the dynamic context block to prepend to each user message before chat.send().
@@ -15,9 +17,10 @@ const { getTrendContext } = require('./trendManager');
  *
  * @param {string} userId
  * @param {Array<{role:string, content:string}>} [chatHistory=[]]
+ * @param {string} [currentMessage] - the message about to be sent; falls back to the last user turn in chatHistory
  * @returns {Promise<string>}
  */
-async function buildMessageContext(userId, chatHistory = []) {
+async function buildMessageContext(userId, chatHistory = [], currentMessage) {
     const parts = [];
 
     // Shared state — built up across steps so later steps can use earlier results
@@ -62,6 +65,17 @@ async function buildMessageContext(userId, chatHistory = []) {
         if (directive) parts.push(directive);
     } catch (err) {
         console.error('buildMessageContext: conversation driver failed:', err.message);
+    }
+
+    // 4. Relevant long-term memory (Local Agent Memory — durable facts/preferences)
+    try {
+        const queryText = currentMessage || [...chatHistory].reverse().find(m => m.role === 'user')?.content;
+        const memories = await retrieveRelevantMemories(userId, queryText);
+        if (memories.length > 0) {
+            parts.push(`\nRelevant memory:\n${memories.map(m => `- ${m}`).join('\n')}\n`);
+        }
+    } catch (err) {
+        console.error('buildMessageContext: memory retrieval failed:', err.message);
     }
 
     return parts.join('');

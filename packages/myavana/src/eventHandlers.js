@@ -326,7 +326,7 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
                     console.log('✅ Using cached analysis prompt:', cacheResult.cacheName);
                     
                     chat = session.chat({
-                        model: googleAI.model('gemini-3-flash-preview'),
+                        model: googleAI.model('gemini-3.7-flash'),
                         cache: cacheResult.cacheName, // Use cached system instructions
                         config: {
                             temperature: 0.9,
@@ -337,7 +337,7 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
                     console.log('⚠️ Cache unavailable, using standard chat for image analysis');
                     
                     chat = session.chat({
-                        model: googleAI.model('gemini-3-flash-preview'),
+                        model: googleAI.model('gemini-3.7-flash'),
                         system: analysisPrompt, // Fallback to regular system prompt
                         config: {
                             temperature: 0.9,
@@ -349,7 +349,7 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
                 const modelInitTime = performance.now() - modelStartTime;
                 console.log('✅ Image analysis model initialized in', modelInitTime.toFixed(2), 'ms');
                 console.log('📊 Analysis Configuration:', {
-                    model: 'gemini-3-flash-preview',
+                    model: 'gemini-3.7-flash',
                     temperature: 0.9,
                     hasImage: true,
                     imageUrl: fileUrl.substring(0, 100) + '...',

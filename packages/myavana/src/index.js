@@ -46,15 +46,12 @@ class MyavanaChatbotServer {
         try {
             console.log('🚀 Initializing Myavana Chatbot Server...');
 
-            // Initialize databases
-            //await core.connectDatabases();
-            // check if the database is connected
-            if (core.pgClient && core.pgClient.end) {
-                console.log('✅ Database connections established');
-            } else {
-                console.log('❌ Database connections not established');
-            }
-            //console.log('✅ skipped Database connections established');
+            // Initialize databases — must actually connect, not just check the client
+            // objects exist. Without this, every request that touches Postgres/Redis
+            // (getUserDetails, getAllConversationsSummary, funnel events, etc.) fails
+            // with "ClientClosedError: The client is closed".
+            await core.connectDatabases();
+            console.log('✅ Database connections established');
 
             // Setup Express middleware
             this.setupMiddleware();
@@ -194,15 +191,250 @@ class MyavanaChatbotServer {
             await this.handleChatRequest(req, res);
         });
 
+        // Streaming chat endpoint — for the self-hosted web widget only.
+        // Kommunicate/mobile keep using the blocking routes above, untouched.
+        this.app.post('/chat/stream', async (req, res) => {
+            console.log('📡 Received POST request to /chat/stream');
+            await this.handleStreamChatRequest(req, res);
+        });
+
+        // Funnel-event logging — for the widget to report conversion milestones.
+        this.app.post('/events', async (req, res) => {
+            await this.handleEventRequest(req, res);
+        });
+
         console.log('✅ Routes configured successfully!');
         console.log('🛣️ Available routes:');
-        console.log('   GET  /         - Service information');
-        console.log('   GET  /health   - Health check');
-        console.log('   GET  /healthz  - Health check (K8s style)');
-        console.log('   POST /         - Main chat endpoint');
-        console.log('   POST /webhook  - Webhook chat endpoint');
-        console.log('   POST /myavana  - Legacy chat endpoint');
-        console.log('   POST /chat     - Alternative chat endpoint');
+        console.log('   GET  /             - Service information');
+        console.log('   GET  /health       - Health check');
+        console.log('   GET  /healthz      - Health check (K8s style)');
+        console.log('   POST /             - Main chat endpoint');
+        console.log('   POST /webhook      - Webhook chat endpoint');
+        console.log('   POST /myavana      - Legacy chat endpoint');
+        console.log('   POST /chat         - Alternative chat endpoint');
+        console.log('   POST /chat/stream  - Streaming chat endpoint (widget)');
+        console.log('   POST /events       - Funnel-event logging (widget)');
+    }
+
+    /**
+     * Shared setup for a chat turn: checks/refreshes the Gemini context cache,
+     * (re)builds the system prompt when needed, builds the per-message dynamic
+     * context (persona/trend/driver/memory), assembles tools, and creates the
+     * Genkit chat session. Used by both the blocking (Kommunicate/mobile) and
+     * streaming (widget) routes — only what they do with `chat` differs.
+     *
+     * @param {object} opts
+     * @param {string} opts.userId
+     * @param {string} opts.allchatsSummary
+     * @param {object} opts.userInfo
+     * @param {object} opts.session - Genkit session (from core.ai.loadSession)
+     * @param {Array}  opts.chatHistory
+     * @param {string} opts.safeMessage
+     * @param {'kommunicate'|'widget'} [opts.channel='kommunicate']
+     * @returns {Promise<{chat: object, messageWithContext: string, cacheResult: object, aiPrompt: string|null, chatTools: Array, messageContext: string}>}
+     */
+    async prepareChatTurn({ userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel = 'kommunicate' }) {
+        // widget-channel prompts use a different output-format instruction (plain text vs
+        // Kommunicate JSON), so they must not share a cache slot with the kommunicate channel
+        const cacheKey = channel === 'widget' ? `${userId}_widget` : userId;
+
+        console.log('🔍 Checking cache validity...', { channel, cacheKey });
+        const cacheCheckStart = performance.now();
+        const cacheStatus = await core.cacheManager.checkCacheValidity(cacheKey);
+        console.log('✅ Cache check complete:', (performance.now() - cacheCheckStart).toFixed(0), 'ms', cacheStatus);
+
+        let aiPrompt = null;
+        let cacheResult = null;
+
+        if (!cacheStatus.hasValidCache) {
+            console.log('🧠 No valid cache - constructing prompt...');
+            aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
+            cacheResult = await core.cacheManager.getOrCreateCache(cacheKey, aiPrompt);
+            console.log('✅ Cache ready');
+        } else {
+            console.log('✅ Valid cache exists - skipping prompt construction!');
+            cacheResult = { cacheName: cacheStatus.cacheName, isNewCache: false };
+
+            if (cacheStatus.needsRefresh) {
+                console.log('🔄 Scheduling background cache refresh');
+                setImmediate(async () => {
+                    try {
+                        const freshPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
+                        await core.cacheManager.getOrCreateCache(cacheKey, freshPrompt);
+                        console.log('✅ Background cache refresh complete');
+                    } catch (error) {
+                        console.error('❌ Background cache refresh failed:', error.message);
+                    }
+                });
+            }
+        }
+
+        // Build per-message dynamic context (persona, trends, driver, memory)
+        // Prepended to the user message — keeps the 24h cached system prompt intact
+        const messageContext = await buildMessageContext(userId, chatHistory, safeMessage);
+        const messageWithContext = messageContext ? `${messageContext}${safeMessage}` : safeMessage;
+        if (messageContext) console.log('🎭 Context injected:', messageContext.trim());
+
+        // Assemble tools for this request: global (searchServices, lookupFAQ)
+        // + per-user dynamic tools (saveHairGoal, getUserHairProfile)
+        const chatTools = [...globalTools, ...createUserTools(userId)];
+
+        const chatConfig = {
+            model: googleAI.model('gemini-3.7-flash'),
+            tools: chatTools,
+            config: { temperature: 1.1 },
+        };
+        const chat = cacheResult.cacheName
+            ? session.chat({ ...chatConfig, cache: cacheResult.cacheName })
+            : session.chat({ ...chatConfig, system: aiPrompt });
+
+        return { chat, messageWithContext, cacheResult, aiPrompt, chatTools, messageContext };
+    }
+
+    /**
+     * Sends messageWithContext on the primary model (with cache-retry-on-empty-output),
+     * falling back to the secondary model on any failure. Blocking — returns the final
+     * output. Used by the non-streaming routes; the streaming route uses this only for
+     * its fallback branch (sendStream failures fall back to a single blocking response).
+     *
+     * @param {object} opts
+     * @returns {Promise<{aiOutput: any, modelUsed: string}>}
+     */
+    async sendWithFallback({ chat, messageWithContext, safeMessage, cacheResult, aiPrompt, chatTools, userId, userInfo, allchatsSummary, session, channel = 'kommunicate' }) {
+        let aiOutput = null;
+        let modelUsed = '';
+
+        try {
+            console.log('🚀 ===== TRYING PRIMARY MODEL: GEMINI 3.7 FLASH WITH CACHE =====');
+            const { output } = await chat.send(messageWithContext);
+
+            const isEmptyOutput =
+                output == null ||
+                (typeof output === 'string' && output.trim().length === 0) ||
+                (Array.isArray(output) && output.length === 0) ||
+                (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
+
+            if (isEmptyOutput) {
+                if (cacheResult.cacheName) {
+                    console.warn('⚠️ Empty output with cache. Retrying without cache...');
+                    if (!aiPrompt) {
+                        aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
+                    }
+                    const retryChat = session.chat({
+                        model: googleAI.model('gemini-3.7-flash'),
+                        system: aiPrompt,
+                        tools: chatTools,
+                        config: { temperature: 1.1 },
+                    });
+                    const { output: retryOutput } = await retryChat.send(messageWithContext);
+
+                    const isEmptyRetryOutput =
+                        retryOutput == null ||
+                        (typeof retryOutput === 'string' && retryOutput.trim().length === 0) ||
+                        (Array.isArray(retryOutput) && retryOutput.length === 0) ||
+                        (typeof retryOutput === 'object' && !Array.isArray(retryOutput) && Object.keys(retryOutput).length === 0);
+
+                    if (isEmptyRetryOutput) {
+                        throw new Error('Empty AI output from Gemini 3.7 (retry without cache)');
+                    }
+
+                    aiOutput = retryOutput;
+                    modelUsed = 'gemini37Flash-retry';
+                } else {
+                    throw new Error('Empty AI output from Gemini 3.7 Flash');
+                }
+            } else {
+                aiOutput = output;
+                modelUsed = cacheResult.cacheName ? 'gemini37Flash-cached' : 'gemini37Flash';
+            }
+            console.log('✅✅✅ GEMINI 3.7 FLASH SUCCESS!');
+        } catch (primaryError) {
+            console.error('❌❌❌ PRIMARY MODEL FAILED: GEMINI 3.7 FLASH:', primaryError.message);
+            ({ aiOutput, modelUsed } = await this.sendFallbackModel({
+                messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel,
+            }));
+        }
+
+        if (!aiOutput) {
+            throw new Error('No AI output received from any model');
+        }
+
+        return { aiOutput, modelUsed };
+    }
+
+    /**
+     * Sends messageWithContext on the secondary model only (Gemini 3.6 Flash, no cache).
+     * Extracted so both sendWithFallback's catch branch and the streaming route's
+     * sendStream-failure branch can reach the fallback model without redundantly
+     * retrying the primary model first.
+     *
+     * @param {object} opts
+     * @returns {Promise<{aiOutput: any, modelUsed: string}>}
+     */
+    async sendFallbackModel({ messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel = 'kommunicate' }) {
+        console.log('🔄 ===== TRYING FALLBACK MODEL: GEMINI 3.6 FLASH =====');
+        try {
+            if (!aiPrompt) {
+                aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
+            }
+            const fallbackChat = core.ai.chat({
+                model: googleAI.model('gemini-3.6-flash'),
+                system: aiPrompt,
+                tools: chatTools,
+                config: { temperature: 1.1 },
+            });
+            const response = await fallbackChat.send(messageWithContext);
+            // Kommunicate channel expects structured JSON (populates `.output`); the widget
+            // channel asks for plain conversational text (`.output` stays null — see `.text`).
+            const output = channel === 'widget' ? response.text : response.output;
+
+            const isEmptyFallbackOutput =
+                output == null ||
+                (typeof output === 'string' && output.trim().length === 0) ||
+                (Array.isArray(output) && output.length === 0) ||
+                (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
+
+            if (isEmptyFallbackOutput) {
+                throw new Error('Empty AI output from Gemini 3.6 Flash');
+            }
+
+            console.log('✅✅✅ GEMINI 3.6 FLASH FALLBACK SUCCESS!');
+            return { aiOutput: output, modelUsed: 'gemini36Flash' };
+        } catch (fallbackError) {
+            console.error('❌❌❌ FALLBACK MODEL FAILED: GEMINI 3.6 FLASH:', fallbackError.message);
+            throw new Error('All AI models failed');
+        }
+    }
+
+    /**
+     * Shared post-processing after a turn's response has been sent: updates
+     * conversation history, extracts hair issues/profile updates, and extracts
+     * durable Local Agent Memory facts. Non-blocking — call via setImmediate.
+     *
+     * @param {object} opts
+     */
+    async runPostProcessing({ userId, conversationId, message, aiOutput, allchatsSummary }) {
+        console.log('🔄 ===== STARTING POST-PROCESSING =====');
+        try {
+            let chatHistory = await core.getConversationHistory(conversationId, userId);
+            if (!Array.isArray(chatHistory)) {
+                chatHistory = [];
+            }
+
+            const timestampedUserSaid = `${new Date().toISOString()} - User Said: ${message}`;
+            chatHistory.push({ role: 'user', content: timestampedUserSaid });
+            chatHistory.push({ role: 'assistant', content: aiOutput });
+
+            const postProcessData = await core.postProcessConversation(chatHistory, message);
+            await core.postResponseProcessing(postProcessData, userId, aiOutput, allchatsSummary, conversationId, chatHistory, JSON.stringify(aiOutput));
+
+            // Local Agent Memory extraction — independent of the rest of post-processing
+            await core.extractAndStoreMemories(userId, conversationId, chatHistory);
+
+            console.log('✅ Post-processing completed successfully!');
+        } catch (postProcessError) {
+            console.error('❌ Post-processing failed:', postProcessError.message);
+        }
     }
 
     /**
@@ -251,19 +483,20 @@ class MyavanaChatbotServer {
             
             console.log('✅ User data fetched successfully');
 
+            console.log('📜 Loading conversation history...');
+            let chatHistory = await core.getConversationHistory(conversationId, userId);
+
+            if (!Array.isArray(chatHistory)) {
+                console.log('⚠️ Chat history is not an array, initializing empty array');
+                chatHistory = [];
+            }
+
+            console.log('✅ Conversation history loaded');
+
             if (eventName === "KOMMUNICATE_MEDIA_EVENT") {
                 console.log('🖼️ Processing KOMMUNICATE_MEDIA_EVENT (image message)...');
-                console.log('📜 Loading conversation history...');
-            let fastchatHistory = await core.getConversationHistory(conversationId, userId);
-            
-            if (!Array.isArray(fastchatHistory)) {
-                console.log('⚠️ Chat history is not an array, initializing empty array');
-                fastchatHistory = [];
-            }
-            
-            console.log('✅ Conversation history loaded');
-                const handled = await handleImageMessage(eventName, metadata, userId, conversationId, fastchatHistory, res, message, userInfo, session);
-                
+                const handled = await handleImageMessage(eventName, metadata, userId, conversationId, chatHistory, res, message, userInfo, session);
+
                 if (handled) {
                     console.log('✅ Image message handled successfully');
                     console.log('🏁 ===== IMAGE REQUEST COMPLETED =====');
@@ -271,276 +504,21 @@ class MyavanaChatbotServer {
                 }
             }
 
-             // ===== NEW: CHECK CACHE VALIDITY FIRST =====
-            // This is a fast DB lookup - no expensive prompt construction yet!
-            console.log('🔍 Checking cache validity...');
-            const cacheCheckStart = performance.now();
-            const cacheStatus = await core.cacheManager.checkCacheValidity(userId);
-            console.log('✅ Cache check complete:', (performance.now() - cacheCheckStart).toFixed(0), 'ms');
-            console.log('📊 Cache status:', cacheStatus);
+            // ===== SHARED CHAT-TURN SETUP (cache, prompt, context, tools) =====
+            const { chat, messageWithContext, cacheResult, aiPrompt, chatTools } = await this.prepareChatTurn({
+                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'kommunicate',
+            });
 
-            let aiPrompt = null;
-            let cacheResult = null;
-
-            // ===== CONDITIONAL PROMPT CONSTRUCTION =====
-            // Only construct prompt if we need to create/refresh cache OR use it without cache
-            if (!cacheStatus.hasValidCache) {
-                console.log('🧠 No valid cache - constructing prompt...');
-                const promptStart = performance.now();
-
-                aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false);
-                console.log('✅ Prompt built:', (performance.now() - promptStart).toFixed(0), 'ms');
-
-                // Create cache with the new prompt
-                console.log('🗄️ Creating cache...');
-                const cacheStart = performance.now();
-                cacheResult = await core.cacheManager.getOrCreateCache(userId, aiPrompt);
-                console.log('✅ Cache ready:', (performance.now() - cacheStart).toFixed(0), 'ms');
-            } else {
-                console.log('✅ Valid cache exists - skipping prompt construction!');
-                
-                // Use existing cache - no prompt construction needed!
-                cacheResult = {
-                    cacheName: cacheStatus.cacheName,
-                    isNewCache: false
-                };
-
-                // Optionally refresh cache in background if it's expiring soon
-                if (cacheStatus.needsRefresh) {
-                    console.log('🔄 Scheduling background cache refresh');
-                    setImmediate(async () => {
-                        try {
-                            const freshPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false);
-                            await core.cacheManager.getOrCreateCache(userId, freshPrompt);
-                            console.log('✅ Background cache refresh complete');
-                        } catch (error) {
-                            console.error('❌ Background cache refresh failed:', error.message);
-                        }
-                    });
-                }
-            }
-
-            // Build per-message dynamic context (persona, style directives)
-            // Prepended to the user message — keeps the 24h cached system prompt intact
-            const messageContext = await buildMessageContext(userId, chatHistory);
-            const messageWithContext = messageContext ? `${messageContext}${safeMessage}` : safeMessage;
-
-            // Assemble tools for this request: global (searchServices, lookupFAQ)
-            // + per-user dynamic tools (saveHairGoal, getUserHairProfile)
-            const chatTools = [...globalTools, ...createUserTools(userId)];
-
-            // Try primary model first (Gemini 3.0 Flash Preview with caching)
+            // ===== AI MODEL PROCESSING (primary + fallback) =====
             console.log('🤖 ===== AI MODEL PROCESSING PHASE =====');
-            console.log('🤖 Starting AI model processing with caching...');
-            if (messageContext) console.log('🎭 Persona context injected:', messageContext.trim());
-
-            let aiOutput = null;
-            let modelUsed = '';
             let responseStartTime = performance.now();
-            console.log('⏱️ Response timer started', responseStartTime.toFixed(2), 'ms');
-            
-            try {
-                console.log('🚀 ===== TRYING PRIMARY MODEL: GEMINI 3.0 FLASH PREVIEW WITH CACHE =====');
-                console.log('📤 Initializing Gemini 3.0 Flash Preview...');
-               
-                
-                const modelInitStartTime = performance.now();
-                
-                // Create chat with or without cache
-                let chat;
-                if (cacheResult.cacheName) {
-                    console.log('✅ Using cached system instructions:', cacheResult.cacheName);
-                    
-                    chat = session.chat({
-                        model: googleAI.model('gemini-3-flash-preview'),
-                        cache: cacheResult.cacheName, // Use cached system instructions
-                        tools: chatTools,
-                        config: {
-                            temperature: 1.1,
-                        },
-                    });
-                } else {
-                    console.log('⚠️ Cache unavailable, using standard chat without cache');
-                    
-                    chat = session.chat({
-                        model: googleAI.model('gemini-3-flash-preview'),
-                        system: aiPrompt, // Fallback to regular system prompt
-                        tools: chatTools,
-                        config: {
-                            temperature: 1.1,
-                        },
-                    });
-                }
 
+            const { aiOutput, modelUsed } = await this.sendWithFallback({
+                chat, messageWithContext, safeMessage, cacheResult,
+                aiPrompt, chatTools,
+                userId, userInfo, allchatsSummary, session, channel: 'kommunicate',
+            });
 
-                const apiCallStartTime = performance.now();
-                const { output } = await chat.send(messageWithContext);
-                const apiCallTime = performance.now() - apiCallStartTime;
-                
-                console.log('⏱️ API Call Duration:', apiCallTime.toFixed(2) + 'ms');
-                
-                // Guard against null/empty outputs (can happen with cached requests)
-                const isEmptyOutput =
-                    output == null ||
-                    (typeof output === 'string' && output.trim().length === 0) ||
-                    (Array.isArray(output) && output.length === 0) ||
-                    (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
-                
-                if (isEmptyOutput) {
-                    if (cacheResult.cacheName) {
-                        console.warn('⚠️ Empty output with cache. Retrying Gemini 3.0 without cache...');
-                        if (!aiPrompt) {
-                            aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false);
-                        }
-                        const retryChat = session.chat({
-                            model: googleAI.model('gemini-3-flash-preview'),
-                            system: aiPrompt,
-                            tools: chatTools,
-                            config: {
-                                temperature: 1.1,
-                            },
-                        });
-                        const { output: retryOutput } = await retryChat.send(safeMessage);
-                        
-                        const isEmptyRetryOutput =
-                            retryOutput == null ||
-                            (typeof retryOutput === 'string' && retryOutput.trim().length === 0) ||
-                            (Array.isArray(retryOutput) && retryOutput.length === 0) ||
-                            (typeof retryOutput === 'object' && !Array.isArray(retryOutput) && Object.keys(retryOutput).length === 0);
-                        
-                        if (isEmptyRetryOutput) {
-                            throw new Error('Empty AI output from Gemini 3.0 (retry without cache)');
-                        }
-                        
-                        aiOutput = retryOutput;
-                        modelUsed = 'gemini30FlashPreview-retry';
-                    } else {
-                        throw new Error('Empty AI output from Gemini 3.0 Flash Preview');
-                    }
-                } else {
-                    aiOutput = output;
-                    modelUsed = cacheResult.cacheName ? 'gemini30FlashPreview-cached' : 'gemini30FlashPreview';
-                }
-                
-                console.log('✅✅✅ GEMINI 3.0 FLASH PREVIEW SUCCESS!');
-                console.log('📊 Response Stats:', {
-                    responseTime: apiCallTime.toFixed(2) + 'ms',
-                    outputLength: typeof output === 'string' ? output.length : JSON.stringify(output).length,
-                    outputType: typeof output,
-                    estimatedResponseTokens: typeof output === 'string' ? Math.ceil(output.length / 4) : Math.ceil(JSON.stringify(output).length / 4),
-                    model: 'gemini3FlashPreview',
-                    usedCache: !!cacheResult.cacheName,
-                    cacheImpact: cacheResult.cacheName ? 'Prompt tokens from cache (reduced cost)' : 'Full prompt sent'
-                });
-                
-                // Log output preview
-                const outputPreview = typeof output === 'string' ? output : JSON.stringify(output);
-                console.log('📝 Response Preview (first 300 chars):', outputPreview.substring(0, 300) + (outputPreview.length > 300 ? '...' : ''));
-                console.log('🚀 ===== GEMINI 3.0 SUCCESS - SKIPPING FALLBACKS =====');
-                
-            } catch (primaryError) {
-                const primaryFailTime = performance.now() - responseStartTime;
-                console.error('❌❌❌ PRIMARY MODEL FAILED: GEMINI 3.0 FLASH PREVIEW');
-                console.error('❌ Primary Error Details:', {
-                    message: primaryError.message,
-                    name: primaryError.name,
-                    status: primaryError.status,
-                    code: primaryError.code,
-                    failureTime: primaryFailTime.toFixed(2) + 'ms',
-                    requestId: requestId,
-                    userId: userId,
-                    timestamp: new Date().toISOString(),
-                    wasUsingCache: !!cacheResult.cacheName
-                });
-                
-                try {
-                    console.log('🔄 ===== TRYING FALLBACK MODEL: GEMINI 2.5 FLASH =====');
-                    console.log('📤 Initializing Gemini 2.5 Flash fallback...');
-                    console.log('📊 Fallback Model Configuration:', {
-                        model: 'gemini25Flash',
-                        temperature: 1.1,
-                        systemPromptLength: aiPrompt ? aiPrompt.length : 0,
-                        userMessageLength: safeMessage.length,
-                        reason: 'Primary model (Gemini 3.0) failed',
-                        cacheAvailable: false // Gemini 2.5 doesn't support the same caching
-                    });
-                    
-                    const fallbackInitStartTime = performance.now();
-                    // Ensure we have a prompt for fallback (cache path may skip construction)
-                    if (!aiPrompt) {
-                        aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false);
-                    }
-                    
-                    const chat = core.ai.chat({
-                        model: googleAI.model('gemini-2.5-flash'),
-                        system: aiPrompt, // Use full prompt for fallback
-                        tools: chatTools,
-                        config: {
-                            temperature: 1.1,
-                        },
-                    });
-                    console.log('✅ Fallback chat session initialized in', (performance.now() - fallbackInitStartTime).toFixed(2), 'ms');
-
-                    console.log('💬 Sending message to Gemini 2.5:', {
-                        messagePreview: safeMessage.substring(0, 200) + (safeMessage.length > 200 ? '...' : ''),
-                        fullMessageLength: safeMessage.length,
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    const fallbackApiCallStartTime = performance.now();
-                    const { output } = await chat.send(messageWithContext);
-                    const fallbackApiCallTime = performance.now() - fallbackApiCallStartTime;
-                    
-                    // Guard against null/empty outputs
-                    const isEmptyFallbackOutput =
-                        output == null ||
-                        (typeof output === 'string' && output.trim().length === 0) ||
-                        (Array.isArray(output) && output.length === 0) ||
-                        (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
-                    
-                    if (isEmptyFallbackOutput) {
-                        throw new Error('Empty AI output from Gemini 2.5 Flash');
-                    }
-                    
-                    aiOutput = output;
-                    modelUsed = 'gemini25Flash';
-                    
-                    console.log('✅✅✅ GEMINI 2.5 FLASH FALLBACK SUCCESS!');
-                    console.log('📊 Fallback Response Stats:', {
-                        responseTime: fallbackApiCallTime.toFixed(2) + 'ms',
-                        outputLength: typeof output === 'string' ? output.length : JSON.stringify(output).length,
-                        outputType: typeof output,
-                        estimatedResponseTokens: typeof output === 'string' ? Math.ceil(output.length / 4) : Math.ceil(JSON.stringify(output).length / 4),
-                        model: 'gemini25Flash'
-                    });
-                    
-                    const outputPreview = typeof output === 'string' ? output : JSON.stringify(output);
-                    console.log('📝 Fallback Response Preview (first 300 chars):', outputPreview.substring(0, 300) + (outputPreview.length > 300 ? '...' : ''));
-                    console.log('🔄 ===== GEMINI 2.5 FALLBACK SUCCESS =====');
-                    
-                } catch (fallbackError) {
-                    const fallbackFailTime = performance.now() - responseStartTime;
-                    console.error('❌❌❌ FALLBACK MODEL FAILED: GEMINI 2.5 FLASH');
-                    console.error('❌ Fallback Error Details:', {
-                        message: fallbackError.message,
-                        name: fallbackError.name,
-                        status: fallbackError.status,
-                        code: fallbackError.code,
-                        fallbackFailureTime: fallbackFailTime.toFixed(2) + 'ms',
-                        totalFailureTime: (performance.now() - responseStartTime).toFixed(2) + 'ms',
-                        requestId: requestId,
-                        userId: userId,
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    console.error('❌❌❌ COMPLETE AI FAILURE - NO FALLBACK AVAILABLE');
-                    throw new Error('All AI models failed');
-                }
-            }
-            if (!aiOutput) {
-                throw new Error('No AI output received from any model');
-            }
-            
             console.log('✅✅✅ AI MODEL SUCCESS!');
             console.log('🎆 Final AI Output received from:', modelUsed);
 
@@ -576,31 +554,8 @@ class MyavanaChatbotServer {
             console.log('✅✅✅ RESPONSE TRANSMITTED SUCCESSFULLY!');
 
             // Post-processing (non-blocking)
-            setImmediate(async () => {
-                console.log('🔄 ===== STARTING POST-PROCESSING =====');
-                try {
-                    console.log('📜 Loading conversation history...');
-                    let chatHistory = await core.getConversationHistory(conversationId, userId);
-                    
-                    if (!Array.isArray(chatHistory)) {
-                        console.log('⚠️ Chat history is not an array, initializing empty array');
-                        chatHistory = [];
-                    }
+            setImmediate(() => this.runPostProcessing({ userId, conversationId, message, aiOutput, allchatsSummary }));
 
-                    // Add user message to chat history
-                    const timestampedUserSaid = `${new Date().toISOString()} - User Said: ${message}`;
-                    chatHistory.push({ role: 'user', content: timestampedUserSaid });
-
-                    // Add AI response to chat history
-                    chatHistory.push({ role: 'assistant', content: aiOutput });
-                    const postProcessData = await core.postProcessConversation(chatHistory, message);
-                    await core.postResponseProcessing(postProcessData, userId, aiOutput, allchatsSummary, conversationId, chatHistory, JSON.stringify(aiOutput));
-                    console.log('✅ Post-processing completed successfully!');
-                } catch (postProcessError) {
-                    console.error('❌ Post-processing failed:', postProcessError.message);
-                }
-            });
-            
             const finalTotalTime = performance.now() - start;
             console.log('🎉 ===== COMPLETE REQUEST SUMMARY =====');
             console.log('📊 Complete Performance Metrics:', {
@@ -626,6 +581,128 @@ class MyavanaChatbotServer {
             };
             
             return res.status(500).json(errorResponse);
+        }
+    }
+
+    /**
+     * Streaming chat endpoint for the self-hosted web widget. One HTTP request per
+     * turn, held open just long enough to stream one AI response (fetch + ReadableStream
+     * on the client, not a persistent WebSocket) — see the Phase 1 architecture plan for
+     * why this avoids Cloud Run session-affinity/timeout complications. Falls back to a
+     * single blocking response (written as one chunk) if the primary streaming call fails.
+     *
+     * @param {import('express').Request} req
+     * @param {import('express').Response} res
+     */
+    async handleStreamChatRequest(req, res) {
+        const requestId = Math.random().toString(36).substr(2, 9);
+        console.log('🚀 ===== NEW STREAM REQUEST START =====', requestId);
+
+        try {
+            const { message, from: userId, groupId: conversationId, eventName } = req.body;
+            const safeMessage = message || '';
+
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-cache, no-transform');
+            res.setHeader('X-Accel-Buffering', 'no'); // disable proxy buffering so chunks flush immediately
+            if (res.flushHeaders) res.flushHeaders();
+
+            if (eventName === 'WELCOME') {
+                res.write("Hey there! I'm Mya, your MYAVANA Hair AI guide. What can I help you with today?");
+                return res.end();
+            }
+
+            if (eventName === 'KOMMUNICATE_MEDIA_EVENT') {
+                // Image analysis isn't wired into the streaming endpoint yet (Phase 1 scope is text chat).
+                res.write("I can't analyze images in this chat yet — that's coming soon! In the meantime, tell me about your hair and I'll do my best to help.");
+                return res.end();
+            }
+
+            const [allchatsSummary, userInfo, session] = await Promise.all([
+                core.getAllConversationsSummary(userId),
+                core.getUserDetails(userId),
+                core.ai.loadSession(userId, { store: new core.DatabaseSessionStore() }),
+            ]);
+
+            let chatHistory = await core.getConversationHistory(conversationId, userId);
+            if (!Array.isArray(chatHistory)) chatHistory = [];
+
+            const { chat, messageWithContext, aiPrompt, chatTools } = await this.prepareChatTurn({
+                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'widget',
+            });
+
+            let aiOutput = '';
+            let modelUsed = 'gemini37Flash-stream';
+            let streamedText = '';
+            let anyChunkWritten = false;
+
+            try {
+                console.log('🚀 ===== STREAMING PRIMARY MODEL: GEMINI 3.7 FLASH =====');
+                const { stream, response } = chat.sendStream(messageWithContext);
+                for await (const chunk of stream) {
+                    if (chunk.text) {
+                        res.write(chunk.text);
+                        streamedText += chunk.text;
+                        anyChunkWritten = true;
+                    }
+                }
+                const finalResponse = await response;
+                aiOutput = finalResponse?.text ?? (typeof finalResponse?.output === 'string' ? finalResponse.output : '') ?? streamedText;
+                if (!aiOutput) throw new Error('Empty streamed output from Gemini 3.7 Flash');
+                console.log('✅✅✅ STREAM SUCCESS!');
+            } catch (streamError) {
+                console.error('❌ Streaming primary model failed:', streamError.message);
+                if (anyChunkWritten) {
+                    // Partial content already flushed to the client — the response is
+                    // already committed. Falling back now would write a second, unrelated
+                    // response on top of it, corrupting the output. Accept the partial
+                    // answer instead of risking that.
+                    console.warn('⚠️ Partial stream already sent to client — not falling back, ending with partial content.');
+                    aiOutput = streamedText;
+                    modelUsed = 'gemini37Flash-stream-partial';
+                } else {
+                    console.log('🔄 No content sent yet — falling back to Gemini 3.6 Flash.');
+                    const fallback = await this.sendFallbackModel({
+                        messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel: 'widget',
+                    });
+                    aiOutput = fallback.aiOutput;
+                    modelUsed = fallback.modelUsed;
+                    res.write(aiOutput);
+                }
+            }
+
+            res.end();
+            console.log('🏁 ===== STREAM REQUEST COMPLETE =====', requestId, modelUsed);
+
+            setImmediate(() => this.runPostProcessing({ userId, conversationId, message, aiOutput, allchatsSummary }));
+        } catch (error) {
+            console.error('❌❌❌ STREAM REQUEST FAILURE!', error);
+            if (!res.headersSent) {
+                res.status(500).json({ error: true, message: 'Internal server error - chatbot temporarily unavailable' });
+            } else {
+                res.end();
+            }
+        }
+    }
+
+    /**
+     * Logs a D2C funnel milestone reported by the widget (intake_completed,
+     * paywall_shown, purchase_completed, hhcp_delivered, consult_triaged).
+     *
+     * @param {import('express').Request} req
+     * @param {import('express').Response} res
+     */
+    async handleEventRequest(req, res) {
+        try {
+            const { userId, conversationId, eventType, metadata } = req.body;
+            if (!userId || !eventType) {
+                return res.status(400).json({ error: true, message: 'userId and eventType are required' });
+            }
+            await core.logFunnelEvent(userId, conversationId, eventType, metadata || {});
+            res.status(204).end();
+        } catch (error) {
+            console.error('❌ Failed to log funnel event:', error);
+            res.status(500).json({ error: true, message: 'Internal server error' });
         }
     }
 

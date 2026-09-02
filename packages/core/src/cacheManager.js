@@ -148,7 +148,7 @@ class CacheManager {
             // Create new cache
             console.log('🆕 Creating new Gemini cache...');
             const cacheStartTime = performance.now();
-            const modelName = "gemini-3-flash-preview";
+            const modelName = "gemini-3.7-flash";
             
             const cache = await cacheAi.caches.create({
                 model: modelName,

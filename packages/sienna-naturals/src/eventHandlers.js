@@ -176,7 +176,7 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
 
                 // Use GenKit's Gemini model for image analysis with session
                 const chat = session.chat({
-                    model: googleAI.model('gemini-3-flash-preview'),
+                    model: googleAI.model('gemini-3.7-flash'),
                     config: {
                         temperature: 0.9,
                     },

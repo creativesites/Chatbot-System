@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Myavana Widget — local test harness</title>
+</head>
+<body>
+    <h1>Myavana Widget test harness</h1>
+    <p>Points at a local <code>packages/myavana</code> server. Start it with <code>node packages/myavana/src/index.js</code> (default port 8080), then load this page and click the chat launcher bottom-right.</p>
+    <p>Buttons below simulate the host-page funnel hooks a real Shopify/myavana.com page would call:</p>
+    <button onclick="MyavanaWidget.logEvent('intake_completed')">Log intake_completed</button>
+    <button onclick="MyavanaWidget.logEvent('paywall_shown')">Log paywall_shown</button>
+
+    <script src="./src/myavana-widget.js"></script>
+    <script>
+        MyavanaWidget.init({ apiBase: 'http://localhost:8080' });
+    </script>
+</body>
+</html>

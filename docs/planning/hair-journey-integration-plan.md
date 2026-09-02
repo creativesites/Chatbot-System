@@ -157,7 +157,18 @@ Add a `source` column to `agent_memories` (`conversation` | `hair_journey`) so s
 
 ## 6. Audit — Chatbot Dashboard
 
-*(pending — background audit in progress; this section will be completed with concrete file references before the plan is finalized.)*
+**Naming correction, important:** `creativesites/Chatbot-Dashboard` is an **empty repository (0 commits)**. The real, live dashboard for this system is `creativesites/Sienna-Naturals-Bot-Dashboard` — its own `DEVELOPMENT_LOG.md`/`CLAUDE.md` state it was built by merging in "the Myavana Chatbot Dashboard," it still contains `myavana-*` CSS classes and a `DashBoardLayerOne-myavana.jsx` file, and it shares `packages/core` (and `packages/sienna-naturals`) with this repo. **Any dashboard work in this plan targets `Sienna-Naturals-Bot-Dashboard`, not `Chatbot-Dashboard`** — flagged as an open question in §9 in case the empty repo was meant to be the real target going forward.
+
+### 6.1 Tech stack
+Next.js 15 (App Router), React 18, Bootstrap 5 + a custom `myavana-*`/`sienna-*` CSS design system (WowDash admin template base). Auth via **Clerk** (`src/middleware.js:1-12`). Data access is **direct PostgreSQL** from Next.js API routes (`src/helper/database.js`, raw `pg` client + raw SQL per route) — **not** HTTP calls to Chatbot-System. No generic REST/HTTP client exists for calling an external third-party API (WordPress included); the closest precedent is `'use server'` helper modules with native SDKs (`src/helper/genkit.js`, `src/helper/storage.js`, `src/helper/openai.js`) — a reasonable template for a future `hairJourneyClient.js`, but genuinely new code.
+
+### 6.2 Existing pages relevant to a Hair Journey / Customer Context panel
+- **`src/app/hair-profiles/[profileId]/page.jsx`** (+ `src/app/api/hair-profiles/[profileId]/route.js`) is the closest existing prototype of a "Customer 360" view: tabbed UI (Overview / Hair Details / Issues / Products / **Timeline**), hero section with health score and completeness %, and an API that aggregates profile + `hair_issues` + last 10 conversations + `product_recommendations` into one unioned, date-ordered timeline (limit 20) via parallel queries. **This is the natural place to add a Hair Journey tab/panel** (goals, routines, journal entries, current page/surface) rather than building a new page from scratch.
+- **`src/app/users/[userId]/page.jsx`** is a second, overlapping detail view (profile fields + stats + embedded conversation history with a correction/annotation UI) — likely to be consolidated with `hair-profiles/[profileId]` at some point, but out of scope for this plan.
+- **`UserJourneyTracker.jsx`** — a 30s-polling, 8-stage funnel chart (Discovery→Mastery), backed by a `user_journey_stages`/`user_journey_events` concept. **Naming collision to flag explicitly**: this "hair journey"/"user journey" is an internal engagement-funnel taxonomy unrelated to the external Hair Journey WordPress plugin. Keep the two concepts clearly labeled in any UI/copy that shows both (e.g. "Engagement Stage" vs "Hair Journey Goals/Routines").
+- No existing goal/routine-specific card component — would extend the existing `myavana-card`/`myavana-badge`/`myavana-progress` CSS pattern already used in `hair-profiles/[profileId]/page.jsx`, not introduce a new design system.
+- `SystemHealthLayer.jsx` renders **static hardcoded values**, not a live health check — unrelated to this plan but worth knowing if a future "Hair Journey adapter health" tile is ever added there.
+- No mentions of "Customer 360" or "Candace" anywhere in the repo; a `SIENNA_NATURALS_IMPLEMENTATION_SUMMARY.md` roadmap section exists but doesn't cover Hair Journey.
 
 ---
 
@@ -185,7 +196,7 @@ Add a `source` column to `agent_memories` (`conversation` | `hair_journey`) so s
 ### Phase 3 — Embed on the live site + non-salesy service guidance (demo milestone 3)
 - Ship the widget on `myhairjourney.ai` pages (Goals/Routines/Journal/Today) alongside the existing Kommunicate entry point, gated to a test cohort or a demo-only flag — final placement is a product decision (§9).
 - Minimal `service_relevance` policy: a small static service catalog (consultation, stylist guidance) plus a rule ("mention only if the user has repeated the same unresolved concern across ≥2 turns/sessions") — enough to demonstrate the "no hard sell" behavior described in the brief, without building the full scoring system yet.
-- Dashboard: a first-cut "Current Context" panel on the existing conversation/user detail view showing surface, current page, active goal/routine, recent activity — scope depends on §6 findings.
+- Dashboard: a first-cut "Hair Journey" tab added to the existing `src/app/hair-profiles/[profileId]/page.jsx` view in `Sienna-Naturals-Bot-Dashboard` (not the empty `Chatbot-Dashboard` repo — see §6), showing surface/current page, active goal/routine, and recent activity, reusing its existing `myavana-card` pattern and aggregated-API-route approach (parallel Postgres + one new `HairJourneyProvider` call, cached).
 
 ### Phase 4+ — Platform hardening (post-demo)
 - Bidirectional sync: add `do_action()` hooks in the plugin (goal/routine/journal change) + a lightweight event endpoint on Mya to invalidate cached context, replacing polling.
@@ -211,6 +222,8 @@ Add a `source` column to `agent_memories` (`conversation` | `hair_journey`) so s
 1. **Does the Mya widget replace, or run alongside, the existing Kommunicate "Ask an expert" entry point and the `/ai/consult` Gemini concierge on the Hair Journey site?** Both already exist in the plugin today (§3.4). Recommend: alongside for the demo, replace later once trust is established.
 2. **Who owns the plugin-side change in §5.1** (token-mint endpoint + Application-Passwords integration user)? This requires a small PR into `Myavana-Hair-Journey-Plugin`, not just `Chatbot-System`.
 3. **Redis TTL / staleness tolerance** for the cached Hair Journey profile snapshot used in context building (§5.3) — 5 minutes proposed, open to adjustment based on how "live" the demo needs to feel.
+4. **`creativesites/Chatbot-Dashboard` is empty; `creativesites/Sienna-Naturals-Bot-Dashboard` is the real, live dashboard** (merged Myavana + Sienna, shares `packages/core` with this repo). Is `Chatbot-Dashboard` meant to become the new home for dashboard work going forward (a rename/migration), or should Phase 3's dashboard work land in `Sienna-Naturals-Bot-Dashboard` as this plan currently assumes? Recommend confirming before Phase 3 dashboard work starts, to avoid building in a repo that gets abandoned.
+5. **Naming collision**: the dashboard's existing `UserJourneyTracker` 8-stage "user journey" funnel (Discovery→Mastery) is an unrelated internal engagement taxonomy, not the external Hair Journey plugin's goals/routines/journal domain. Any shared UI needs to visually/textually distinguish "Engagement Stage" from "Hair Journey" to avoid confusing Candace or future users of the dashboard.
 
 ---
 

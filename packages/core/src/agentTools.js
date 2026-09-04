@@ -226,7 +226,206 @@ function createUserTools(userId) {
         }
     );
 
-    return [saveHairGoal, getUserHairProfile];
+    /**
+     * Hair Journey Integration Tools
+     */
+    const { HairJourneyService } = require('./hairJourney/hairJourneyService');
+    const hairJourneyService = new HairJourneyService();
+
+    const getHairGoals = ai.dynamicTool(
+        {
+            name: 'getHairGoals',
+            description:
+                'Retrieve the user\'s active hair goals, target metrics (e.g. length in inches), target dates, and percentage progress from the Hair Journey system. ' +
+                'Call this when the user asks about their goals, asks how close they are to a milestone, or when reviewing progress.',
+            inputSchema: z.object({}),
+            outputSchema: z.record(z.unknown()),
+        },
+        async () => {
+            try {
+                const { result, blocks } = await hairJourneyService.getGoalsWithBlocks(userId);
+                return {
+                    goals: result.goals || [],
+                    overview: result.overview || {},
+                    blocks
+                };
+            } catch (err) {
+                console.error('getHairGoals tool error:', err.message);
+                return { error: 'Goals temporarily unavailable.' };
+            }
+        }
+    );
+
+    const getTodayJourney = ai.dynamicTool(
+        {
+            name: 'getTodayJourney',
+            description:
+                'Retrieve today\'s hair care checklist, routine steps for the day, and current care streak. ' +
+                'Call this when the user asks what they should do today, asks about their wash day steps, or asks for today\'s checklist.',
+            inputSchema: z.object({}),
+            outputSchema: z.record(z.unknown()),
+        },
+        async () => {
+            try {
+                const { result, blocks } = await hairJourneyService.getTodayWithBlocks(userId);
+                return {
+                    date: result.date,
+                    checklist: result.checklist || [],
+                    streakDays: result.streakDays,
+                    blocks
+                };
+            } catch (err) {
+                console.error('getTodayJourney tool error:', err.message);
+                return { error: 'Today hub temporarily unavailable.' };
+            }
+        }
+    );
+
+    const getHairRoutines = ai.dynamicTool(
+        {
+            name: 'getHairRoutines',
+            description:
+                'Retrieve the user\'s defined hair care routines (e.g. wash day, nightly maintenance, L.O.C. method steps) and product cabinet. ' +
+                'Call this when the user asks about their routine schedule or regimen.',
+            inputSchema: z.object({}),
+            outputSchema: z.record(z.unknown()),
+        },
+        async () => {
+            try {
+                const { result, blocks } = await hairJourneyService.getRoutinesWithBlocks(userId);
+                return {
+                    routines: result.routines || [],
+                    cabinet: result.cabinet || [],
+                    blocks
+                };
+            } catch (err) {
+                console.error('getHairRoutines tool error:', err.message);
+                return { error: 'Routines temporarily unavailable.' };
+            }
+        }
+    );
+
+    const completeRoutineStep = ai.dynamicTool(
+        {
+            name: 'completeRoutineStep',
+            description:
+                'Mark a specific routine step as completed for today (e.g. deep condition with heat, hydration mist). ' +
+                'Call this when the user says they completed, did, or finished a routine step.',
+            inputSchema: z.object({
+                stepId: z.string().describe('ID or name of the routine step completed'),
+            }),
+            outputSchema: z.record(z.unknown()),
+        },
+        async ({ stepId }) => {
+            try {
+                const res = await hairJourneyService.completeStep(userId, stepId);
+                return { success: true, stepId, message: 'Step marked completed.' };
+            } catch (err) {
+                console.error('completeRoutineStep tool error:', err.message);
+                return { success: false, error: err.message };
+            }
+        }
+    );
+
+    const updateHairGoal = ai.dynamicTool(
+        {
+            name: 'updateHairGoal',
+            description:
+                'Update a hair goal\'s target metric (e.g. "5 Inches") or target date (e.g. "November 2026"). ' +
+                'Call this when the user explicitly requests to change or adjust a goal.',
+            inputSchema: z.object({
+                goalId: z.string().describe('The ID of the goal to update'),
+                targetMetric: z.string().optional().describe('New target metric, e.g. "5 Inches"'),
+                targetDate: z.string().optional().describe('New target date, e.g. "November 2026"'),
+            }),
+            outputSchema: z.record(z.unknown()),
+        },
+        async ({ goalId, targetMetric, targetDate }) => {
+            try {
+                const res = await hairJourneyService.updateGoal(userId, goalId, { targetMetric, targetDate });
+                return { success: true, goalId, targetMetric, targetDate, message: 'Goal updated successfully.' };
+            } catch (err) {
+                console.error('updateHairGoal tool error:', err.message);
+                return { success: false, error: err.message };
+            }
+        }
+    );
+
+    const createJournalEntry = ai.dynamicTool(
+        {
+            name: 'createJournalEntry',
+            description:
+                'Log a hair journey journal entry or progress check-in (e.g. wash day results, moisture level, notes, photo milestone). ' +
+                'Call this when the user wants to log, write, or record something in their journal or hair diary, or after snapping a progress photo.',
+            inputSchema: z.object({
+                title: z.string().describe('Short title for the journal entry, e.g. "Sunday Wash Day" or "Twist Out Check-in"'),
+                notes: z.string().describe('Observations or notes about the hair, products used, scalp feel, or results'),
+                entryType: z.enum(['wash_day', 'quick_checkin', 'length_check', 'milestone']).optional().describe('Type of entry (default quick_checkin)'),
+                moistureLevel: z.number().int().min(1).max(5).optional().describe('Rating from 1 (very dry) to 5 (optimally hydrated)'),
+                scalpState: z.string().optional().describe('Scalp condition, e.g. "Calm, clean" or "Slight flaking"'),
+            }),
+            outputSchema: z.record(z.unknown()),
+        },
+        async ({ title, notes, entryType = 'quick_checkin', moistureLevel = 4, scalpState = 'Healthy' }) => {
+            try {
+                const { result, blocks } = await hairJourneyService.createJournalEntryWithBlock(userId, {
+                    title,
+                    notes,
+                    entryType,
+                    moistureLevel,
+                    scalpState,
+                    date: new Date().toISOString().split('T')[0]
+                });
+                return {
+                    success: true,
+                    entry: result,
+                    blocks,
+                    message: 'Journal entry recorded successfully.'
+                };
+            } catch (err) {
+                console.error('createJournalEntry tool error:', err.message);
+                return { success: false, error: err.message };
+            }
+        }
+    );
+
+    const getJournalEntries = ai.dynamicTool(
+        {
+            name: 'getJournalEntries',
+            description:
+                'Retrieve recent journal entries and logged progress notes from the user\'s hair journey. ' +
+                'Call this when the user asks what they logged recently, asks about past wash days, or reviews their hair history.',
+            inputSchema: z.object({
+                perPage: z.number().int().min(1).max(10).optional().describe('Number of entries to retrieve (default 3)'),
+            }),
+            outputSchema: z.record(z.unknown()),
+        },
+        async ({ perPage = 3 } = {}) => {
+            try {
+                const { result, blocks } = await hairJourneyService.getJournalEntriesWithBlocks(userId, { perPage });
+                return {
+                    items: result.items || [],
+                    total: result.total || 0,
+                    blocks
+                };
+            } catch (err) {
+                console.error('getJournalEntries tool error:', err.message);
+                return { error: 'Journal entries temporarily unavailable.' };
+            }
+        }
+    );
+
+    return [
+        saveHairGoal,
+        getUserHairProfile,
+        getHairGoals,
+        getTodayJourney,
+        getHairRoutines,
+        completeRoutineStep,
+        updateHairGoal,
+        createJournalEntry,
+        getJournalEntries,
+    ];
 }
 
 // ---------------------------------------------------------------------------

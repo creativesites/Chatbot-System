@@ -2,18 +2,823 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>Myavana Widget — local test harness</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mya — Native AI Companion Test Harness | MYAVANA Hair Journey</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --onyx: #222323;
+            --coral: #e7a690;
+            --light-coral: #fce5d7;
+            --stone: #f5f5f7;
+            --sand: #eeece1;
+            --border: rgba(34, 35, 35, 0.08);
+            --blueberry: #4a4d68;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #faf8f5;
+            color: var(--onyx);
+            min-height: 100vh;
+        }
+        /* Top Navigation Mock representing myhairjourney.ai */
+        .site-nav {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .brand-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-logo-img {
+            height: 28px;
+            width: auto;
+            object-fit: contain;
+            display: block;
+        }
+        .brand-title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+        .brand-badge {
+            font-size: 11px;
+            font-weight: 700;
+            background: var(--light-coral);
+            color: var(--onyx);
+            padding: 3px 8px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+        }
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+        }
+        .nav-tab {
+            padding: 8px 16px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--blueberry);
+            border: 1px solid transparent;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.16s ease;
+        }
+        .nav-tab:hover {
+            background: var(--stone);
+            color: var(--onyx);
+        }
+        .nav-tab.active {
+            background: var(--onyx);
+            color: #ffffff;
+        }
+
+        /* Page Content Area */
+        .main-content {
+            max-width: 1120px;
+            margin: 32px auto;
+            padding: 0 24px 80px;
+        }
+        .hero-banner {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .hero-left {
+            flex: 1;
+            min-width: 280px;
+        }
+        .hero-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0 0 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .hero-sub {
+            color: var(--blueberry);
+            font-size: 13.5px;
+            margin: 0;
+            line-height: 1.5;
+        }
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .open-mya-btn {
+            background: var(--onyx);
+            color: #ffffff;
+            border: none;
+            border-radius: 9999px;
+            padding: 12px 22px;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.18s ease;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+        }
+        .open-mya-btn:hover {
+            background: var(--coral);
+            color: var(--onyx);
+            transform: translateY(-1px);
+        }
+        .open-mya-btn img {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #fff;
+            padding: 2px;
+            object-fit: contain;
+        }
+        .secondary-action-btn {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            color: var(--onyx);
+            border-radius: 9999px;
+            padding: 12px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.16s ease;
+        }
+        .secondary-action-btn:hover {
+            background: var(--stone);
+            border-color: var(--coral);
+        }
+
+        /* Demo Controller Grid */
+        .demo-section {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title svg {
+            width: 18px;
+            height: 18px;
+            color: var(--coral);
+        }
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 14px;
+        }
+        .demo-card-btn {
+            background: var(--stone);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 15px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .demo-card-btn:hover {
+            background: #ffffff;
+            border-color: var(--coral);
+            box-shadow: 0 4px 14px rgba(231,166,144,0.18);
+            transform: translateY(-2px);
+        }
+        .demo-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .demo-card-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--coral);
+        }
+        .demo-card-icon {
+            width: 16px;
+            height: 16px;
+            color: var(--blueberry);
+        }
+        .demo-card-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--onyx);
+        }
+        .demo-card-desc {
+            font-size: 11.5px;
+            color: var(--blueberry);
+            line-height: 1.45;
+        }
+        .active-ctx-box {
+            background: var(--stone);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--onyx);
+            margin-top: 14px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ctx-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2e7d32;
+            display: inline-block;
+            animation: ctxPulse 2s infinite;
+        }
+        @keyframes ctxPulse {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.7; }
+        }
+    </style>
 </head>
 <body>
-    <h1>Myavana Widget test harness</h1>
-    <p>Points at a local <code>packages/myavana</code> server. Start it with <code>node packages/myavana/src/index.js</code> (default port 8080), then load this page and click the chat launcher bottom-right.</p>
-    <p>Buttons below simulate the host-page funnel hooks a real Shopify/myavana.com page would call:</p>
-    <button onclick="MyavanaWidget.logEvent('intake_completed')">Log intake_completed</button>
-    <button onclick="MyavanaWidget.logEvent('paywall_shown')">Log paywall_shown</button>
 
+    <!-- Site Navigation Header -->
+    <header class="site-nav">
+        <div class="brand-group">
+            <img src="./assets/mya-logo.png" alt="MYAVANA" class="brand-logo-img" />
+            <span class="brand-title">Hair Journey</span>
+            <span class="brand-badge">Native Companion</span>
+        </div>
+        <nav class="nav-tabs">
+            <button class="nav-tab active" onclick="switchPage('/today', 'Today Hub Daily Care', this)">Today</button>
+            <button class="nav-tab" onclick="switchPage('/goals', 'Length Retention Goal Review', this)">Goals</button>
+            <button class="nav-tab" onclick="switchPage('/routine', 'Wash Day Routine Checklist', this)">Routine</button>
+            <button class="nav-tab" onclick="switchPage('/journal', 'Hair Journey Journal', this)">Journal</button>
+            <button class="nav-tab" onclick="switchPage('/profile', 'Verified Strand DNA Profile', this)">Profile</button>
+        </nav>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <main class="main-content">
+        <div class="hero-banner">
+            <div class="hero-left">
+                <h1 class="hero-title">
+                    <span>Meet Mya — Native AI Workspace</span>
+                </h1>
+                <p class="hero-sub">Embedded inside Hair Journey. Built closer to Google AI Studio &amp; Gemini than a traditional support widget, featuring multi-view navigation, Journey Stories, conversation history, and real Hair DNA cards.</p>
+            </div>
+            <div class="hero-actions">
+                <button class="open-mya-btn" onclick="MyavanaWidget.open()">
+                    <img src="./assets/mya-logo.png" alt="Logo" />
+                    <span>Open Mya Companion</span>
+                </button>
+                <button class="secondary-action-btn" onclick="MyavanaWidget.openProfile()">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>Hair DNA Sheet</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Multi-View Navigation Experience (Menu, Stories & History) -->
+        <div class="demo-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <span>Multi-View Navigation &amp; Daily Engagement</span>
+                </h2>
+                <span style="font-size:12px;color:var(--blueberry);">Chat • Stories • History • Hair DNA</span>
+            </div>
+            <div class="btn-grid">
+                <button class="demo-card-btn" onclick="triggerStoriesView()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Daily Habit Feature</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                    </div>
+                    <span class="demo-card-title">Hair Journey Stories View</span>
+                    <span class="demo-card-desc">Interactive Instagram/stories-style reels of wash days, length checks, and milestones with "Ask Mya about this entry".</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerHistoryView()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Session Management</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <span class="demo-card-title">Conversation History View</span>
+                    <span class="demo-card-desc">Persistent past conversations list grouped by Today, Yesterday, and Past 7 Days with instant session switching.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerProfileSheet()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Luxury Card</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <span class="demo-card-title">Hair Profile &amp; Quick Actions</span>
+                    <span class="demo-card-desc">Center modal on desktop and draggable bottom-sheet on mobile showing verified Hair DNA, Type 4, and quick actions.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerNewChatSession()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Fresh Context</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </div>
+                    <span class="demo-card-title">+ New Chat Session</span>
+                    <span class="demo-card-desc">Generates a fresh conversation thread with ambient starters tailored to active page.</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 4 WOW Moments Interactive Controller -->
+        <div class="demo-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span>4 Key Candace WOW Moments</span>
+                </h2>
+                <span style="font-size:12px;color:var(--blueberry);">Click any scenario to test in-chat</span>
+            </div>
+            <div class="btn-grid">
+                <button class="demo-card-btn" onclick="triggerWow1()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">WOW #1 • Ambient Context</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                    </div>
+                    <span class="demo-card-title">Goals Page Awareness</span>
+                    <span class="demo-card-desc">Switches context to /goals. Header shows ● Goals and starters adapt without prompt injection.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerWow2()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">WOW #2 • Real Data</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    </div>
+                    <span class="demo-card-title">Active Goal Card</span>
+                    <span class="demo-card-desc">Requests goals. Renders luxury goal card with 72% progress bar and target metrics.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerWow3()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">WOW #3 • Action</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                    </div>
+                    <span class="demo-card-title">Routine Step Completion</span>
+                    <span class="demo-card-desc">Renders interactive wash day checklist with checkmark toggle and "Synced with Hair Journey".</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerWow4()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">WOW #4 • Care Triage</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                    </div>
+                    <span class="demo-card-title">Persistent Breakage Concern</span>
+                    <span class="demo-card-desc">Empathetic hair advice leading into a care-focused stylist consultation referral card.</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Document Journey & Mutation Verification -->
+        <div class="demo-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <span>Document Your Journey &amp; Mutation Confirmation</span>
+                </h2>
+            </div>
+            <div class="btn-grid">
+                <button class="demo-card-btn" onclick="triggerPhotoDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Journey Documentation</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    </div>
+                    <span class="demo-card-title">Document Wash Day Photo</span>
+                    <span class="demo-card-desc">Staged visual progress entry tagged as Journal check-in (preserves HairAI CNN boundary).</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerMutationDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Confirmation Flow</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </div>
+                    <span class="demo-card-title">Adjust Goal Target Date</span>
+                    <span class="demo-card-desc">Before/after target comparison card with Confirm &amp; Cancel buttons.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerProfileDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Strand DNA Card</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <span class="demo-card-title">In-Chat Hair Profile Card</span>
+                    <span class="demo-card-desc">Renders official HHCP Verified Strand DNA card (Type 4, Porosity, Elasticity).</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="MyavanaWidget.toggleExpand()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Responsive Workspace</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                    </div>
+                    <span class="demo-card-title">Toggle Workspace Width</span>
+                    <span class="demo-card-desc">Smoothly expands panel from compact 420px to wide 580px multi-column view.</span>
+                </button>
+            </div>
+            <div id="ctxDisplay" class="active-ctx-box">
+                <span class="ctx-indicator"></span>
+                <span>Active Context: surface=myhairjourney.ai, page=/today (Today Hub Daily Care)</span>
+            </div>
+        </div>
+
+        <!-- Gemini Live Voice Chat & Audio Transcription -->
+        <div class="demo-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    <span>Gemini Live Voice Chat &amp; Audio Transcription</span>
+                </h2>
+                <span style="font-size:12px;color:var(--coral);font-weight:600;">gemini-3.5-transcribe + Live Audio Streaming</span>
+            </div>
+            <div class="btn-grid">
+                <button class="demo-card-btn" onclick="triggerLiveVoiceDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge" style="color:#4caf50;">● Gemini Live</span>
+                        <svg class="demo-card-icon" style="color:#4caf50;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+                    </div>
+                    <span class="demo-card-title">Launch Live Voice Chat</span>
+                    <span class="demo-card-desc">Opens full Gemini mobile app-style live voice modal with fluid animated voice orb reacting to audio frequencies.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerDictationDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Composer STT</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/></svg>
+                    </div>
+                    <span class="demo-card-title">Voice Dictation (Mic)</span>
+                    <span class="demo-card-desc">Records audio from browser mic and transcribes directly into composer textarea using gemini-3.5-transcribe.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerLiveVoiceGoalQuery()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Spoken Query + Card</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+                    </div>
+                    <span class="demo-card-title">Live Voice: "What are my hair goals?"</span>
+                    <span class="demo-card-desc">Spoken dialogue streams in real-time, vocalizes via natural speech, and generates Goal Card.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerBargeInDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge" style="color:#d32f2f;">Instant Cutoff</span>
+                        <svg class="demo-card-icon" style="color:#d32f2f;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
+                    </div>
+                    <span class="demo-card-title">Barge-in Interruption Test</span>
+                    <span class="demo-card-desc">Tests cutting off Mya mid-speech by tapping the fluid orb or speaking into the mic.</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Everyday Assistant: Daily Habit Loops & 5 Superpowers -->
+        <div class="demo-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                    <span>Everyday Assistant: Daily Habit Loops &amp; 5 Superpowers</span>
+                </h2>
+                <span style="font-size:12px;color:var(--coral);font-weight:600;">Personalized Greeting ("Hey Candace ✦") + Retention Triggers</span>
+            </div>
+            <div class="btn-grid">
+                <button class="demo-card-btn" onclick="triggerWeatherDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge" style="color:#2196f3;">Daily Advisory</span>
+                        <svg class="demo-card-icon" style="color:#2196f3;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+                    </div>
+                    <span class="demo-card-title">Hair Weather &amp; Humidity</span>
+                    <span class="demo-card-desc">Daily morning habit loop: weather and humidity advisory tailored to hair porosity and protective styles.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerProductMatchDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge" style="color:#4caf50;">HHCP Grounded</span>
+                        <svg class="demo-card-icon" style="color:#4caf50;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/></svg>
+                    </div>
+                    <span class="demo-card-title">Product Regimen Compatibility</span>
+                    <span class="demo-card-desc">Evaluates current product regimen against verified hair texture, porosity, and health goals.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerRoutineDemo()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge">Daily Checklist</span>
+                        <svg class="demo-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="m9 14 2 2 4-4"/></svg>
+                    </div>
+                    <span class="demo-card-title">Today's Wash Day Routine</span>
+                    <span class="demo-card-desc">Walks user through today's customized steps with completion tracking and rationale.</span>
+                </button>
+
+                <button class="demo-card-btn" onclick="triggerPersonalizedEmptyState()">
+                    <div class="demo-card-top">
+                        <span class="demo-card-badge" style="color:#ff9800;">7-Day Streak</span>
+                        <svg class="demo-card-icon" style="color:#ff9800;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    </div>
+                    <span class="demo-card-title">Personalized Greeting &amp; Streak</span>
+                    <span class="demo-card-desc">Opens empty state displaying "Hey Candace ✦" and "7-day consistency streak 🔥" with contextual starter chips.</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mya Streaming Widget Script -->
     <script src="./src/myavana-widget.js"></script>
     <script>
-        MyavanaWidget.init({ apiBase: 'http://localhost:8080' });
+        // Initialize Widget pointing at local Mya Cloud Run server
+        MyavanaWidget.init({
+            apiBase: 'http://localhost:8080',
+            position: 'bottom-left',
+            context: {
+                surface: 'myhairjourney.ai',
+                page: '/today',
+                view: 'today_hub',
+                wpUserId: 5,
+                userName: 'Candace Harris',
+                firstName: 'Candace',
+                streak: 7
+            }
+        });
+
+        // Register Demo WordPress Hair Journey Platform Adapter
+        MyavanaWidget.registerPlatformAdapter({
+            name: 'Myavana Hair Journey (Harness)',
+            platform: 'wordpress',
+            getJourney: function() {
+                return Promise.resolve({
+                    profile: {
+                        displayName: 'Candace Harris',
+                        hairJourneyStage: 'Transitioning to Natural',
+                        hairType: 'Type 4C (Coily)',
+                        porosity: 'Normal Porosity',
+                        density: 'High Density',
+                        length: '12',
+                        completionPercentage: 85,
+                        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+                        concerns: ['Crown Breakage', 'Single Strand Knots', 'Moisture Retention']
+                    },
+                    stats: {
+                        currentStreak: 7,
+                        longestStreak: 21,
+                        level: 3,
+                        levelTitle: 'Moisture Master',
+                        totalPoints: 340,
+                        nextLevelPoints: 500
+                    },
+                    totalEntries: 14,
+                    lengthGain: 2.1,
+                    dayCount: 124,
+                    goals: [
+                        { id: 1, title: 'Retain 4 Inches Length by Dec 2026', progress: 52, category: 'Retention', target_date: '2026-12-31' },
+                        { id: 2, title: 'Consistent Weekly Steam Deep Conditioning', progress: 85, category: 'Hydration', target_date: '2026-10-15' }
+                    ],
+                    badges: [
+                        { id: 'b1', name: '7-Day Streak', icon: '🔥', description: 'Logged daily for 7 days', unlocked: true },
+                        { id: 'b2', name: 'Moisture Guru', icon: '💧', description: 'Maintained 4/5+ moisture for 4 weeks', unlocked: true },
+                        { id: 'b3', name: 'Growth Pioneer', icon: '🌱', description: 'Gained over 2 inches of length', unlocked: true },
+                        { id: 'b4', name: 'Year of Consistency', icon: '👑', description: 'Log entries across 365 days', unlocked: false }
+                    ],
+                    entries: [
+                        {
+                            id: 101,
+                            title: 'Clarifying Wash & Honey Hydration Steam',
+                            date: '2026-09-04 10:30:00',
+                            entryType: 'wash_day',
+                            moistureLevel: 5,
+                            mood: 'Empowered & Refreshed',
+                            hairLength: '12.2',
+                            hairLengthPoint: 'Crown',
+                            scalpState: 'Clean and moisturized with jojoba oil',
+                            notes: 'Clarifying wash followed by deep conditioning under steam cap for 30 minutes. Coils are noticeably springy, zero single strand knots at the crown.',
+                            photos: [
+                                'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=600&auto=format&fit=crop&q=80',
+                                'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80'
+                            ],
+                            productsUsed: ['MYAVANA Clarifying Cleanse', 'Honey & Shea Moisture Melt Deep Mask']
+                        },
+                        {
+                            id: 102,
+                            title: 'Mid-Year Length Retention Check',
+                            date: '2026-08-20 14:15:00',
+                            entryType: 'length_check',
+                            moistureLevel: 4,
+                            mood: 'Excited',
+                            hairLength: '12.0',
+                            hairLengthPoint: 'Nape',
+                            scalpState: 'Healthy',
+                            notes: 'Measured crown and nape. Retained approx 1.8 inches of growth since spring with high density preservation.',
+                            photos: [
+                                'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=600&auto=format&fit=crop&q=80'
+                            ],
+                            productsUsed: ['Organic Cold-Pressed Castor Oil']
+                        },
+                        {
+                            id: 103,
+                            title: 'Protective Mini Twists Installed',
+                            date: '2026-08-08 16:45:00',
+                            entryType: 'milestone',
+                            moistureLevel: 5,
+                            mood: 'Protected',
+                            notes: 'Installed mini twists with shea butter seal. Kept in for 3 weeks with high retention.',
+                            photos: [
+                                'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80'
+                            ],
+                            productsUsed: ['Raw Whipped Shea Butter']
+                        }
+                    ]
+                });
+            },
+            openEntryComposer: function() {
+                alert('Opening WordPress Hair Journey Entry Composer Modal...');
+            },
+            navigate: function(tab, params) {
+                console.log('[Harness Platform Adapter] Navigate to tab:', tab, params);
+                var targetBtn = Array.from(document.querySelectorAll('.nav-tab')).find(function(t) {
+                    return t.textContent.toLowerCase().includes(tab);
+                });
+                if (targetBtn) targetBtn.click();
+            }
+        });
+
+        function switchPage(page, note, btnEl) {
+            if (btnEl) {
+                document.querySelectorAll('.nav-tab').forEach(function(tab) { tab.classList.remove('active'); });
+                btnEl.classList.add('active');
+            }
+            var view = page.replace('/', '');
+            MyavanaWidget.setContext({ surface: 'myhairjourney.ai', page: page, view: view, note: note });
+            document.getElementById('ctxDisplay').innerHTML = '<span class="ctx-indicator"></span><span>Active Context: surface=myhairjourney.ai, page=' + page + ' (' + note + ')</span>';
+        }
+
+        // Multi-View Navigation Triggers
+        function triggerStoriesView() {
+            MyavanaWidget.open();
+            MyavanaWidget.switchView('stories');
+        }
+
+        function triggerHistoryView() {
+            MyavanaWidget.open();
+            MyavanaWidget.switchView('history');
+        }
+
+        function triggerProfileSheet() {
+            MyavanaWidget.openProfile();
+        }
+
+        function triggerNewChatSession() {
+            MyavanaWidget.open();
+            MyavanaWidget.switchView('chat');
+            var addBtn = document.querySelector('.mya-nav-action[title="New chat"]');
+            if (addBtn) addBtn.click();
+        }
+
+        // WOW Moment #1: Ambient Context on /goals
+        function triggerWow1() {
+            var goalsTab = document.querySelectorAll('.nav-tab')[1];
+            switchPage('/goals', 'Length Retention Goal Review', goalsTab);
+            MyavanaWidget.open();
+        }
+
+        // WOW Moment #2: Real Goal Card
+        function triggerWow2() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('What are my current hair goals?');
+        }
+
+        // WOW Moment #3: Interactive Routine Step Completion
+        function triggerWow3() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('Show today\'s routine checklist');
+        }
+
+        // WOW Moment #4: Care Triage & Stylist Referral
+        function triggerWow4() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('My crown has been breaking for the last few wash days. What should I do?');
+        }
+
+        // Photo Documentation Demo
+        function triggerPhotoDemo() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('I want to document a visual progress photo for my wash day');
+        }
+
+        // Mutation Confirmation Demo
+        function triggerMutationDemo() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('Help me adjust my length retention goal target date');
+        }
+
+        // Hair Profile Demo
+        function triggerProfileDemo() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('Show my verified strand DNA profile');
+        }
+
+        // Live Voice Demo Handlers
+        function triggerLiveVoiceDemo() {
+            MyavanaWidget.open();
+            MyavanaWidget.startLiveVoice();
+        }
+
+        function triggerDictationDemo() {
+            MyavanaWidget.open();
+            var micBtn = document.querySelector('.mya-action-bar .mya-tool-btn[title="Voice input"]');
+            if (micBtn) micBtn.click();
+        }
+
+        function triggerLiveVoiceGoalQuery() {
+            MyavanaWidget.open();
+            MyavanaWidget.startLiveVoice();
+            setTimeout(function () {
+                var tickerRole = document.querySelector('.mya-live-ticker-role');
+                var tickerText = document.querySelector('.mya-live-ticker-text');
+                if (tickerRole && tickerText) {
+                    tickerRole.textContent = 'YOU';
+                    tickerText.textContent = 'What are my current hair goals?';
+                }
+                var inputEvt = new CustomEvent('live-user-speech', { detail: 'What are my current hair goals?' });
+                window.dispatchEvent(inputEvt);
+            }, 1200);
+        }
+
+        function triggerBargeInDemo() {
+            MyavanaWidget.open();
+            MyavanaWidget.startLiveVoice();
+            setTimeout(function () {
+                var interruptBtn = document.querySelector('.mya-live-btn[title="Tap to interrupt Mya"]');
+                if (interruptBtn) {
+                    interruptBtn.click();
+                }
+            }, 2500);
+        }
+
+        // Everyday Assistant Superpower Demos
+        function triggerWeatherDemo() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('What is the hair weather forecast and humidity recommendation for my hair today?');
+        }
+
+        function triggerProductMatchDemo() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('Does my current product regimen match my hair porosity and texture?');
+        }
+
+        function triggerRoutineDemo() {
+            MyavanaWidget.open();
+            MyavanaWidget.sendMessage('Show today\'s routine checklist');
+        }
+
+        function triggerPersonalizedEmptyState() {
+            MyavanaWidget.open();
+            triggerNewChatSession();
+        }
     </script>
 </body>
 </html>

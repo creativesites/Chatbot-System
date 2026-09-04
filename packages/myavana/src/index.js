@@ -1,12 +1,20 @@
 // Cloud Run compatible MyavanaChatbotServer
 const core = require('myavana-bot-test-core');
 const express = require('express');
-const { googleAI } = require('@genkit-ai/google-genai');
 const { performance } = require('perf_hooks');
 const { constructPrompt } = require('./constructPrompt');
 const { handleWelcomeEvent, handleImageMessage } = require('./eventHandlers');
 const { buildMessageContext } = require('myavana-bot-test-core/src/messageContextBuilder');
 const { globalTools, createUserTools } = require('myavana-bot-test-core/src/agentTools');
+const {
+    encodeFrame,
+    createDeltaFrame,
+    createBlockFrame,
+    createActionFrame,
+    createDoneFrame,
+    createErrorFrame,
+    parseModelOutput,
+} = require('../../chat-protocol/src');
 require('dotenv').config();
 
 // Helper functions
@@ -203,6 +211,55 @@ class MyavanaChatbotServer {
             await this.handleEventRequest(req, res);
         });
 
+        // Speech-to-Text audio transcription endpoint (gemini-3.5-transcribe)
+        this.app.post('/audio/transcribe', async (req, res) => {
+            console.log('🎙️ Received POST request to /audio/transcribe');
+            await this.handleAudioTranscribeRequest(req, res);
+        });
+
+        // Live Voice Chat session commit endpoint (persists live transcripts to DB & history)
+        this.app.post('/chat/live/commit', async (req, res) => {
+            console.log('💾 Received POST request to /chat/live/commit');
+            await this.handleLiveVoiceCommitRequest(req, res);
+        });
+
+        // Conversation History & Session Management
+        this.app.get('/conversations', async (req, res) => {
+            const userId = req.query.userId || req.headers['x-user-id'];
+            if (!userId) {
+                return res.status(400).json({ error: true, message: 'userId is required' });
+            }
+            try {
+                const list = await core.getUserConversationsList(String(userId));
+                return res.json({ success: true, conversations: list || [] });
+            } catch (err) {
+                console.error('Error fetching conversations:', err);
+                return res.status(500).json({ error: true, message: err.message });
+            }
+        });
+
+        this.app.get('/conversations/:id', async (req, res) => {
+            const userId = req.query.userId || req.headers['x-user-id'];
+            const conversationId = req.params.id;
+            if (!userId || !conversationId) {
+                return res.status(400).json({ error: true, message: 'userId and conversationId are required' });
+            }
+            try {
+                const history = await core.getConversationHistory(conversationId, String(userId));
+                return res.json({ success: true, conversationId, chatHistory: history || [] });
+            } catch (err) {
+                console.error('Error fetching conversation history:', err);
+                return res.status(500).json({ error: true, message: err.message });
+            }
+        });
+
+        this.app.post('/conversations/new', async (req, res) => {
+            const newId = (globalThis.crypto && globalThis.crypto.randomUUID)
+                ? globalThis.crypto.randomUUID()
+                : `conv_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            return res.json({ success: true, conversationId: newId });
+        });
+
         console.log('✅ Routes configured successfully!');
         console.log('🛣️ Available routes:');
         console.log('   GET  /             - Service information');
@@ -214,6 +271,11 @@ class MyavanaChatbotServer {
         console.log('   POST /chat         - Alternative chat endpoint');
         console.log('   POST /chat/stream  - Streaming chat endpoint (widget)');
         console.log('   POST /events       - Funnel-event logging (widget)');
+        console.log('   POST /audio/transcribe - Audio transcription (gemini-3.5-transcribe)');
+        console.log('   POST /chat/live/commit - Commit live voice session to history');
+        console.log('   GET  /conversations - List user past conversations');
+        console.log('   GET  /conversations/:id - Retrieve specific conversation turns');
+        console.log('   POST /conversations/new - Generate fresh conversation session');
     }
 
     /**
@@ -231,9 +293,10 @@ class MyavanaChatbotServer {
      * @param {Array}  opts.chatHistory
      * @param {string} opts.safeMessage
      * @param {'kommunicate'|'widget'} [opts.channel='kommunicate']
+     * @param {object} [opts.experienceContext]
      * @returns {Promise<{chat: object, messageWithContext: string, cacheResult: object, aiPrompt: string|null, chatTools: Array, messageContext: string}>}
      */
-    async prepareChatTurn({ userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel = 'kommunicate' }) {
+    async prepareChatTurn({ userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel = 'kommunicate', experienceContext }) {
         // widget-channel prompts use a different output-format instruction (plain text vs
         // Kommunicate JSON), so they must not share a cache slot with the kommunicate channel
         const cacheKey = channel === 'widget' ? `${userId}_widget` : userId;
@@ -269,9 +332,9 @@ class MyavanaChatbotServer {
             }
         }
 
-        // Build per-message dynamic context (persona, trends, driver, memory)
+        // Build per-message dynamic context (persona, trends, driver, memory, experienceContext)
         // Prepended to the user message — keeps the 24h cached system prompt intact
-        const messageContext = await buildMessageContext(userId, chatHistory, safeMessage);
+        const messageContext = await buildMessageContext(userId, chatHistory, safeMessage, experienceContext);
         const messageWithContext = messageContext ? `${messageContext}${safeMessage}` : safeMessage;
         if (messageContext) console.log('🎭 Context injected:', messageContext.trim());
 
@@ -280,7 +343,7 @@ class MyavanaChatbotServer {
         const chatTools = [...globalTools, ...createUserTools(userId)];
 
         const chatConfig = {
-            model: googleAI.model('gemini-3.7-flash'),
+            model: 'gemini-3.7-flash',
             tools: chatTools,
             config: { temperature: 1.1 },
         };
@@ -321,7 +384,7 @@ class MyavanaChatbotServer {
                         aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
                     }
                     const retryChat = session.chat({
-                        model: googleAI.model('gemini-3.7-flash'),
+                        model: 'gemini-3.7-flash',
                         system: aiPrompt,
                         tools: chatTools,
                         config: { temperature: 1.1 },
@@ -372,38 +435,38 @@ class MyavanaChatbotServer {
      * @returns {Promise<{aiOutput: any, modelUsed: string}>}
      */
     async sendFallbackModel({ messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel = 'kommunicate' }) {
-        console.log('🔄 ===== TRYING FALLBACK MODEL: GEMINI 3.6 FLASH =====');
-        try {
-            if (!aiPrompt) {
-                aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
-            }
-            const fallbackChat = core.ai.chat({
-                model: googleAI.model('gemini-3.6-flash'),
-                system: aiPrompt,
-                tools: chatTools,
-                config: { temperature: 1.1 },
-            });
-            const response = await fallbackChat.send(messageWithContext);
-            // Kommunicate channel expects structured JSON (populates `.output`); the widget
-            // channel asks for plain conversational text (`.output` stays null — see `.text`).
-            const output = channel === 'widget' ? response.text : response.output;
-
-            const isEmptyFallbackOutput =
-                output == null ||
-                (typeof output === 'string' && output.trim().length === 0) ||
-                (Array.isArray(output) && output.length === 0) ||
-                (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
-
-            if (isEmptyFallbackOutput) {
-                throw new Error('Empty AI output from Gemini 3.6 Flash');
-            }
-
-            console.log('✅✅✅ GEMINI 3.6 FLASH FALLBACK SUCCESS!');
-            return { aiOutput: output, modelUsed: 'gemini36Flash' };
-        } catch (fallbackError) {
-            console.error('❌❌❌ FALLBACK MODEL FAILED: GEMINI 3.6 FLASH:', fallbackError.message);
-            throw new Error('All AI models failed');
+        if (!aiPrompt) {
+            aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
         }
+
+        const candidateModels = ['gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+        for (const candidate of candidateModels) {
+            console.log(`🔄 ===== TRYING FALLBACK MODEL: ${candidate.toUpperCase()} =====`);
+            try {
+                const fallbackChat = core.ai.chat({
+                    model: candidate,
+                    system: aiPrompt,
+                    tools: chatTools,
+                    config: { temperature: 1.0 },
+                });
+                const response = await fallbackChat.send(messageWithContext);
+                const output = channel === 'widget' ? response.text : response.output;
+
+                const isEmptyFallbackOutput =
+                    output == null ||
+                    (typeof output === 'string' && output.trim().length === 0) ||
+                    (Array.isArray(output) && output.length === 0) ||
+                    (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
+
+                if (!isEmptyFallbackOutput) {
+                    console.log(`✅✅✅ ${candidate.toUpperCase()} FALLBACK SUCCESS!`);
+                    return { aiOutput: output, modelUsed: candidate };
+                }
+            } catch (fallbackError) {
+                console.error(`❌❌❌ FALLBACK MODEL FAILED: ${candidate.toUpperCase()}:`, fallbackError.message);
+            }
+        }
+        throw new Error('All AI models failed');
     }
 
     /**
@@ -453,7 +516,9 @@ class MyavanaChatbotServer {
         
         try {
             const start = performance.now();
-            const { message, from: userId, groupId: conversationId, eventName, metadata } = req.body;
+            const { message, from, userId: bodyUserId, groupId, conversationId: bodyConvId, eventName, metadata, experienceContext } = req.body;
+            const userId = from || bodyUserId || (experienceContext && (experienceContext.wpUserId || experienceContext.userId)) || 'guest';
+            const conversationId = groupId || bodyConvId || (experienceContext && experienceContext.conversationId) || 'conv_default';
             const safeMessage = message || '';
             // 1. Start fetching everything in parallel immediately
             const dataPromise = Promise.all([
@@ -599,22 +664,41 @@ class MyavanaChatbotServer {
         console.log('🚀 ===== NEW STREAM REQUEST START =====', requestId);
 
         try {
-            const { message, from: userId, groupId: conversationId, eventName } = req.body;
+            let { message, from, userId: bodyUserId, groupId, conversationId: bodyConvId, eventName, experienceContext } = req.body;
+            let userId = from || bodyUserId || (experienceContext && (experienceContext.wpUserId || experienceContext.userId)) || 'guest';
+            let conversationId = groupId || bodyConvId || (experienceContext && experienceContext.conversationId) || 'conv_default';
             const safeMessage = message || '';
 
-            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            const acceptsNDJSON =
+                (req.headers['accept'] && req.headers['accept'].includes('application/x-ndjson')) ||
+                req.query?.format === 'ndjson' ||
+                req.body?.format === 'ndjson';
+
+            const contentType = acceptsNDJSON ? 'application/x-ndjson; charset=utf-8' : 'text/plain; charset=utf-8';
+            res.setHeader('Content-Type', contentType);
             res.setHeader('Cache-Control', 'no-cache, no-transform');
             res.setHeader('X-Accel-Buffering', 'no'); // disable proxy buffering so chunks flush immediately
             if (res.flushHeaders) res.flushHeaders();
 
             if (eventName === 'WELCOME') {
-                res.write("Hey there! I'm Mya, your MYAVANA Hair AI guide. What can I help you with today?");
+                const welcomeText = "Hey there! I'm Mya, your MYAVANA Hair AI guide. What can I help you with today?";
+                if (acceptsNDJSON) {
+                    res.write(encodeFrame(createDeltaFrame(welcomeText)));
+                    res.write(encodeFrame(createDoneFrame({ eventName: 'WELCOME' })));
+                } else {
+                    res.write(welcomeText);
+                }
                 return res.end();
             }
 
             if (eventName === 'KOMMUNICATE_MEDIA_EVENT') {
-                // Image analysis isn't wired into the streaming endpoint yet (Phase 1 scope is text chat).
-                res.write("I can't analyze images in this chat yet — that's coming soon! In the meantime, tell me about your hair and I'll do my best to help.");
+                const mediaMsg = "I can't analyze images in this chat yet — that's coming soon! In the meantime, tell me about your hair and I'll do my best to help.";
+                if (acceptsNDJSON) {
+                    res.write(encodeFrame(createDeltaFrame(mediaMsg)));
+                    res.write(encodeFrame(createDoneFrame({ eventName: 'KOMMUNICATE_MEDIA_EVENT' })));
+                } else {
+                    res.write(mediaMsg);
+                }
                 return res.end();
             }
 
@@ -628,7 +712,7 @@ class MyavanaChatbotServer {
             if (!Array.isArray(chatHistory)) chatHistory = [];
 
             const { chat, messageWithContext, aiPrompt, chatTools } = await this.prepareChatTurn({
-                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'widget',
+                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'widget', experienceContext,
             });
 
             let aiOutput = '';
@@ -641,7 +725,11 @@ class MyavanaChatbotServer {
                 const { stream, response } = chat.sendStream(messageWithContext);
                 for await (const chunk of stream) {
                     if (chunk.text) {
-                        res.write(chunk.text);
+                        if (acceptsNDJSON) {
+                            res.write(encodeFrame(createDeltaFrame(chunk.text)));
+                        } else {
+                            res.write(chunk.text);
+                        }
                         streamedText += chunk.text;
                         anyChunkWritten = true;
                     }
@@ -650,16 +738,39 @@ class MyavanaChatbotServer {
                 aiOutput = finalResponse?.text ?? (typeof finalResponse?.output === 'string' ? finalResponse.output : '') ?? streamedText;
                 if (!aiOutput) throw new Error('Empty streamed output from Gemini 3.7 Flash');
                 console.log('✅✅✅ STREAM SUCCESS!');
+
+                // If client requested NDJSON, parse and emit structured semantic blocks or quick-replies
+                if (acceptsNDJSON) {
+                    // Emit any blocks returned directly by tools
+                    if (finalResponse?.toolBlocks && Array.isArray(finalResponse.toolBlocks)) {
+                        for (const toolBlock of finalResponse.toolBlocks) {
+                            res.write(encodeFrame(createBlockFrame(toolBlock)));
+                        }
+                    }
+
+                    const parsed = parseModelOutput(aiOutput);
+                    for (const block of parsed.blocks) {
+                        if (block.type !== 'text') {
+                            res.write(encodeFrame(createBlockFrame(block)));
+                        }
+                    }
+                    if (parsed.quickReplies && parsed.quickReplies.length > 0) {
+                        res.write(encodeFrame(createActionFrame(parsed.quickReplies)));
+                    }
+                    res.write(encodeFrame(createDoneFrame({ 
+                        modelUsed, 
+                        blocksCount: (parsed.blocks.length || 0) + (finalResponse?.toolBlocks?.length || 0) 
+                    })));
+                }
             } catch (streamError) {
                 console.error('❌ Streaming primary model failed:', streamError.message);
                 if (anyChunkWritten) {
-                    // Partial content already flushed to the client — the response is
-                    // already committed. Falling back now would write a second, unrelated
-                    // response on top of it, corrupting the output. Accept the partial
-                    // answer instead of risking that.
                     console.warn('⚠️ Partial stream already sent to client — not falling back, ending with partial content.');
                     aiOutput = streamedText;
                     modelUsed = 'gemini37Flash-stream-partial';
+                    if (acceptsNDJSON) {
+                        res.write(encodeFrame(createDoneFrame({ modelUsed, error: streamError.message })));
+                    }
                 } else {
                     console.log('🔄 No content sent yet — falling back to Gemini 3.6 Flash.');
                     const fallback = await this.sendFallbackModel({
@@ -667,7 +778,21 @@ class MyavanaChatbotServer {
                     });
                     aiOutput = fallback.aiOutput;
                     modelUsed = fallback.modelUsed;
-                    res.write(aiOutput);
+                    if (acceptsNDJSON) {
+                        res.write(encodeFrame(createDeltaFrame(aiOutput)));
+                        const parsed = parseModelOutput(aiOutput);
+                        for (const block of parsed.blocks) {
+                            if (block.type !== 'text') {
+                                res.write(encodeFrame(createBlockFrame(block)));
+                            }
+                        }
+                        if (parsed.quickReplies && parsed.quickReplies.length > 0) {
+                            res.write(encodeFrame(createActionFrame(parsed.quickReplies)));
+                        }
+                        res.write(encodeFrame(createDoneFrame({ modelUsed, fallback: true })));
+                    } else {
+                        res.write(aiOutput);
+                    }
                 }
             }
 
@@ -703,6 +828,114 @@ class MyavanaChatbotServer {
         } catch (error) {
             console.error('❌ Failed to log funnel event:', error);
             res.status(500).json({ error: true, message: 'Internal server error' });
+        }
+    }
+
+    /**
+     * Handles audio transcription requests using gemini-3.5-transcribe
+     * with domain vocabulary speech biasing and automatic fallback.
+     *
+     * @param {import('express').Request} req
+     * @param {import('express').Response} res
+     */
+    async handleAudioTranscribeRequest(req, res) {
+        try {
+            const { audio, audioData, mimeType = 'audio/webm', customVocabulary = [] } = req.body;
+            const rawData = audio || audioData;
+            if (!rawData) {
+                return res.status(400).json({ error: true, message: 'Audio payload (base64 string) is required' });
+            }
+
+            const cleanBase64 = rawData.replace(/^data:audio\/[a-zA-Z0-9.\-_]+;base64,/, '');
+            const result = await core.ai.transcribeAudio({
+                audioData: cleanBase64,
+                mimeType,
+                customVocabulary,
+            });
+
+            return res.json({
+                success: true,
+                text: result.text,
+                modelUsed: result.modelUsed,
+            });
+        } catch (error) {
+            console.error('❌ Audio transcription endpoint error:', error);
+            return res.status(500).json({
+                error: true,
+                message: error.message || 'Audio transcription temporarily unavailable',
+            });
+        }
+    }
+
+    /**
+     * Commits completed turns from a Gemini Mobile App-Style Live Voice Chat session
+     * into PostgreSQL conversation history, links to WordPress, and runs post-processing.
+     *
+     * @param {import('express').Request} req
+     * @param {import('express').Response} res
+     */
+    async handleLiveVoiceCommitRequest(req, res) {
+        try {
+            const { userId, conversationId } = req.body;
+            const turns = req.body.turns || req.body.transcript || [];
+            if (!userId || !conversationId) {
+                return res.status(400).json({ error: true, message: 'userId and conversationId are required' });
+            }
+
+            console.log(`💾 Committing Live Voice session: ${turns.length} turns for user ${userId}`);
+            let chatHistory = await core.getConversationHistory(conversationId, userId);
+            if (!Array.isArray(chatHistory)) chatHistory = [];
+
+            for (const turn of turns) {
+                const userContent = turn.user || (turn.role === 'user' ? turn.content : null);
+                const assistantContent = turn.assistant || (turn.role === 'assistant' ? turn.content : null);
+                if (userContent) {
+                    chatHistory.push({
+                        role: 'user',
+                        content: `${new Date().toISOString()} - User (Voice): ${userContent}`
+                    });
+                }
+                if (assistantContent) {
+                    chatHistory.push({
+                        role: 'assistant',
+                        content: assistantContent
+                    });
+                }
+            }
+
+            if (turns.length > 0) {
+                await core.saveConversation(conversationId, userId, chatHistory, 'Live Voice Hair Consultation');
+            }
+
+            // Non-blocking background post-processing on the latest turn
+            if (turns.length > 0) {
+                const lastTurn = turns[turns.length - 1];
+                const lastUserMsg = lastTurn.user || (lastTurn.role === 'user' ? lastTurn.content : 'Live Voice Session');
+                const lastAssistantMsg = lastTurn.assistant || (lastTurn.role === 'assistant' ? lastTurn.content : '');
+                setImmediate(async () => {
+                    try {
+                        const allchatsSummary = await core.getAllConversationsSummary(userId);
+                        await this.runPostProcessing({
+                            userId,
+                            conversationId,
+                            message: lastUserMsg,
+                            aiOutput: lastAssistantMsg,
+                            allchatsSummary,
+                        });
+                    } catch (err) {
+                        console.error('❌ Live Voice post-processing error:', err.message);
+                    }
+                });
+            }
+
+            return res.json({
+                success: true,
+                committedTurns: turns.length,
+                totalHistoryLength: chatHistory.length
+            });
+        } catch (error) {
+            console.error('❌ Live Voice commit error:', error);
+            return res.status(500).json({ error: true, message: error.message });
         }
     }
 

@@ -1,6 +1,6 @@
 {
     "name": "myavana-bot-test-core",
-    "version": "2.3.2",
+    "version": "2.3.4",
     "description": "Shared bot functionality with enhanced features",
     "main": "index.js",
     "scripts": {
@@ -11,13 +11,10 @@
         "lint:fix": "eslint src/ --fix"
     },
     "dependencies": {
-        "@genkit-ai/google-genai": "1.28.0",
-        "@genkit-ai/googleai": "1.28.0",
         "@google/genai": "1.39.0",
         "dotenv": "^16.4.7",
         "express-rate-limit": "^7.1.5",
         "express-slow-down": "^2.0.1",
-        "genkit": "1.28.0",
         "isomorphic-dompurify": "^2.9.0",
         "joi": "^17.11.0",
         "node-cache": "^5.1.2",

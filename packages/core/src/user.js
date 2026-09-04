@@ -2,6 +2,7 @@
 const { pgClient, redisClient } = require('./database');
 
 const getUserDetails = async (userId) => {
+    if (!userId) return null;
     try {
         const cachedUser = await redisClient.get(`user:${userId}`);
         if (cachedUser) return JSON.parse(cachedUser);

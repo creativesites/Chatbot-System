@@ -1,7 +1,6 @@
 // conversation.js
 const { pgClient, redisClient } = require('./database');
 const ai = require('./ai');
-const { googleAI } = require('@genkit-ai/google-genai');
 
 const saveConversationSummary = async (conversationId, userId, summary) => {
     const query = `
@@ -26,12 +25,17 @@ const generateConversationSummary = async (chatHistory) => {
     if (!chatHistory || chatHistory.length === 0) {
         return "No conversation history available.";
     }
-    const summaryPrompt = `Summarize the following conversation, getting all important information, especially the user's hair details, name, and location: ${JSON.stringify(chatHistory)}`;
-    const { text } = await ai.chat({
-        model: googleAI.model('gemini-3.6-flash'),
-        system: summaryPrompt,
-    });
-    return text;
+    try {
+        const summaryPrompt = `Summarize the following conversation, getting all important information, especially the user's hair details, name, and location: ${JSON.stringify(chatHistory)}`;
+        const { text } = await ai.generate({
+            model: 'gemini-2.5-flash',
+            prompt: summaryPrompt,
+        });
+        return text || "Conversation active.";
+    } catch (err) {
+        console.warn('⚠️ generateConversationSummary non-fatal fallback:', err.message);
+        return "Conversation active.";
+    }
 };
 
 const getAllConversationsSummary = async (userId) => {
@@ -145,6 +149,30 @@ const generateAndSaveSummary = async (userId, conversationId, chatHistory) => {
     return newSummary;
 };
 
+const getUserConversationsList = async (userId) => {
+    try {
+        const query = `
+            SELECT conversation_id, summary, created_at, updated_at,
+                   jsonb_array_length(CASE WHEN jsonb_typeof(chat_history) = 'array' THEN chat_history ELSE '[]'::jsonb END) AS message_count
+            FROM conversations
+            WHERE user_id = $1
+            ORDER BY COALESCE(updated_at, created_at) DESC
+            LIMIT 30;
+        `;
+        const res = await pgClient.query(query, [userId]);
+        return res.rows.map(r => ({
+            id: r.conversation_id,
+            summary: r.summary || 'Hair Journey Discussion',
+            messageCount: parseInt(r.message_count, 10) || 0,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at || r.created_at
+        }));
+    } catch (err) {
+        console.error('Error fetching user conversations list:', err);
+        return [];
+    }
+};
+
 module.exports = {
     saveConversationSummary,
     generateConversationSummary,
@@ -152,5 +180,6 @@ module.exports = {
     getConversationHistory,
     saveConversation,
     getAllChatsAsSingleArray,
-    generateAndSaveSummary
+    generateAndSaveSummary,
+    getUserConversationsList
 };

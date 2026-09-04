@@ -1,7 +1,7 @@
 //constructPrompt.js
 const systemPrompt = require("./system");
 const {getHairIssuesForUser} = require("myavana-bot-test-core");
-const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions, getTrainingData } = require('myavana-bot-test-core');
+const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions, getTrainingData, buildBudgetedPromptContext } = require('myavana-bot-test-core');
 
 
 /**
@@ -127,43 +127,19 @@ console.log('📋 Fetching additional instructions...');
         console.log('⏱️ Data fetching completed in', dataFetchTime, 'ms');
 
 
-        console.log('🔧 Assembling user details string...');
-        let userDetailsString =  `
-            User Information: ${userInfo}
-            Previous Conversations Summary: ${summary}
-            Previous hair issues: ${issueSummary}
-            ${productRecommendations}
-            ${faqsSummary}
-            ${youtubeVideosSummary}
-            ${testimonialsSummary}
-            ${instructionsSummary}
-                    ${trainingDataSummary}
-`;
-        
-        console.log('📊 Initial user details string stats:', {
-            length: userDetailsString.length,
-            lines: userDetailsString.split('\n').length,
-            onErrorMode: !!onError
+        console.log('🔧 Assembling budgeted user details string via PromptBudgetManager...');
+        let userDetailsString = buildBudgetedPromptContext({
+            userId,
+            userDetails,
+            summary,
+            recentHairIssues,
+            allProducts,
+            allFaqs,
+            allVideos: allYoutubeVideos,
+            allTestimonials,
+            trainingData,
+            additionalInstructions,
         });
-
-        if (onError) {
-            console.log('⚠️ On-error mode detected - including full chat history');
-            userDetailsString =  `
-                User Information: ${userInfo}
-                Previous Conversations Summary: ${summary}
-                Previous hair issues: ${issueSummary}
-                ${productRecommendations}
-                ${faqsSummary}
-                ${youtubeVideosSummary}
-                ${testimonialsSummary}
-                ${instructionsSummary}
-                    ${trainingDataSummary}
-    `;
-            console.log('📊 Enhanced user details string stats (with chat history):', {
-                length: userDetailsString.length,
-                lines: userDetailsString.split('\n').length,
-            });
-        }
 
         console.log('🏗️ Building final prompt...');
         const systemInstructionText = systemPrompt.systemInstruction.parts[0].text;

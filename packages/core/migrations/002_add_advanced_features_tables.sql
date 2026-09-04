@@ -131,6 +131,10 @@ CREATE TABLE IF NOT EXISTS product_recommendations (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Ensure compatibility with existing schemas
+ALTER TABLE hair_issues ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE product_recommendations ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+
 -- Indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_error_logs_user_created ON error_logs(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_error_logs_type_model ON error_logs(error_type, model_name);
@@ -142,6 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_product_recommendations_user ON product_recommend
 CREATE INDEX IF NOT EXISTS idx_ab_assignments_experiment ON ab_test_assignments(experiment_id, assigned_variant);
 
 -- Views for analytics and reporting
+DROP VIEW IF EXISTS error_recovery_stats CASCADE;
 CREATE OR REPLACE VIEW error_recovery_stats AS
 SELECT 
     error_type,
@@ -150,29 +155,31 @@ SELECT
     COUNT(CASE WHEN recovery_attempted THEN 1 END) as recovery_attempts,
     COUNT(CASE WHEN recovery_successful THEN 1 END) as successful_recoveries,
     ROUND(
-        COUNT(CASE WHEN recovery_successful THEN 1 END)::float / 
-        NULLIF(COUNT(CASE WHEN recovery_attempted THEN 1 END), 0) * 100, 2
+        (COUNT(CASE WHEN recovery_successful THEN 1 END)::numeric / 
+        NULLIF(COUNT(CASE WHEN recovery_attempted THEN 1 END), 0)::numeric * 100), 2
     ) as recovery_success_rate,
     DATE(created_at) as error_date
 FROM error_logs 
 GROUP BY error_type, model_name, DATE(created_at)
 ORDER BY total_errors DESC;
 
+DROP VIEW IF EXISTS personalization_effectiveness CASCADE;
 CREATE OR REPLACE VIEW personalization_effectiveness AS
 SELECT 
     persona_assigned,
     COUNT(*) as total_interactions,
-    AVG(user_satisfaction_score) as avg_satisfaction,
+    ROUND(AVG(user_satisfaction_score)::numeric, 2) as avg_satisfaction,
     COUNT(CASE WHEN user_satisfaction_score >= 4 THEN 1 END) as satisfied_users,
     ROUND(
-        COUNT(CASE WHEN user_satisfaction_score >= 4 THEN 1 END)::float / 
-        COUNT(*) * 100, 2
+        (COUNT(CASE WHEN user_satisfaction_score >= 4 THEN 1 END)::numeric / 
+        NULLIF(COUNT(*), 0)::numeric * 100), 2
     ) as satisfaction_rate
 FROM personalization_metrics 
 WHERE persona_assigned IS NOT NULL
 GROUP BY persona_assigned
 ORDER BY avg_satisfaction DESC;
 
+DROP VIEW IF EXISTS proactive_engagement_performance CASCADE;
 CREATE OR REPLACE VIEW proactive_engagement_performance AS
 SELECT 
     c.campaign_name,
@@ -180,10 +187,10 @@ SELECT
     COUNT(h.id) as messages_sent,
     COUNT(CASE WHEN h.delivery_status = 'responded' THEN 1 END) as responses_received,
     ROUND(
-        COUNT(CASE WHEN h.delivery_status = 'responded' THEN 1 END)::float / 
-        COUNT(h.id) * 100, 2
+        (COUNT(CASE WHEN h.delivery_status = 'responded' THEN 1 END)::numeric / 
+        NULLIF(COUNT(h.id), 0)::numeric * 100), 2
     ) as response_rate,
-    AVG(h.engagement_score) as avg_engagement_score
+    ROUND(AVG(h.engagement_score)::numeric, 2) as avg_engagement_score
 FROM proactive_campaigns c
 LEFT JOIN proactive_engagement_history h ON c.id = h.campaign_id
 WHERE c.active = true

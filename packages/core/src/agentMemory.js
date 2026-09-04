@@ -4,14 +4,12 @@
 // the existing AWS/GCP infra. Extraction follows the same LLM-structured-extraction
 // pattern already used by postProcessConversation/classifyAndSavePersona.
 const ai = require('./ai');
-const { googleAI } = require('@genkit-ai/google-genai');
 const { pgClient } = require('./database');
 
-const EMBEDDER = googleAI.embedder('gemini-embedding-001'); // 768-dim output, matches agent_memories.embedding
 const DUPLICATE_DISTANCE_THRESHOLD = 0.15; // cosine distance below this = treat as the same memory
 
 async function embedText(text) {
-    const [{ embedding }] = await ai.embed({ embedder: EMBEDDER, content: text });
+    const [{ embedding }] = await ai.embed({ embedder: 'gemini-embedding-001', content: text });
     return `[${embedding.join(',')}]`;
 }
 
@@ -44,7 +42,7 @@ const extractAndStoreMemories = async (userId, conversationId, chatHistory) => {
         if (!latestUserTurn?.content) return;
 
         const chat = ai.chat({
-            model: googleAI.model('gemini-3.6-flash'),
+            model: 'gemini-2.5-flash',
             config: { temperature: 0.3 },
         });
         const { output } = await chat.send(extractionPrompt(chatHistory, latestUserTurn.content));

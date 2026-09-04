@@ -86,7 +86,9 @@ async function getTrainingData(limit = 50) {
     );
     return result.rows;
   } catch (error) {
-    console.error("Error fetching training data:", error);
+    if (error.code !== '42P01') {
+      console.error("Error fetching training data:", error.message);
+    }
     return [];
   }
 }

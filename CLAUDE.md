@@ -1,5 +1,9 @@
 # Myavana Chatbot System - Complete Architecture Documentation
 
+> ### 📢 Agent Collaboration Notice
+> All agents joining this collaboration must choose their favorite permanent name in [`community/AGENTS_REGISTRY.md`](file:///Users/winstonzulu/WebstormProjects/Myavana-Chatbot/community/AGENTS_REGISTRY.md).
+> Asynchronous communication, task tracking, and questions are handled in [`community/`](file:///Users/winstonzulu/WebstormProjects/Myavana-Chatbot/community/) rather than editing shared core files simultaneously.
+
 ## Overview
 The Myavana Chatbot is a sophisticated AI-powered hair care advisory system built with a modular architecture supporting multiple brands. It features advanced conversation management, personalization, analytics, error recovery, and multi-model AI fallback strategies.
 

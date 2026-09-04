@@ -6,7 +6,6 @@ const {saveConversation, generateConversationSummary, getHairIssuesForUser, getC
 const {imageAnalysisPrompt} = require("./constructPrompt");
 const {postProcessConversation, updateUserProfile} = require("myavana-bot-test-core");
 const {saveHairIssue} = require("myavana-bot-test-core");
-const { googleAI } = require('@genkit-ai/google-genai');
 const format = require("html-format");
 require('dotenv').config();
 
@@ -326,7 +325,7 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
                     console.log('✅ Using cached analysis prompt:', cacheResult.cacheName);
                     
                     chat = session.chat({
-                        model: googleAI.model('gemini-3.7-flash'),
+                        model: 'gemini-3.7-flash',
                         cache: cacheResult.cacheName, // Use cached system instructions
                         config: {
                             temperature: 0.9,
@@ -337,7 +336,7 @@ const handleImageMessage = async (eventName, metadata, userId, conversationId, c
                     console.log('⚠️ Cache unavailable, using standard chat for image analysis');
                     
                     chat = session.chat({
-                        model: googleAI.model('gemini-3.7-flash'),
+                        model: 'gemini-3.7-flash',
                         system: analysisPrompt, // Fallback to regular system prompt
                         config: {
                             temperature: 0.9,

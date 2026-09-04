@@ -68,6 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_user_journey_events_user ON user_journey_events(u
 CREATE INDEX IF NOT EXISTS idx_ai_model_performance_date ON ai_model_performance(date_tracked);
 
 -- Views for easy analytics queries
+DROP VIEW IF EXISTS daily_conversation_stats CASCADE;
 CREATE OR REPLACE VIEW daily_conversation_stats AS
 SELECT 
     DATE(created_at) as date,
@@ -79,14 +80,15 @@ FROM conversation_metrics
 GROUP BY DATE(created_at)
 ORDER BY date DESC;
 
+DROP VIEW IF EXISTS model_reliability_stats CASCADE;
 CREATE OR REPLACE VIEW model_reliability_stats AS
 SELECT 
     model_name,
     SUM(request_count) as total_requests,
     SUM(success_count) as total_successes,
     SUM(failure_count) as total_failures,
-    ROUND((SUM(success_count)::float / SUM(request_count)::float * 100), 2) as success_rate,
-    ROUND(AVG(avg_response_time_ms), 2) as avg_response_time
+    ROUND((SUM(success_count)::numeric / NULLIF(SUM(request_count), 0)::numeric * 100), 2) as success_rate,
+    ROUND(AVG(avg_response_time_ms)::numeric, 2) as avg_response_time
 FROM ai_model_performance 
 WHERE date_tracked >= CURRENT_DATE - INTERVAL '30 days'
 GROUP BY model_name;

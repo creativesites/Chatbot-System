@@ -1,19 +1,8 @@
 // cacheManager.js - PRODUCTION VERSION WITH MULTI-LAYER FALLBACK
 
 const ai = require('./ai');
-const { googleAI } = require('@genkit-ai/google-genai');
 const { pgClient, redisClient } = require('./database');
-const { GoogleGenAI } = require("@google/genai");
 const config = require('./config');
-
-/**
- * Cache Manager for Gemini API with Multi-Layer Storage
- * Storage Layers (in order of preference):
- * 1. PostgreSQL (persistent, shared across instances)
- * 2. Redis (fast, shared across instances)
- * 3. Memory (fastest, single instance only)
- */
-const cacheAi = new GoogleGenAI({ apiKey: config.genkitApiKey });
 
 class CacheManager {
     constructor() {
@@ -150,7 +139,7 @@ class CacheManager {
             const cacheStartTime = performance.now();
             const modelName = "gemini-3.7-flash";
             
-            const cache = await cacheAi.caches.create({
+            const cache = await ai.client.caches.create({
                 model: modelName,
                 config: {
                     systemInstruction: systemPrompt,

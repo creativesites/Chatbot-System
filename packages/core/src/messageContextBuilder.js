@@ -10,6 +10,7 @@ const { getUserPersona, buildContextBlock } = require('./personaClassifier');
 const { getConversationDirective, inferStage, extractTrendSummary } = require('./conversationDriver');
 const { getTrendContext } = require('./trendManager');
 const { retrieveRelevantMemories } = require('./agentMemory');
+const { ExperienceContextService } = require('./experience/experienceContextService');
 
 /**
  * Assembles the dynamic context block to prepend to each user message before chat.send().
@@ -18,10 +19,21 @@ const { retrieveRelevantMemories } = require('./agentMemory');
  * @param {string} userId
  * @param {Array<{role:string, content:string}>} [chatHistory=[]]
  * @param {string} [currentMessage] - the message about to be sent; falls back to the last user turn in chatHistory
+ * @param {object} [experienceContext] - surface/page/entity context from widget/app
  * @returns {Promise<string>}
  */
-async function buildMessageContext(userId, chatHistory = [], currentMessage) {
+async function buildMessageContext(userId, chatHistory = [], currentMessage, experienceContext) {
     const parts = [];
+
+    // 0. Experience context (surface, page, entity, recent actions)
+    if (experienceContext && typeof experienceContext === 'object') {
+        try {
+            const expSnippet = ExperienceContextService.buildPromptSnippet(experienceContext);
+            if (expSnippet) parts.push(`${expSnippet}\n\n`);
+        } catch (err) {
+            console.error('buildMessageContext: experience context failed:', err.message);
+        }
+    }
 
     // Shared state — built up across steps so later steps can use earlier results
     let personaType  = null;

@@ -12,7 +12,6 @@
 
 const { pgClient, redisClient } = require('./database');
 const ai = require('./ai');
-const { googleAI } = require('@genkit-ai/google-genai');
 const { z } = require('zod');
 
 const REDIS_KEY        = 'hair_trends:current';
@@ -91,7 +90,7 @@ async function generateTrends() {
         console.log('🌊 Generating fresh hair trends via AI...');
 
         const result = await ai.generate({
-            model: googleAI.model('gemini-3.6-flash'),
+            model: 'gemini-2.5-flash',
             output: { format: 'json', schema: TREND_SCHEMA },
             config: { temperature: 0.7 },
             prompt: GENERATION_PROMPT,

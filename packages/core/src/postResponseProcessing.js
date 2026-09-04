@@ -1,6 +1,5 @@
 // postResponseProcessing.js
 const ai = require("./ai");
-const { googleAI } = require('@genkit-ai/google-genai');
 const DatabaseSessionStore = require("./session");
 const { pgClient, redisClient } = require('./database');
 const {generateAndSaveSummary, saveConversationSummary, saveConversation} = require("./conversation");
@@ -235,11 +234,10 @@ const postProcessConversation = async (chatHistory, message) => {
     //console.log('Extraction prompt: ', extractionPrompt);
     try {
         const chat = ai.chat({
-            model: googleAI.model('gemini-3.6-flash'),
+            model: 'gemini-2.5-flash',
             config: {
                 temperature: 1.1,
             },
-
         });
         const { output } = await chat.send(extractionPrompt);
         //console.log("Raw post-processing output:", JSON.stringify(output));
@@ -415,7 +413,7 @@ const postResponseProductCheck = async (chatHistory, message) => {
     // Try Gemini first
     try {
         const chat = ai.chat({
-            model: googleAI.model('gemini-3.6-flash'),
+            model: 'gemini-2.5-flash',
             config: {
                 temperature: 0.3, // Reduced temperature for more consistent JSON formatting
             },

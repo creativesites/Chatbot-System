@@ -20,14 +20,14 @@ exports.myavanaBot = async (req, res) => {
                     status: 'healthy',
                     service: 'Myavana Chatbot',
                     timestamp: new Date().toISOString(),
-                    version: '1.3.2'
+                    version: '1.3.4'
                 });
             } else {
                 return res.json({
                     service: 'Myavana Chatbot',
                     status: 'running',
                     timestamp: new Date().toISOString(),
-                    version: '1.3.2'
+                    version: '1.3.4'
                 });
             }
         }

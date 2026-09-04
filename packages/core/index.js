@@ -38,6 +38,7 @@ const modules = {
     getConversationHistory: safeRequire('./src/conversation', 'conversation')?.getConversationHistory,
     saveConversation: safeRequire('./src/conversation', 'conversation')?.saveConversation,
     generateConversationSummary: safeRequire('./src/conversation', 'conversation')?.generateConversationSummary,
+    getUserConversationsList: safeRequire('./src/conversation', 'conversation')?.getUserConversationsList,
   
     // Post-processing and hair issues
     postProcessConversation: safeRequire('./src/postResponseProcessing', 'postResponseProcessing')?.postProcessConversation,
@@ -55,6 +56,7 @@ const modules = {
     getAdditionalInstructions: safeRequire('./src/utils', 'utils')?.getAdditionalInstructions,
     getTrainingData: safeRequire('./src/utils', 'utils')?.getTrainingData,
     getChatbotWelcomeSettings: safeRequire('./src/utils', 'utils')?.getChatbotWelcomeSettings,
+    buildBudgetedPromptContext: safeRequire('./src/context/promptBudgetManager', 'promptBudgetManager')?.buildBudgetedPromptContext,
 };
 
 // Smart systems - Load with proper error handling and fallbacks
@@ -170,6 +172,13 @@ const enhancedModules = {
     HealthMonitor: safeRequire('./src/healthMonitor', 'HealthMonitor')
 };
 
+// Hair Journey Platform Services
+const hairJourneyModules = {
+    HairJourneyService: safeRequire('./src/hairJourney/hairJourneyService', 'hairJourneyService')?.HairJourneyService,
+    WordPressHairJourneyProvider: safeRequire('./src/hairJourney/wordPressHairJourneyProvider', 'wordPressHairJourneyProvider')?.WordPressHairJourneyProvider,
+    ExperienceContextService: safeRequire('./src/experience/experienceContextService', 'experienceContextService')?.ExperienceContextService,
+};
+
 // Export all modules
 module.exports = {
     ...modules,
@@ -181,6 +190,7 @@ module.exports = {
     ...agentToolModules,
     ...funnelEventModules,
     ...agentMemoryModules,
+    ...hairJourneyModules,
 };
 
 // Log export summary

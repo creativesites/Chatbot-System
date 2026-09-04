@@ -1,6 +1,5 @@
 // unifiedChatHandler.js - Fixed version with proper model prioritization
-const { genkit, z } = require('genkit');
-const { googleAI } = require('@genkit-ai/google-genai');
+const { z } = require('zod');
 
 class UnifiedChatHandler {
     constructor(config) {
@@ -17,9 +16,9 @@ class UnifiedChatHandler {
         
         // Initialize model priority list - GEMINI FIRST!
         this.modelPriority = [
-            { name: 'gemini20FlashExp', model: googleAI.model('gemini-3.7-flash'), type: 'primary' },
-            { name: 'gemini15Flash', model: googleAI.model('gemini-3.6-flash'), type: 'primary' },
-            { name: 'gemini15Pro', model: googleAI.model('gemini-3-pro-preview'), type: 'backup' }
+            { name: 'gemini37Flash', model: 'gemini-3.7-flash', type: 'primary' },
+            { name: 'gemini36Flash', model: 'gemini-3.6-flash', type: 'primary' },
+            { name: 'gemini3Pro', model: 'gemini-3-pro-preview', type: 'backup' }
         ];
 
         // Only initialize xAI as last resort if API key exists

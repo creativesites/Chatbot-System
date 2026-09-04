@@ -29,6 +29,11 @@
 (function (window, document) {
     'use strict';
 
+    // Bump on every widget change. Logged on init so it is possible to tell
+    // at a glance which build a page actually loaded — a stale cache and a
+    // not-yet-deployed plugin look identical from the outside otherwise.
+    var BUILD = '2026-09-04.5-composer-inline';
+
     var USER_ID_KEY = 'myavana_widget_user_id';
     var CONVERSATION_ID_KEY = 'myavana_widget_conversation_id';
 
@@ -49,6 +54,11 @@
         emerald: '#2e7d32',
         emeraldBg: '#e8f5e9',
         border: 'rgba(34, 35, 35, 0.08)',
+        // Inputs need a stronger edge than cards do: at 0.08 alpha on a
+        // near-white ground the top border was invisible, and the New
+        // Conversation button's shadow falling across it made the field look
+        // like it had no top edge at all.
+        borderInput: 'rgba(34, 35, 35, 0.22)',
         borderHover: 'rgba(34, 35, 35, 0.16)',
         white: '#ffffff'
     };
@@ -215,17 +225,26 @@
             '.mya-launcher:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,0.26), 0 4px 14px rgba(231,166,144,0.35);background:' + COLORS.onyxSoft + ';}',
             '.mya-launcher-badge{background:' + COLORS.coral + ';color:' + COLORS.onyx + ';font-size:10px;font-weight:700;padding:2px 7px;border-radius:9999px;text-transform:uppercase;letter-spacing:0.04em;}',
             '.mya-launcher.is-right{left:auto;right:24px;}',
+            // Hidden — not display:none — so it animates back on close.
+            '.mya-launcher.is-morphed{opacity:0;transform:scale(0.6) translateY(10px);pointer-events:none;',
+            'transition:opacity 0.2s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1);}',
 
             // Main AI Workspace Panel
-            '.mya-panel{position:fixed;bottom:88px;left:24px;width:440px;max-width:94vw;height:680px;max-height:86vh;',
+            '.mya-panel{position:fixed;bottom:20px;left:20px;width:520px;max-width:calc(100vw - 28px);height:min(840px, calc(100vh - 40px));',
             'background:#ffffff;border-radius:24px;box-shadow:0 24px 60px rgba(0,0,0,0.18), 0 8px 24px rgba(231,166,144,0.12);',
             'display:flex;flex-direction:column;overflow:hidden;font-family:Archivo,-apple-system,sans-serif;z-index:999999;',
-            'border:1px solid ' + COLORS.border + ';animation:myaSlideUp 0.26s cubic-bezier(0.16,1,0.3,1);transition:width 0.25s ease, height 0.25s ease;}',
+            'border:1px solid ' + COLORS.border + ';transform-origin:bottom left;',
+            'animation:myaPanelIn 0.42s cubic-bezier(0.22,1,0.36,1);',
+            'transition:width 0.32s cubic-bezier(0.22,1,0.36,1), height 0.32s cubic-bezier(0.22,1,0.36,1);}',
+            '.mya-panel.is-right{transform-origin:bottom right;}',
+            // The launcher visually becomes the panel: it scales away from its
+            // own corner as the panel grows out of that same point.
+            '@keyframes myaPanelIn{from{opacity:0;transform:scale(0.82) translateY(18px);}to{opacity:1;transform:none;}}',
             '.mya-panel.is-right{left:auto;right:24px;}',
-            '.mya-panel.is-expanded{width:600px;height:740px;max-height:90vh;}',
+            '.mya-panel.is-expanded{width:min(1040px, calc(100vw - 32px));height:calc(100vh - 28px);bottom:14px;left:14px;}',
 
             // Header (Clean, Premium, Brand Logo)
-            '.mya-header{background:#ffffff;color:' + COLORS.onyx + ';padding:12px 16px;border-bottom:1px solid ' + COLORS.border + ';',
+            '.mya-header{background:#ffffff;color:' + COLORS.onyx + ';padding:9px 14px;border-bottom:1px solid ' + COLORS.border + ';',
             'display:flex;align-items:center;justify-content:space-between;user-select:none;backdrop-filter:blur(10px);}',
             '.mya-header-left{display:flex;align-items:center;gap:8px;}',
             '.mya-header-title{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:700;letter-spacing:-0.01em;}',
@@ -245,8 +264,8 @@
             '.mya-btn-live-voice:hover{background:' + COLORS.coral + ';color:' + COLORS.onyx + ';border-color:' + COLORS.coral + ';transform:translateY(-1px);}',
 
             // Multi-View Navigation Bar (Chat | Stories | History | Profile)
-            '.mya-nav-strip{background:' + COLORS.stone + ';border-bottom:1px solid ' + COLORS.border + ';display:flex;padding:4px 8px;gap:4px;user-select:none;}',
-            '.mya-nav-item{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 4px;border-radius:10px;',
+            '.mya-nav-strip{background:' + COLORS.stone + ';border-bottom:1px solid ' + COLORS.border + ';display:flex;padding:3px 7px;gap:3px;user-select:none;}',
+            '.mya-nav-item{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 4px;border-radius:9px;',
             'font-size:11.5px;font-weight:600;color:' + COLORS.muted + ';background:transparent;border:none;cursor:pointer;transition:all 0.16s ease;}',
             '.mya-nav-item:hover{color:' + COLORS.onyx + ';background:rgba(255,255,255,0.6);}',
             '.mya-nav-item.active{color:' + COLORS.onyx + ';background:#ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.04);font-weight:700;}',
@@ -284,23 +303,26 @@
             // View 3: Conversation History View
             '.mya-history-view{padding:16px 16px 22px;background:linear-gradient(180deg,#fbfbfc 0%,' + COLORS.stone + ' 40%);}',
             '.mya-history-view > *{flex-shrink:0;}',
-            '.mya-history-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;}',
+            '.mya-history-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;}',
             '.mya-new-chat-btn{flex:1;background:linear-gradient(160deg,' + COLORS.onyxSoft + ' 0%,' + COLORS.onyx + ' 100%);color:#ffffff;',
             'border:none;border-radius:13px;padding:11px 14px;font-size:12.5px;font-weight:700;display:flex;align-items:center;',
-            'justify-content:center;gap:8px;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(34,35,35,0.16);',
+            'justify-content:center;gap:8px;cursor:pointer;font-family:inherit;box-shadow:0 2px 6px rgba(34,35,35,0.12);',
             'transition:transform 0.24s cubic-bezier(0.22,1,0.36,1),box-shadow 0.24s ease,background 0.2s ease;}',
             '.mya-new-chat-btn:hover{background:linear-gradient(160deg,' + COLORS.coralDark + ' 0%,#c2835f 100%);',
             'transform:translateY(-2px);box-shadow:0 10px 24px rgba(212,149,111,0.32);}',
             '.mya-new-chat-btn:active{transform:translateY(0);}',
 
-            '.mya-search-wrap{position:relative;margin-bottom:4px;}',
+            '.mya-search-wrap{position:relative;margin-bottom:4px;z-index:1;}',
             '.mya-search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:' + COLORS.muted + ';pointer-events:none;transition:color 0.18s ease;}',
             '.mya-search-wrap:focus-within svg{color:' + COLORS.coralDark + ';}',
-            '.mya-history-search{width:100%;background:#ffffff;border:1px solid ' + COLORS.border + ';border-radius:13px;',
-            'padding:10px 34px 10px 35px;font-size:12.5px;outline:none;font-family:inherit;color:' + COLORS.onyx + ';',
+            '.mya-history-search{width:100%;background:#ffffff;border:1.5px solid ' + COLORS.borderInput + ';border-radius:13px;',
+            'padding:11px 34px 11px 36px;font-size:12.5px;outline:none;font-family:inherit;color:' + COLORS.onyx + ';',
+            // An inset top highlight so the upper edge reads crisply even where
+            // the panel background is almost the same white as the field.
+            'box-shadow:inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(34,35,35,0.05);',
             'transition:border-color 0.18s ease,box-shadow 0.18s ease;}',
             '.mya-history-search::placeholder{color:' + COLORS.muted + ';}',
-            '.mya-history-search:focus{border-color:' + COLORS.coral + ';box-shadow:0 0 0 3px rgba(231,166,144,0.16);}',
+            '.mya-history-search:focus{border-color:' + COLORS.coralDark + ';box-shadow:0 0 0 3px rgba(231,166,144,0.22);}',
             '.mya-search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:none;',
             'width:24px;height:24px;border-radius:50%;color:' + COLORS.muted + ';cursor:pointer;display:none;align-items:center;',
             'justify-content:center;transition:background 0.16s ease,color 0.16s ease;}',
@@ -456,23 +478,29 @@
             'font-size:12px;font-weight:700;cursor:pointer;transition:all 0.16s ease;display:inline-flex;align-items:center;gap:6px;}',
 
             // Google AI Studio Command Center Composer Box
-            '.mya-composer-box{background:#ffffff;border-top:1px solid ' + COLORS.border + ';padding:10px 16px 14px;position:relative;}',
-            '.mya-input-wrapper{background:' + COLORS.stone + ';border:1px solid ' + COLORS.border + ';border-radius:18px;padding:10px 12px 8px;',
-            'transition:all 0.2s ease;display:flex;flex-direction:column;gap:8px;}',
+            '.mya-composer-box{background:#ffffff;border-top:1px solid ' + COLORS.border + ';padding:8px 14px 12px;position:relative;}',
+            '.mya-input-wrapper{background:#ffffff;border:1.5px solid ' + COLORS.borderInput + ';border-radius:18px;padding:8px 10px;',
+            'box-shadow:inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(34,35,35,0.05);',
+            'display:flex;flex-direction:row;align-items:flex-end;gap:6px;}',
             '.mya-input-wrapper:focus-within{background:#ffffff;border-color:' + COLORS.coral + ';box-shadow:0 0 0 3px rgba(231,166,144,0.18);}',
-            '.mya-textarea{width:100%;min-height:42px;max-height:130px;background:transparent;border:none;outline:none;',
+            '.mya-textarea.is-scrolling{overflow-y:auto;}',
+            // Single line at rest. It grows with the content and collapses
+            // straight back — a composer that stays tall after one long message
+            // permanently steals space from the conversation.
+            '.mya-textarea{flex:1;min-width:0;height:24px;min-height:24px;max-height:132px;background:transparent;border:none;outline:none;',
+            'overflow-y:hidden;display:block;padding:4px 2px;',
             'font-family:Archivo,-apple-system,sans-serif;font-size:13.5px;line-height:1.45;color:' + COLORS.onyx + ';resize:none;}',
             '.mya-textarea::placeholder{color:' + COLORS.muted + ';}',
 
             // Composer Action Bar
             '.mya-action-bar{display:flex;align-items:center;justify-content:space-between;}',
-            '.mya-action-group-left{display:flex;align-items:center;gap:4px;}',
-            '.mya-action-group-right{display:flex;align-items:center;gap:6px;}',
-            '.mya-tool-btn{background:transparent;border:none;color:' + COLORS.muted + ';width:34px;height:34px;border-radius:50%;',
+            '.mya-action-group-left{display:flex;align-items:center;gap:2px;flex-shrink:0;}',
+            '.mya-action-group-right{display:flex;align-items:center;gap:4px;flex-shrink:0;}',
+            '.mya-tool-btn{background:transparent;border:none;color:' + COLORS.muted + ';width:30px;height:30px;border-radius:50%;',
             'display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s ease;}',
             '.mya-tool-btn:hover{background:rgba(34,35,35,0.06);color:' + COLORS.onyx + ';}',
             '.mya-tool-btn.active{color:' + COLORS.coralDark + ';background:' + COLORS.lightCoral + ';}',
-            '.mya-send-btn{width:34px;height:34px;border-radius:50%;background:' + COLORS.onyx + ';color:#ffffff;border:none;',
+            '.mya-send-btn{width:32px;height:32px;border-radius:50%;background:' + COLORS.onyx + ';color:#ffffff;border:none;flex-shrink:0;',
             'display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.18s ease;}',
             '.mya-send-btn:hover{background:' + COLORS.coralDark + ';transform:scale(1.05);}',
             '.mya-send-btn:disabled{background:' + COLORS.stoneAlt + ';color:' + COLORS.muted + ';cursor:not-allowed;transform:none;}',
@@ -882,9 +910,14 @@
         textarea.placeholder = 'Ask Mya about your hair journey...';
 
         textarea.addEventListener('input', function () {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 130) + 'px';
+            autosizeComposer();
             sendBtn.disabled = this.value.trim().length === 0 && !state.stagedPhoto;
+        });
+
+        // Collapse on blur when there's nothing to keep it open for, so an
+        // abandoned draft doesn't leave the composer tall.
+        textarea.addEventListener('blur', function () {
+            if (!this.value.trim()) autosizeComposer();
         });
 
         textarea.addEventListener('keydown', function (e) {
@@ -953,11 +986,15 @@
         rightGroup.appendChild(micBtn);
         rightGroup.appendChild(sendBtn);
 
-        actionBar.appendChild(leftGroup);
-        actionBar.appendChild(rightGroup);
+        // actionBar is retained only so nothing downstream that queries it
+        // breaks; the groups are parented directly to the wrapper below.
 
+        // Single row. Stacking the textarea above a full-width button bar cost
+        // ~82px of vertical space at rest no matter how short the input was;
+        // inline it is ~44px, and the difference goes to the conversation.
+        inputWrapper.appendChild(leftGroup);
         inputWrapper.appendChild(textarea);
-        inputWrapper.appendChild(actionBar);
+        inputWrapper.appendChild(rightGroup);
 
         composerBox.appendChild(photoStage);
         composerBox.appendChild(drawer);
@@ -2310,7 +2347,16 @@
         if (state.open) closeEntryDetail();
         state.open = !state.open;
         state.els.panel.style.display = state.open ? 'flex' : 'none';
+
+        // The launcher morphs into the workspace rather than sitting under it.
+        // Reclaiming that corner is what lets the panel drop to bottom:24px and
+        // take back the ~64px the button used to occupy.
+        if (state.els.launcher) {
+            state.els.launcher.classList.toggle('is-morphed', state.open);
+        }
+
         if (state.open) {
+            autosizeComposer();
             if (state.els.stream.children.length === 0) {
                 renderEmptyState();
             }
@@ -2429,7 +2475,7 @@
                         var existing = state.els.textarea.value.trim();
                         state.els.textarea.value = existing ? (existing + ' ' + data.text) : data.text;
                         state.els.textarea.style.height = 'auto';
-                        state.els.textarea.style.height = Math.min(state.els.textarea.scrollHeight, 130) + 'px';
+                        autosizeComposer();
                         state.els.sendBtn.disabled = false;
                     }
                 })
@@ -2457,7 +2503,7 @@
                 var existing = state.els.textarea.value.trim();
                 state.els.textarea.value = existing ? (existing + ' ' + transcript) : transcript;
                 state.els.textarea.style.height = 'auto';
-                state.els.textarea.style.height = Math.min(state.els.textarea.scrollHeight, 130) + 'px';
+                autosizeComposer();
                 state.els.sendBtn.disabled = false;
                 state.audioListening = false;
                 state.els.micBtn.classList.remove('active');
@@ -3022,7 +3068,7 @@
         if (!text && !photo) return;
 
         state.els.textarea.value = '';
-        state.els.textarea.style.height = 'auto';
+        autosizeComposer();
         state.els.sendBtn.disabled = true;
 
         var empty = state.els.stream.querySelector('.mya-empty-state');
@@ -3546,6 +3592,30 @@
         container.scrollTop = container.scrollHeight;
     }
 
+    var COMPOSER_MIN_H = 24;
+    var COMPOSER_MAX_H = 132;
+
+    /**
+     * Size the composer to its content, both directions.
+     *
+     * Measuring requires collapsing to 0 first — reading scrollHeight at the
+     * current height only ever reports the same or more, which is why a
+     * composer that grows never shrinks back on its own.
+     */
+    function autosizeComposer() {
+        var ta = state.els.textarea;
+        if (!ta) return;
+
+        ta.style.height = '0px';
+        var needed = ta.scrollHeight;
+        var height = Math.max(COMPOSER_MIN_H, Math.min(needed, COMPOSER_MAX_H));
+        ta.style.height = height + 'px';
+
+        // Only scroll once it has actually hit the ceiling, so there's no
+        // stray scrollbar on a one-line draft.
+        ta.classList.toggle('is-scrolling', needed > COMPOSER_MAX_H);
+    }
+
     /**
      * While a reply streams, the send button reads as busy rather than
      * inviting another message that would be dropped by the isStreaming guard.
@@ -3754,9 +3824,12 @@
         ensureIdentity();
         injectStyles();
         buildWidget();
+
+        console.log('%c Mya ' + BUILD + ' ', 'background:#222323;color:#e7a690;border-radius:3px;');
     }
 
     window.MyavanaWidget = {
+        build: BUILD,
         init: init,
         setContext: setContext,
         registerLocalPlatform: registerLocalPlatform,

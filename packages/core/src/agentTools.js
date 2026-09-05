@@ -227,6 +227,25 @@ function createUserTools(userId) {
     );
 
     /**
+     * When the Hair Journey system of record is unreachable, the provider sets
+     * `available: false` and returns empty collections. Passing those straight
+     * to the model is indistinguishable from "this member has none", and the
+     * model then states the absence as fact — telling a member with an active
+     * goal that she has no goals recorded.
+     *
+     * An absence and an outage are different answers. This makes the
+     * difference explicit and unmissable in the tool result.
+     */
+    const unreachable = (what) => ({
+        dataUnavailable: true,
+        systemOfRecordReachable: false,
+        error: `The Hair Journey system of record is unreachable, so ${what} could not be read.`,
+        instruction:
+            'Do NOT state or imply that the member has no ' + what + '. You do not know that. ' +
+            'Tell them you cannot reach their Hair Journey right now and to try again shortly.'
+    });
+
+    /**
      * Hair Journey Integration Tools
      */
     const { HairJourneyService } = require('./hairJourney/hairJourneyService');
@@ -244,6 +263,7 @@ function createUserTools(userId) {
         async () => {
             try {
                 const { result, blocks } = await hairJourneyService.getGoalsWithBlocks(userId);
+                if (result && result.available === false) return unreachable('hair goals');
                 return {
                     goals: result.goals || [],
                     overview: result.overview || {},
@@ -268,6 +288,7 @@ function createUserTools(userId) {
         async () => {
             try {
                 const { result, blocks } = await hairJourneyService.getTodayWithBlocks(userId);
+                if (result && result.available === false) return unreachable("today's checklist");
                 return {
                     date: result.date,
                     checklist: result.checklist || [],
@@ -293,6 +314,7 @@ function createUserTools(userId) {
         async () => {
             try {
                 const { result, blocks } = await hairJourneyService.getRoutinesWithBlocks(userId);
+                if (result && result.available === false) return unreachable('hair routines');
                 return {
                     routines: result.routines || [],
                     cabinet: result.cabinet || [],
@@ -403,6 +425,7 @@ function createUserTools(userId) {
         async ({ perPage = 3 } = {}) => {
             try {
                 const { result, blocks } = await hairJourneyService.getJournalEntriesWithBlocks(userId, { perPage });
+                if (result && result.available === false) return unreachable('journal entries');
                 return {
                     items: result.items || [],
                     total: result.total || 0,

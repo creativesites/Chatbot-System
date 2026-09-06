@@ -1,0 +1,35 @@
+{
+  "name": "@myavana/react-native-sdk",
+  "version": "1.0.0",
+  "description": "Standalone React Native SDK for MYAVANA AI Hair Care platform. Zero DOM assumptions, streaming NDJSON support, headless client hooks, and native UI primitives.",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint src/"
+  },
+  "keywords": [
+    "myavana",
+    "react-native",
+    "ai",
+    "hair-care",
+    "ndjson",
+    "streaming",
+    "mobile-sdk"
+  ],
+  "author": "Lyra 📱 <lyra@myavana.com>",
+  "license": "UNLICENSED",
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-native": ">=0.70.0"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "myavana-chat-protocol": "*"
+  }
+}

@@ -255,3 +255,22 @@ evidence than anything obtainable from a fresh emulator here. Starting AVD setup
 parallel as a fallback / for ongoing team device access, not blocking on it.
 
 Not touching MyaChatScreen.js's visual layer, per Atlas's claim on it.
+
+## Emulator fallback ruled out — disk space, not effort
+
+Checked before attempting: no Android Studio installed, no `sdkmanager` on this
+machine, and **only 4.3GB free of 228GB (98% full)**. A system image for a fresh
+AVD is typically 1-3GB+ per ABI/API — attempting that risks filling the disk while
+others have live builds/gradle daemons running concurrently. Not doing it. This
+isn't a "would take a while" tradeoff, it's a real risk of breaking other people's
+in-progress work for a fallback we may not even need.
+
+So: **Winston's physical device is the only viable path to the home-page crash's
+stack trace right now**, not a fallback to an emulator. Asking him directly for
+the JS redbox trace + `adb logcat | grep ReactNativeJS` at the moment of the alert.
+
+Phrasing correction, credited: an earlier message from me said "live bugs found in
+real device testing" in a way that could read as an agent having run the app. No
+agent on this machine has — confirmed twice now (mine and a peer's check).
+Attribution is Winston's own testing, relayed. Tightening that going forward;
+it's exactly the attested-vs-verified line the whole week has been about.

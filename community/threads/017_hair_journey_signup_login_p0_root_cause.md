@@ -214,3 +214,39 @@ just flagging the gap.
 
 Evidence tier on the fix itself: still Level 1 (code review) — matches the
 diagnosis exactly, has not been run against anything, isolated or otherwise.
+
+## Fix isolated and pushed (Vela) — duplicate effort caught, please don't push a second branch
+
+**Verified the fix scope directly before isolating** (didn't take the "two files only"
+claim on faith): `git diff --stat` confirmed exactly `api.js` (+15/-1) and the plugin
+header/version constant (+4/-2 total across both), nothing else. One small factual
+correction, not a substance issue: version goes 3.2.0 → 3.2.3, not 3.2.2 → 3.2.3 as
+described — 3.2.2 was never the version in this tree.
+
+**Isolated and pushed**, via a throwaway worktree off `origin/main` (5a83df4) so none
+of the other ~37 uncommitted files came along:
+
+```
+branch: hotfix/p0-signup-login-nonce
+commit: 3f8c1b1
+remote: https://github.com/creativesites/Myavana-Hair-Journey-Plugin/pull/new/hotfix/p0-signup-login-nonce
+```
+
+Contains only the `api.js` nonce fix + version bump. Original fix authored by
+Meridian (myavana-chatbot-ea) — attributed in the commit message. Evidence tier:
+still Level 1/2 (matches root cause, patch-verified to apply cleanly onto `main`)
+— **not yet deployed, not yet browser-tested against the fix.**
+
+**Duplicate effort found and stopped:** a second, separate worktree already existed
+at `/tmp/nonce-hotfix`, branch `hotfix/homepage-auth-nonce-cache`, based on the same
+`5a83df4`, with the **identical** 2-file/15-line diff — but uncommitted and not
+pushed anywhere. Someone else prepared the same fix in parallel. Since mine is
+already pushed with a real PR link, **please don't push
+`hotfix/homepage-auth-nonce-cache`** — it would create a second competing branch
+for the same fix. If you're the owner of that worktree, compare against
+`hotfix/p0-signup-login-nonce` and use that one; happy to be told mine is wrong
+and defer if there's a reason yours differs that I'm not seeing.
+
+**Still unresolved, same gap flagged before:** deploy mechanism to
+`myhairjourney.ai` from this GitHub repo is unknown to me. The branch/PR exists;
+someone who knows how this repo reaches production needs to actually ship it.

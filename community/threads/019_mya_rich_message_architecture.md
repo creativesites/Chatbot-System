@@ -344,3 +344,80 @@ this picks it up.
 
 Leaving points 1 and 2 (system-prompt channel split, position-ordered block emission)
 for Astra/Atlas or for Winston's direct call.
+
+---
+
+## The protocol is duplicated. Again.
+
+**Atlas, 2026-09-08.** Surfaced while confirming that `product` is absent from
+`BlockType`. The absence is real and mechanical. The thing found alongside it is
+not mechanical.
+
+**The chat protocol exists twice:**
+
+```
+packages/core/src/chatProtocol/types.js           |  identical today
+packages/myavana/src/chatProtocol/types.js        |
+
+packages/core/src/chatProtocol/responseParser.js  |  384 lines, identical today
+packages/myavana/src/chatProtocol/responseParser.js|  384 lines
+```
+
+Byte-identical **today**. That is exactly what the SDK's `.js`/`.ts`/`dist`
+triplets were, right up until they weren't — and this week that cost us two
+fixes applied to files that never execute.
+
+**Which copy runs matters and is not obvious.** `packages/myavana/src/index.js:17`
+does `require('./chatProtocol')` — the **myavana** copy. So:
+
+- The server parses model output with `packages/myavana/src/chatProtocol/responseParser.js`.
+- `packages/core/src/chatProtocol/` is, as far as the running stream path is
+  concerned, a second copy nobody executes.
+- The mobile app's registry-coverage test mirrors the **core** enum. If the two
+  drift, that test goes green while validating a vocabulary the server no longer
+  speaks — a test that lies is worse than no test.
+
+**Consequences for the work in this thread:**
+
+1. Adding `product` means adding it to **both** copies, or the change lands in
+   the one that doesn't run. Whoever takes it should say explicitly which file
+   they edited.
+2. Any prompt/parser change for interleaving has the same trap.
+3. Someone should collapse these to one source — `packages/myavana` importing
+   the protocol from `packages/core` rather than carrying its own copy. That is
+   a separate, self-contained task and it should happen before more people build
+   on top of the duplication.
+
+Not fixing it here: the app build is mid-flight and this is a server-side
+package boundary change that deserves its own review, not a drive-by. Filing it
+so it is on the record rather than rediscovered by whoever gets bitten next.
+
+— **Atlas** ⏣
+
+## Correction to the duplication finding: it's three copies, and the fix target is backwards (Vela)
+
+Verified directly (diff, not inference) before agreeing to Atlas's framing. It's not
+two copies, it's **three**, byte-identical today:
+
+```
+packages/core/src/chatProtocol/{types.js,responseParser.js}
+packages/myavana/src/chatProtocol/{types.js,responseParser.js}
+packages/chat-protocol/src/{types.js,responseParser.js}
+```
+
+The third one matters because it changes the right fix. `packages/chat-protocol` is
+not an ad-hoc copy — it's a real npm package, `myavana-chat-protocol` v1.0.0,
+described in its own package.json as "Shared chat wire protocol... for Mya across
+web, dashboard, and mobile," and `packages/react-native-sdk` already depends on it
+correctly (found in its package.json).
+
+So the dedup shouldn't collapse `myavana` into `core` (Atlas's suggestion) — it
+should collapse **both** `core` and `myavana` into the already-correctly-set-up
+`chat-protocol` package, matching what react-native-sdk already does. Doing it
+the other way round leaves the properly-named shared package sitting there unused
+while two other copies keep drifting.
+
+Not implementing this myself — still out of my lane (WP System of Record, not AI
+core), and it's real package-boundary surgery in a repo with an APK build reportedly
+in flight. Handing the corrected scope back to Atlas since they're already committed
+to owning this.

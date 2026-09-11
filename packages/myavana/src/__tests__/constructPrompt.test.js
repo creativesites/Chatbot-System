@@ -6,6 +6,11 @@ const mockGetAllYoutubeVideos = jest.fn().mockResolvedValue([]);
 const mockGetAllTestimonials = jest.fn().mockResolvedValue([]);
 const mockGetAdditionalInstructions = jest.fn().mockResolvedValue([]);
 const mockGetTrainingData = jest.fn().mockResolvedValue([]);
+const mockBuildBudgetedPromptContext = jest.fn();
+
+const defaultBuildBudgeted = ({ userDetails, summary, recentHairIssues, allProducts }) => {
+    return (userDetails ? JSON.stringify(userDetails) : 'New User') + ' ' + (summary || '') + ' ' + JSON.stringify(recentHairIssues || []) + ' ' + JSON.stringify(allProducts || []);
+};
 
 jest.mock('myavana-bot-test-core', () => ({
     getHairIssuesForUser: mockGetHairIssues,
@@ -15,6 +20,7 @@ jest.mock('myavana-bot-test-core', () => ({
     getAllTestimonials: mockGetAllTestimonials,
     getAdditionalInstructions: mockGetAdditionalInstructions,
     getTrainingData: mockGetTrainingData,
+    buildBudgetedPromptContext: mockBuildBudgetedPromptContext
 }));
 
 const { constructPrompt, imageAnalysisPrompt } = require('../constructPrompt');
@@ -28,6 +34,7 @@ beforeEach(() => {
     mockGetAllTestimonials.mockResolvedValue([]);
     mockGetAdditionalInstructions.mockResolvedValue([]);
     mockGetTrainingData.mockResolvedValue([]);
+    mockBuildBudgetedPromptContext.mockImplementation(defaultBuildBudgeted);
 });
 
 describe('constructPrompt', () => {

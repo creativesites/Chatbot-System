@@ -13,8 +13,15 @@ function useMyaChat(options = {}) {
     if (options.client) {
       clientRef.current = options.client;
     } else {
+      if (!options.apiBase && typeof process !== 'undefined' && process.env?.NODE_ENV !== 'test') {
+        console.warn('[useMyaChat] options.apiBase is not set. Please provide apiBase explicitly.');
+      }
+      const apiBase =
+        options.apiBase ||
+        (typeof process !== 'undefined' && process.env?.MYA_API_BASE) ||
+        'https://myavana-ai-bot-staging-201873778892.us-central1.run.app';
       clientRef.current = new MyaMobileClient({
-        apiBase: options.apiBase || 'https://myavana-ai-bot-staging-201873778892.us-central1.run.app',
+        apiBase,
         userId: options.initialUserId,
         conversationId: options.initialConversationId,
         telemetry: options.telemetry,
@@ -91,7 +98,26 @@ function useMyaChat(options = {}) {
     client.abort();
     setIsStreaming(false);
     setIsThinking(false);
-  }, [client]);
+
+    // Aborting resolves the stream silently — StreamAdapter swallows AbortError
+    // and returns, so neither onDone nor onError fires. Without this, the
+    // in-flight assistant message keeps `isStreaming: true` forever: its
+    // thinking dots never stop, or its streaming cursor never clears.
+    setMessages((prev) => {
+      const updated = prev
+        .map((msg) =>
+          msg.isStreaming ? { ...msg, isStreaming: false, stopped: true } : msg
+        )
+        // Stopping before a single token arrived leaves an empty assistant
+        // bubble with nothing to say. Drop it — the thread should look as
+        // though the turn was never taken, not as though Mya replied blankly.
+        .filter(
+          (msg) => !(msg.stopped && msg.role === 'assistant' && !msg.content)
+        );
+      persistHistory(updated);
+      return updated;
+    });
+  }, [client, persistHistory]);
 
   const restartConversation = useCallback(async () => {
     abortStream();
@@ -108,7 +134,7 @@ function useMyaChat(options = {}) {
   }, [client, abortStream, options.persistMessages, clearCachedMessages]);
 
   const sendMessage = useCallback(
-    async (text, customContext) => {
+    async (text, customContext, sendOptions = {}) => {
       const trimmed = (text || '').trim();
       if (!trimmed) return;
 
@@ -120,11 +146,19 @@ function useMyaChat(options = {}) {
       const assistantMessageId = createId('msg_ast');
       const now = new Date().toISOString();
 
+      // Attachments belong on the message from the moment it is created.
+      // Attaching them after `await sendMessage(...)` resolves is too late:
+      // that promise settles only when the whole response has finished
+      // streaming, so the user's own photo would render as a filename for the
+      // entire reply - and not at all if the stream errored first.
       const userMessage = {
         id: userMessageId,
         role: 'user',
         content: trimmed,
-        timestamp: now
+        timestamp: now,
+        ...(Array.isArray(sendOptions.attachments) && sendOptions.attachments.length
+          ? { attachments: sendOptions.attachments }
+          : {})
       };
 
       const initialAssistantMessage = {
@@ -144,6 +178,7 @@ function useMyaChat(options = {}) {
           message: trimmed,
           conversationId,
           experienceContext: customContext,
+          attachments: sendOptions.attachments,
           onDelta: (delta, accumulated) => {
             setIsThinking(false);
             setMessages((prev) =>
@@ -157,11 +192,22 @@ function useMyaChat(options = {}) {
           onBlock: (block) => {
             setActiveBlocks((prev) => [...prev, block]);
             setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMessageId
-                  ? { ...msg, blocks: [...(msg.blocks || []), block] }
-                  : msg
-              )
+              prev.map((msg) => {
+                if (msg.id !== assistantMessageId) return msg;
+                // Stamp where this block arrived relative to the prose.
+                //
+                // NDJSON delivers frames in order, so the length of the text
+                // accumulated so far IS the block's position in the response.
+                // That lets the renderer interleave text/card/text/card as the
+                // model intended, instead of printing all prose then all cards.
+                // No protocol change needed - the ordering was already on the
+                // wire, we were just discarding it.
+                const positioned =
+                  block && block.position == null
+                    ? { ...block, position: (msg.content || '').length }
+                    : block;
+                return { ...msg, blocks: [...(msg.blocks || []), positioned] };
+              })
             );
           },
           onAction: (action) => {
@@ -245,6 +291,28 @@ function useMyaChat(options = {}) {
     [client, conversationId, options, persistHistory]
   );
 
+  const loadConversation = useCallback(async (targetConvId) => {
+    if (!targetConvId) return;
+    try {
+      setIsThinking(true);
+      const history = await client.fetchConversationHistory(targetConvId);
+      client.setConversationId(targetConvId);
+      setConversationId(targetConvId);
+      setMessages(history);
+      persistHistory(history);
+      return history;
+    } catch (err) {
+      console.warn('[useMyaChat] loadConversation error:', err);
+      throw err;
+    } finally {
+      setIsThinking(false);
+    }
+  }, [client, persistHistory]);
+
+  const fetchConversations = useCallback(async () => {
+    return client.fetchUserConversations();
+  }, [client]);
+
   return {
     messages,
     isStreaming,
@@ -254,9 +322,12 @@ function useMyaChat(options = {}) {
     activeActions,
     conversationId,
     userId,
+    client,
     sendMessage,
     abortStream,
     restartConversation,
+    loadConversation,
+    fetchConversations,
     setMessages,
     clearCachedMessages
   };

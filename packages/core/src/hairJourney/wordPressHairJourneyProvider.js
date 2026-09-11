@@ -38,8 +38,10 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
       'Accept': 'application/json'
     };
 
-    const serviceKey = process.env.WORDPRESS_SERVICE_KEY || 'myavana_secret_service_key_2026';
-    headers['X-Myavana-Service-Key'] = serviceKey;
+    const serviceKey = process.env.WORDPRESS_SERVICE_KEY;
+    if (serviceKey) {
+      headers['X-Myavana-Service-Key'] = serviceKey;
+    }
 
     if (this.authHeader) {
       headers['Authorization'] = this.authHeader;
@@ -80,29 +82,47 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
    */
   async getProfile(userId) {
     const data = await this._request('/profile', { userId });
-    if (data && (data.hairType || data.hair_type)) {
+    if (data && (data.hairType || data.hair_type || data.porosity || data.density)) {
       return {
+        available: true,
         userId: data.userId || userId,
-        hairType: data.hairType || data.hair_type || 'Type 4 (Coily)',
-        porosity: data.porosity || 'Normal Porosity',
-        elasticity: data.elasticity || 'Medium',
-        strandDiameter: data.density || 'Medium',
+        hairType: data.hairType || data.hair_type || null,
+        porosity: data.porosity || null,
+        elasticity: data.elasticity || null,
+        strandDiameter: data.density || null,
         hairConcerns: data.concerns || [],
         hairGoals: (data.goals || []).map(g => typeof g === 'string' ? g : (g.title || 'Hair Goal')),
-        currentRegimen: data.routines && data.routines[0] ? (data.routines[0].title || data.routines[0].name) : 'Personalized HHCP'
+        currentRegimen: data.routines && data.routines[0] ? (data.routines[0].title || data.routines[0].name) : null
       };
     }
 
-    // Resilient fallback profile
+    if (data) {
+      // Valid response from WordPress, but user profile is unpopulated
+      return {
+        available: true,
+        userId,
+        hairType: null,
+        porosity: null,
+        elasticity: null,
+        strandDiameter: null,
+        hairConcerns: [],
+        hairGoals: [],
+        currentRegimen: null
+      };
+    }
+
+    // Backend unreachable — fail honest, never fabricate
     return {
+      available: false,
+      error: 'WordPress Hair Journey profile API unavailable',
       userId,
-      hairType: 'Type 4 (Coily)',
-      porosity: 'Normal Porosity',
-      elasticity: 'Medium',
-      strandDiameter: 'Fine to Medium',
-      hairConcerns: ['Moisture Retention', 'Breakage Prevention', 'Length Retention'],
-      hairGoals: ['Retain 4 inches by December 2026', 'Increase hydration'],
-      currentRegimen: 'L.O.C. Method weekly'
+      hairType: null,
+      porosity: null,
+      elasticity: null,
+      strandDiameter: null,
+      hairConcerns: [],
+      hairGoals: [],
+      currentRegimen: null
     };
   }
 
@@ -113,57 +133,35 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
     const data = await this._request('/goals', { userId });
     if (data) {
       const rawGoals = data.goals || data.active || (Array.isArray(data) ? data : []);
-      if (rawGoals.length > 0) {
-        return {
-          goals: rawGoals.map((g, idx) => ({
-            id: g.id || `goal_${idx + 1}`,
-            title: g.title || g.name || 'Hair Goal',
-            category: g.category || 'Length & Health',
-            progressPercent: Number(g.progress != null ? g.progress : (g.progressPercent || 0)),
-            targetMetric: g.target_length ? `${g.target_length} in` : (g.targetMetric || 'Tracked'),
-            targetDate: g.target_date || g.targetDate || 'Ongoing',
-            status: g.status || 'active',
-            createdAt: g.created_at || g.createdAt || ''
-          })),
-          overview: {
-            activeCount: data.totalActive || rawGoals.length,
-            completedCount: data.totalCompleted || 0,
-            averageProgress: 0
-          }
-        };
-      }
+      return {
+        available: true,
+        goals: rawGoals.map((g, idx) => ({
+          id: g.id || `goal_${idx + 1}`,
+          title: g.title || g.name || 'Hair Goal',
+          category: g.category || 'Length & Health',
+          progressPercent: Number(g.progress != null ? g.progress : (g.progressPercent || 0)),
+          targetMetric: g.target_length ? `${g.target_length} in` : (g.targetMetric || 'Tracked'),
+          targetDate: g.target_date || g.targetDate || 'Ongoing',
+          status: g.status || 'active',
+          createdAt: g.created_at || g.createdAt || ''
+        })),
+        overview: {
+          activeCount: data.totalActive || rawGoals.length,
+          completedCount: data.totalCompleted || 0,
+          averageProgress: 0
+        }
+      };
     }
 
-    // Resilient fallback goals
+    // Backend unreachable — fail honest, never fabricate
     return {
-      goals: [
-        {
-          id: 'goal_length_1',
-          title: 'Retain 4 Inches Length by Dec 2026',
-          category: 'Length & Retention',
-          targetMetric: '4 Inches',
-          currentMetric: '1.7 Inches',
-          progressPercent: 42,
-          targetDate: 'Dec 2026',
-          status: 'in_progress',
-          createdAt: '2026-01-15'
-        },
-        {
-          id: 'goal_moisture_2',
-          title: 'Daily Moisture Routine Consistency',
-          category: 'Hydration & Health',
-          targetMetric: '7 Days/Week',
-          currentMetric: '5 Days/Week',
-          progressPercent: 71,
-          targetDate: 'Ongoing',
-          status: 'in_progress',
-          createdAt: '2026-02-01'
-        }
-      ],
+      available: false,
+      error: 'WordPress Hair Journey goals API unavailable',
+      goals: [],
       overview: {
-        activeCount: 2,
-        completedCount: 1,
-        averageProgress: 56
+        activeCount: 0,
+        completedCount: 0,
+        averageProgress: 0
       }
     };
   }
@@ -173,9 +171,11 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
    */
   async getRoutines(userId) {
     const data = await this._request('/routine', { userId });
-    if (data && ((data.routines && data.routines.length > 0) || (Array.isArray(data) && data.length > 0))) {
+    if (data) {
+      const routines = data.routines || (Array.isArray(data) ? data : []);
       return {
-        routines: (data.routines || data).map(r => ({
+        available: true,
+        routines: routines.map(r => ({
           id: r.id || 'routine_1',
           title: r.title || r.name || 'Routine',
           frequency: r.frequency || 'Weekly',
@@ -190,25 +190,12 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
       };
     }
 
+    // Backend unreachable — fail honest, never fabricate
     return {
-      routines: [
-        {
-          id: 'routine_wash_day',
-          title: 'Sunday Deep Moisture Wash Day',
-          frequency: 'Weekly',
-          steps: [
-            { id: 'step_1', title: 'Clarify with Botanical Cleanser', duration: '10 min', completed: true },
-            { id: 'step_2', title: 'Apply Deep Moisture Mask under Heat Cap', duration: '25 min', completed: true },
-            { id: 'step_3', title: 'Apply Leave-in Conditioning Milk', duration: '5 min', completed: false },
-            { id: 'step_4', title: 'Seal with Jojoba & Sweet Almond Oil Blend', duration: '5 min', completed: false }
-          ]
-        }
-      ],
-      cabinet: [
-        { id: 'prod_1', name: 'MYAVANA Hydrating Cleanser', category: 'Cleanser' },
-        { id: 'prod_2', name: 'MYAVANA Deep Recovery Treatment', category: 'Deep Conditioner' },
-        { id: 'prod_3', name: 'Pure Cold-Pressed Jojoba Oil', category: 'Oil & Sealant' }
-      ]
+      available: false,
+      error: 'WordPress Hair Journey routines API unavailable',
+      routines: [],
+      cabinet: []
     };
   }
 
@@ -219,30 +206,28 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
     const data = await this._request('/today', { userId });
     if (data) {
       const rawSteps = data.checklist?.items || data.checklist || data.steps || [];
-      if (rawSteps.length > 0) {
-        return {
-          date: data.checklist?.date || new Date().toISOString().split('T')[0],
-          streakDays: data.dayCount || 1,
-          checklist: rawSteps.map((s, idx) => ({
-            id: s.id || `step_today_${idx + 1}`,
-            title: s.title || s.name || `Step ${idx + 1}`,
-            completed: Boolean(s.isCompleted || s.completed),
-            duration: s.duration || '5 min'
-          })),
-          milestone: data.insight?.title || 'Hair Journey active'
-        };
-      }
+      return {
+        available: true,
+        date: data.checklist?.date || new Date().toISOString().split('T')[0],
+        streakDays: data.dayCount || 0,
+        checklist: rawSteps.map((s, idx) => ({
+          id: s.id || `step_today_${idx + 1}`,
+          title: s.title || s.name || `Step ${idx + 1}`,
+          completed: Boolean(s.isCompleted || s.completed),
+          duration: s.duration || '5 min'
+        })),
+        milestone: data.insight?.title || null
+      };
     }
 
+    // Backend unreachable — fail honest, never fabricate
     return {
+      available: false,
+      error: 'WordPress Hair Journey today checklist API unavailable',
       date: new Date().toISOString().split('T')[0],
-      streakDays: 8,
-      checklist: [
-        { id: 'step_today_1', title: 'Morning Hydration Mist', completed: true, duration: '2 min' },
-        { id: 'step_today_2', title: 'Deep Condition with Heat (20 min)', completed: false, duration: '20 min' },
-        { id: 'step_today_3', title: 'Scalp Stimulation Massage (5 min)', completed: false, duration: '5 min' }
-      ],
-      milestone: '8-day care streak! Your hydration retention is increasing.'
+      streakDays: 0,
+      checklist: [],
+      milestone: null
     };
   }
 
@@ -252,21 +237,19 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
   async getJournalEntries(userId, options = {}) {
     const perPage = options.perPage || 5;
     const data = await this._request(`/journal/entries?perPage=${perPage}`, { userId });
-    if (data) return data;
+    if (data) {
+      return {
+        available: true,
+        ...data
+      };
+    }
 
+    // Backend unreachable — fail honest, never fabricate
     return {
-      items: [
-        {
-          id: 101,
-          date: new Date().toISOString().split('T')[0],
-          title: 'Sunday Wash Day & Heat Steam',
-          notes: 'Hair felt significantly softer after 20 minutes with heat cap. Less shedding observed.',
-          moistureLevel: 4,
-          scalpCondition: 'Calm, no flaking',
-          washDayLogged: true
-        }
-      ],
-      total: 1
+      available: false,
+      error: 'WordPress Hair Journey journal API unavailable',
+      items: [],
+      total: 0
     };
   }
 
@@ -279,13 +262,15 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
       body: { stepId, date },
       userId
     });
-    if (data) return data;
+    if (data) return { available: true, ...data };
 
     return {
+      available: false,
+      saved: false,
+      error: 'WordPress API unavailable - step completion was not saved',
       stepId,
-      completed: true,
-      date,
-      message: 'Routine step marked complete'
+      completed: false,
+      date
     };
   }
 
@@ -298,15 +283,12 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
       body: goalData,
       userId
     });
-    if (data) return data;
+    if (data) return { available: true, ...data };
 
     return {
-      id: `goal_${Date.now()}`,
-      title: goalData.title || 'New Hair Goal',
-      targetMetric: goalData.targetMetric || '',
-      targetDate: goalData.targetDate || '',
-      progressPercent: 0,
-      saved: true
+      available: false,
+      saved: false,
+      error: 'WordPress API unavailable - goal was not saved'
     };
   }
 
@@ -319,12 +301,13 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
       body: goalData,
       userId
     });
-    if (data) return data;
+    if (data) return { available: true, ...data };
 
     return {
-      id: goalId,
-      ...goalData,
-      updated: true
+      available: false,
+      saved: false,
+      error: 'WordPress API unavailable - goal update was not saved',
+      id: goalId
     };
   }
 
@@ -340,6 +323,7 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
     if (data) {
       const entryObj = data.entry || data;
       return {
+        available: true,
         ...entryObj,
         id: entryObj.id || Date.now(),
         saved: true,
@@ -349,10 +333,9 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
     }
 
     return {
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      ...entryData,
-      saved: true
+      available: false,
+      saved: false,
+      error: 'WordPress API unavailable - journal entry was not saved'
     };
   }
 }

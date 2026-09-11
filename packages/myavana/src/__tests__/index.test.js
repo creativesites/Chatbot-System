@@ -13,6 +13,7 @@ const mockSessionChat = jest.fn();
 const mockLoadSession = jest.fn().mockResolvedValue({ chat: mockSessionChat });
 
 jest.mock('myavana-bot-test-core', () => ({
+    connectDatabases: jest.fn().mockResolvedValue(true),
     pgClient: { end: jest.fn() },
     redisClient: { quit: jest.fn() },
     ai: { loadSession: mockLoadSession },
@@ -150,7 +151,7 @@ describe('POST / — text message (cache miss)', () => {
             .post('/')
             .send({ from: 'u1', groupId: 'c1', message: 'Hi there', eventName: 'MESSAGE' });
 
-        expect(mockConstructPrompt).toHaveBeenCalledWith('u1', expect.anything(), expect.anything(), false);
+        expect(mockConstructPrompt).toHaveBeenCalledWith('u1', expect.anything(), expect.anything(), false, expect.anything());
         expect(mockGetOrCreateCache).toHaveBeenCalled();
         expect(res.status).toBe(200);
     });

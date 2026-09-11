@@ -6,7 +6,7 @@
  * Generates canonical NDJSON ChatBlocks ready for streaming to clients.
  */
 
-const { BlockType, ActionType, createBlockId } = require('../../../chat-protocol/src');
+const { BlockType, ActionType, createBlockId } = require('../chatProtocol');
 const { WordPressHairJourneyProvider } = require('./wordPressHairJourneyProvider');
 const { pgClient } = require('../database');
 
@@ -147,18 +147,21 @@ class HairJourneyService {
   /**
    * Formats verified strand profile into hair_profile_summary block
    * @param {object} profile
-   * @returns {object} ChatBlock
+   * @returns {object|null} ChatBlock
    */
   buildHairProfileBlock(profile) {
+    if (!profile || profile.available === false) {
+      return null;
+    }
     return {
       id: createBlockId('profile'),
       type: BlockType.HAIR_PROFILE_SUMMARY,
       data: {
-        hairType: profile.hairType || profile.hair_type || 'Type 4 (Coily)',
-        porosity: profile.porosity || 'Normal Porosity',
-        elasticity: profile.elasticity || 'Medium',
+        hairType: profile.hairType || profile.hair_type || null,
+        porosity: profile.porosity || null,
+        elasticity: profile.elasticity || null,
         concerns: profile.hairConcerns || profile.hair_concerns || [],
-        regimen: profile.currentRegimen || profile.regimen || 'Personalized HHCP'
+        regimen: profile.currentRegimen || profile.regimen || null
       }
     };
   }
@@ -196,7 +199,7 @@ class HairJourneyService {
     const wpUserId = await this.resolveWordPressUserId(myavanaUserId);
     const result = await this.provider.getGoals(wpUserId);
     const goals = result.goals || [];
-    const blocks = goals.map(g => this.buildGoalCardBlock(g));
+    const blocks = result.available !== false ? goals.map(g => this.buildGoalCardBlock(g)) : [];
     return { result, blocks };
   }
 
@@ -206,8 +209,10 @@ class HairJourneyService {
   async getTodayWithBlocks(myavanaUserId) {
     const wpUserId = await this.resolveWordPressUserId(myavanaUserId);
     const result = await this.provider.getTodayData(wpUserId);
-    const block = this.buildTodayChecklistBlock(result);
-    return { result, blocks: [block] };
+    const block = (result.available !== false && result.checklist && result.checklist.length > 0)
+      ? this.buildTodayChecklistBlock(result)
+      : null;
+    return { result, blocks: block ? [block] : [] };
   }
 
   /**
@@ -217,7 +222,7 @@ class HairJourneyService {
     const wpUserId = await this.resolveWordPressUserId(myavanaUserId);
     const result = await this.provider.getRoutines(wpUserId);
     const routines = result.routines || [];
-    const blocks = routines.map(r => this.buildRoutineChecklistBlock(r));
+    const blocks = result.available !== false ? routines.map(r => this.buildRoutineChecklistBlock(r)) : [];
     return { result, blocks };
   }
 
@@ -227,8 +232,8 @@ class HairJourneyService {
   async getProfileWithBlocks(myavanaUserId) {
     const wpUserId = await this.resolveWordPressUserId(myavanaUserId);
     const result = await this.provider.getProfile(wpUserId);
-    const block = this.buildHairProfileBlock(result);
-    return { result, blocks: [block] };
+    const block = result.available !== false ? this.buildHairProfileBlock(result) : null;
+    return { result, blocks: block ? [block] : [] };
   }
 
   /**
@@ -297,7 +302,7 @@ class HairJourneyService {
     const wpUserId = await this.resolveWordPressUserId(myavanaUserId);
     const result = await this.provider.getJournalEntries(wpUserId, options);
     const items = result.items || [];
-    const blocks = items.map(item => this.buildJournalEntryBlock(item));
+    const blocks = result.available !== false ? items.map(item => this.buildJournalEntryBlock(item)) : [];
     return { result, blocks };
   }
 

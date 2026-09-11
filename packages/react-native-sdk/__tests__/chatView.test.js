@@ -83,4 +83,38 @@ describe('MyaChatView Component', () => {
 
     expect(element).toBeDefined();
   });
+
+  it('renders interleaved blocks and prose when message contains item.blocks', () => {
+    const onToggleRoutineStep = jest.fn();
+    const messages = [
+      {
+        id: 'msg_assistant_interleaved',
+        role: 'assistant',
+        content: 'Here is your wash day regimen to follow:',
+        timestamp: '2026-09-11T10:00:00.000Z',
+        blocks: [
+          {
+            id: 'block_routine_1',
+            type: 'today_checklist',
+            position: 10,
+            data: {
+              title: 'Weekend Wash Day',
+              steps: ['Pre-poo', 'Shampoo', 'Deep condition']
+            }
+          }
+        ],
+        quickReplies: [
+          { label: 'Deep conditioner tips', payload: 'tips' }
+        ]
+      }
+    ];
+
+    const element = MyaChatView({
+      messages,
+      onToggleRoutineStep,
+      onSendMessage: jest.fn()
+    });
+
+    expect(element).toBeDefined();
+  });
 });

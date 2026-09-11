@@ -179,6 +179,18 @@ const hairJourneyModules = {
     ExperienceContextService: safeRequire('./src/experience/experienceContextService', 'experienceContextService')?.ExperienceContextService,
 };
 
+// Hair Media & Visual Taxonomy Services
+const hairMediaModules = {
+    HairMediaService: safeRequire('./src/hairMedia/hairMediaService', 'hairMediaService')?.HairMediaService,
+    hairMediaService: safeRequire('./src/hairMedia/hairMediaService', 'hairMediaService')?.hairMediaService,
+};
+
+// Chat Protocol (NDJSON streaming, semantic blocks, response parsing)
+const chatProtocolModules = {
+    chatProtocol: safeRequire('./src/chatProtocol', 'chatProtocol'),
+    ...(safeRequire('./src/chatProtocol', 'chatProtocol') || {}),
+};
+
 // Export all modules
 module.exports = {
     ...modules,
@@ -191,6 +203,8 @@ module.exports = {
     ...funnelEventModules,
     ...agentMemoryModules,
     ...hairJourneyModules,
+    ...hairMediaModules,
+    ...chatProtocolModules,
 };
 
 // Log export summary

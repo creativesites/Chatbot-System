@@ -1,7 +1,7 @@
 //constructPrompt.js
 const systemPrompt = require("./system");
 const {getHairIssuesForUser} = require("myavana-bot-test-core");
-const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions, getTrainingData, buildBudgetedPromptContext } = require('myavana-bot-test-core');
+const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions, getTrainingData, buildBudgetedPromptContext, HairMediaService } = require('myavana-bot-test-core');
 
 
 /**
@@ -156,9 +156,142 @@ Ignore the "Kommunicate Rich Message Templates" instructions above — this resp
 Respond in plain, warm, conversational text using simple markdown (bold, bullet lists) where helpful. Do NOT wrap the response in JSON, HTML tags, or a "platform"/"messageType" object.
 ` : '';
 
+        // TASK_MSDK_009: Response Format Intelligence Layer (GuideLens Architecture Pattern)
+        const formatIntelligence = `
+================================================================================
+🤖 RESPONSE FORMAT INTELLIGENCE LAYER (TASK_MSDK_009)
+================================================================================
+
+You must dynamically choose between two output modes based on the user's intent:
+
+1. PROSE MODE:
+   - Trigger: Conversational greetings, empathy, simple check-ins, or brief factual answers.
+   - Response structure: ONLY a single "text" block in the blocks array, accompanied by 2-3 relevant quickReplies.
+   - Word count: Keep concise, warm, and direct (max 100-150 words).
+
+2. STRUCTURED MODE:
+   - Trigger: Regimens, multi-step routines, wash day checklists, hair goals, strand DNA analysis, or diary logging.
+   - HARD COMPONENT DENSITY BUDGET: Max 1 to 2 structured components per response! NEVER stack more than 2 components. Quality over quantity.
+   - Accompanying text: When structured components are present, keep accompanying text concise (under 80-120 words). Let the cards do the heavy lifting instead of dumping walls of text.
+
+When-To-Use Heuristics for Block Types:
+- "text": Conversational dialogue, empathetic encouragement, concise explanations.
+- "today_checklist": Immediate step-by-step wash day or styling execution (3-6 clear actionable steps).
+- "routine_card": Complete hair care regimens, multi-step morning/night regimens.
+- "hair_profile_summary": Strand diagnostic attributes (porosity, texture, elasticity, density).
+- "goal_card": Active hair milestones (length retention, moisture restoration, transition tracking).
+- "journal_entry": Confirming or summarizing a hair diary log.
+- "community_post": Surfacing relevant peer discussions or community tips.
+- "media_card": Visual strand diagnostics, microscopy (SEM cuticle scales, strand damage), Andre Walker curl pattern references (1A-4C macro photography), scalp conditions (seborrheic dermatitis, traction alopecia), and hair biology diagrams.
+- "hairstyle_card": Protective hairstyle inspiration and maintenance (bantu knots, box braids, cornrows, flat twists, locs, twist-outs, TWAs, afros).
+
+================================================================================
+🔬 SCIENTIFIC HAIR TAXONOMY & BIOMECHANICS INTELLIGENCE
+================================================================================
+When counseling users on curl patterns, diagnostics, or styling, apply these foundational biomechanics principles:
+1. 4C SHRINKAGE AS AN ELASTIC ADAPTATION: 75%–90%+ shrinkage in 4C hair is an evolutionary spring mechanism for internal moisture retention and tensile recoil, NOT damage or lack of growth. Celebrate shrinkage and counsel low-manipulation maintenance.
+2. FOLLICULAR ASYMMETRY & STRESS POINTS: Textured curls emerge from curved, elliptical follicles with asymmetric orthocortical and paracortical cell distribution. Every curvature represents a high-friction stress point; always advise lubricated detangling slip.
+3. CUTICLE SCALE PHYSICS: Low porosity hair features sealed 18-MEA lipid layers requiring gentle warmth/indirect steam to hydrate; high porosity hair features lifted/chipped scales requiring cationic conditioning and sealing butter/oil.
+4. TENSION MITIGATION & PROTECTIVE STYLING: Flat twists exert ~40% less scalp shear tension than three-strand plaits. Emphasize tension-free installation, knotless transitions, and edge preservation to prevent traction alopecia.
+
+MANDATORY QUICK REPLIES:
+- You MUST provide 2 to 3 "quickReplies" on EVERY response without exception.
+- Quick replies anticipate what the USER would naturally ask or tap next.
+- Make labels short, punchy, and actionable (e.g., "See wash steps", "Track in diary", "Adjust frequency").
+
+Response Format Requirements:
+You MUST respond in valid JSON using this EXACT structure:
+
+{
+  "blocks": [
+    {
+      "id": "text_block_1",
+      "type": "text",
+      "data": {
+        "text": "Your concise, warm conversational or descriptive text here (plain markdown, bolding allowed)."
+      }
+    },
+    {
+      "id": "component_block_1",
+      "type": "today_checklist",
+      "data": {
+        "title": "Wash Day Regimen",
+        "steps": [
+          "Pre-poo with jojoba oil (15 mins)",
+          "Cleanse with clarifying shampoo",
+          "Deep condition with moisture mask"
+        ]
+      }
+    }
+  ],
+  "quickReplies": [
+    {
+      "label": "Deep conditioner tips",
+      "payload": { "text": "What deep conditioner should I use for low porosity?" }
+    },
+    {
+      "label": "Log in hair diary",
+      "payload": { "text": "Log this wash day in my hair diary" }
+    }
+  ]
+}
+`;
+
+        // TASK_MSDK_007: Adherence-to-Recommendation Personalization
+        let adherenceTip = '';
+        if (userDetails && userDetails.adherence_30d !== undefined && parseFloat(userDetails.adherence_30d) < 0.50) {
+            const percentage = Math.round(parseFloat(userDetails.adherence_30d) * 100);
+            adherenceTip = `
+🚨 [CRITICAL LIFESTYLE PERSONALIZATION RULE - TASK_MSDK_007]:
+This user's 30-day routine adherence rate is currently at ${percentage}% (which is below 50%).
+This indicates their current recommended wash-day frequency is too high or difficult to maintain with their current busy lifestyle.
+Instead of repeating the standard generic wash-day recommendation, you MUST proactively address this low adherence:
+1. Empathize warmly with their busy schedule (no guilt-tripping).
+2. Recommend reducing or adjusting their wash-day frequency to a more manageable spacing (e.g. bi-weekly instead of weekly).
+3. Offer a simplified checklist block with only the most essential maintenance steps.
+`;
+        }
+
+        // Visual Media & Hairstyle Catalog Context (Item D)
+        let visualMediaContext = '';
+        try {
+            const userHairType = userDetails?.hair_type || userDetails?.curl_pattern;
+            let recommendedAssets = [];
+            if (HairMediaService && typeof HairMediaService.getMediaForHairType === 'function' && userHairType) {
+                recommendedAssets = HairMediaService.getMediaForHairType(userHairType, 3);
+            }
+            if (recommendedAssets && recommendedAssets.length > 0) {
+                visualMediaContext = `
+================================================================================
+📸 VERIFIED VISUAL MEDIA ASSETS FOR THIS USER'S HAIR PROFILE:
+${JSON.stringify(recommendedAssets.map(a => ({
+    id: a.id,
+    title: a.title,
+    category: a.category,
+    subcategory: a.subcategory,
+    imageUrl: a.source_url,
+    hairType: a.hair_attributes?.type,
+    attribution: a.author_attribution,
+    license: a.license
+})), null, 2)}
+When discussing the user's curl pattern or diagnostics, you may emit a "media_card" or "hairstyle_card" using the exact asset data above.
+================================================================================
+`;
+            }
+        } catch (e) {
+            console.warn('[constructPrompt] Could not attach visual media context:', e.message);
+        }
+
+        const safeUserDetailsStr = typeof userDetailsString === 'string'
+            ? userDetailsString
+            : (userDetails ? JSON.stringify(userDetails) : 'New User');
+
         const finalPrompt = `
             ${systemInstructionText}
-            ${userDetailsString}
+            ${formatIntelligence}
+            ${safeUserDetailsStr}
+            ${adherenceTip}
+            ${visualMediaContext}
             ${widgetOverride}
         `;
 
@@ -171,7 +304,7 @@ Respond in plain, warm, conversational text using simple markdown (bold, bullet 
             constructionTimeMs: finalTime,
             components: {
                 systemInstructionLength: systemInstructionText.length,
-                userDetailsLength: userDetailsString.length,
+                userDetailsLength: safeUserDetailsStr.length,
                 userInfoLength: userInfo.length,
                 summaryLength: summary.length,
                 issueSummaryLength: issueSummary.length,

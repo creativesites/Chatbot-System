@@ -64,6 +64,17 @@ describe('Mobile Starter UI Primitives (Zero DOM)', () => {
 
       expect(element).toBeDefined();
     });
+
+    test('supports flat props contract and parses inline markdown (bold, italic, bullets)', () => {
+      const element = MyaChatBubble({
+        role: 'assistant',
+        content: 'Welcome to **MYAVANA**!\n• Step 1: *Pre-poo*\n• Step 2: Wash',
+        timestamp: '2026-09-11T10:00:00.000Z'
+      });
+
+      expect(element).toBeDefined();
+      expect(element.props.children).toBeDefined();
+    });
   });
 
   describe('MyaStrandCard', () => {
@@ -110,6 +121,19 @@ describe('Mobile Starter UI Primitives (Zero DOM)', () => {
         onToggleStep: toggleMock
       });
 
+      expect(element).toBeDefined();
+    });
+
+    test('supports raw string step arrays from LLM outputs gracefully', () => {
+      const routine = {
+        title: 'Bedtime Hair Wrap',
+        steps: [
+          'Apply light jojoba oil to ends',
+          'Cover with silk/satin bonnet'
+        ]
+      };
+
+      const element = MyaRoutineChecklist({ routine });
       expect(element).toBeDefined();
     });
   });

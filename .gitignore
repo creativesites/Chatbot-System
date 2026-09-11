@@ -11,3 +11,6 @@ chat_log.md
 !.env.example
 !**/.env.example
 coverage/
+
+# Shared test credentials for on-device testing — real account creds, never commit
+community/secrets/

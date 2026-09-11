@@ -123,7 +123,10 @@ class MyaMobileClient {
       groupId: targetConvId,
       conversationId: targetConvId,
       format: 'ndjson',
-      experienceContext
+      experienceContext,
+      ...(Array.isArray(options.attachments) && options.attachments.length
+        ? { attachments: options.attachments }
+        : {})
     };
 
     const headers = {
@@ -209,8 +212,90 @@ class MyaMobileClient {
     }));
   }
 
+  async fetchUserConversations() {
+    const url = `${this.apiBase}/conversations?userId=${encodeURIComponent(this.userId)}`;
+
+    const headers = {
+      'X-User-Id': this.userId,
+      ...this.customHeaders
+    };
+
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+
+    try {
+      const res = await fetch(url, { headers });
+      if (!res.ok) {
+        return [];
+      }
+      const data = await res.json();
+      if (!data.success || !Array.isArray(data.conversations)) {
+        return [];
+      }
+      return data.conversations;
+    } catch (e) {
+      console.warn('[MyaMobileClient] fetchUserConversations error:', e.message);
+      return [];
+    }
+  }
+
   getTelemetry() {
     return getDeviceTelemetry(this.telemetryOverrides);
+  }
+
+  /**
+   * Real Hair Journey journal entries, direct - not through chat/stream.
+   *
+   * Conversational tool-calling for journal reads/writes was found to be
+   * unreliable (the model can claim success on a create with nothing
+   * actually persisted - see TASK_HJ_025). These call the same
+   * HairJourneyService the chat tools use, but as a direct request, so a
+   * timeline screen gets real data and a real write confirmation rather
+   * than depending on the model choosing to call the right tool.
+   */
+  async fetchJournalEntries(options = {}) {
+    const url = new URL(`${this.apiBase}/journal/entries`);
+    url.searchParams.set('userId', this.userId);
+    if (options.perPage) url.searchParams.set('perPage', String(options.perPage));
+
+    const headers = { 'X-User-Id': this.userId, ...this.customHeaders };
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
+
+    const res = await fetch(url.toString(), { headers });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch journal entries: HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to fetch journal entries');
+    }
+
+    return { result: data.result, blocks: data.blocks || [] };
+  }
+
+  async createJournalEntry(entryData) {
+    const url = `${this.apiBase}/journal/entries`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-User-Id': this.userId,
+      ...this.customHeaders
+    };
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userId: this.userId, ...entryData })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || `Failed to create journal entry: HTTP ${res.status}`);
+    }
+
+    return { result: data.result, blocks: data.blocks || [] };
   }
 }
 

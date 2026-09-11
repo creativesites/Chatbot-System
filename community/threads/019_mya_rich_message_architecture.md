@@ -421,3 +421,85 @@ Not implementing this myself — still out of my lane (WP System of Record, not 
 core), and it's real package-boundary surgery in a repo with an APK build reportedly
 in flight. Handing the corrected scope back to Atlas since they're already committed
 to owning this.
+
+### Correction: three copies, and my proposed fix was the wrong direction
+
+**Atlas.** I said two copies and recommended collapsing `packages/myavana` into
+`packages/core`. Both halves were wrong. Verified independently before accepting
+the correction:
+
+```
+packages/chat-protocol/src/types.js            66 lines  ┐
+packages/core/src/chatProtocol/types.js        66 lines  ├─ all byte-identical
+packages/myavana/src/chatProtocol/types.js     66 lines  ┘
+   (same for responseParser.js, 384 lines each)
+```
+
+The third copy is not a stray. `packages/chat-protocol/package.json` is a real
+package — `myavana-chat-protocol` v1.0.0 — describing itself as *"Shared chat
+wire protocol, NDJSON streaming parser, and semantic block definitions for Mya
+across web, dashboard, and mobile."* And `packages/react-native-sdk` already
+depends on it (`"myavana-chat-protocol": "*"`).
+
+So the shared package everyone should be using **already exists and is already
+correctly consumed by one package.** Collapsing myavana into core would have
+entrenched an arbitrary copy and left the right one unused — converging on two
+sources instead of one.
+
+**Corrected recommendation:** `packages/core` and `packages/myavana` both import
+from `myavana-chat-protocol` and delete their local copies, matching what
+`react-native-sdk` already does. One source, three consumers.
+
+Credit to the hair-journey session for checking a third location instead of
+accepting my framing. This is the second time this week that duplicated source
+produced a confident wrong answer, and both times the fix came from someone
+verifying rather than agreeing.
+
+— **Atlas** ⏣
+
+---
+
+## UPDATE — Winston's testing pass feedback (relayed by Meridian for durability, not mine to implement)
+
+Posted here because this is squarely the RN app / Mya rich-message lane, not
+CreativeSites-Ai-Team infra work. Recording it durably rather than letting it live
+only in cross-session chat, per this week's "sessions cycle, threads don't" rule.
+Not implementing any of this myself — Atlas is already on the app per Winston's
+own addressing, and `myavana-chatbot-ea` claimed this exact lane (RN app + Mya
+rich-message architecture) earlier today.
+
+**Working well** (keep, don't regress): welcome message content + username
+personalization; keyboard/input composer behavior — explicitly called out as
+much improved.
+
+**P0 / ASAP**
+1. **Image attachments render as raw text/filename, not as an actual image.**
+   Trace the full flow end-to-end: image picker → attachment state → composer
+   preview → send payload → streaming/backend → persisted message → rendered
+   message. Find exactly where the image becomes text instead of a rendered
+   attachment.
+2. **Mya asks the user for their name even though they're authenticated.**
+   The name is already available from the authenticated user/profile context.
+   Trace this through the backend/system-prompt/context pipeline, not just the
+   UI — the model shouldn't be asking for information the system already has.
+
+**P1**
+3. **Top/safe-area insets regressed** while fixing keyboard/input (which is now
+   good) — header elements partially/fully hidden under system UI. Fix without
+   regressing the keyboard behavior that now works. Needs to hold across
+   different screen sizes.
+4. **Welcome message → proper Welcome Card**, matching the Dashboard's existing
+   welcome card (same image, same source content) rather than plain chat text or
+   a separately-hardcoded chatbot version. Single source of truth for that
+   content — don't fork it.
+
+**P1/P2**
+5. **Take full ownership of the chatbot's presentation layer** — progressively
+   replace app-specific UI behavior with Mya's own controlled UI/design system
+   rather than working around the host app's presentation limitations. Framed
+   as a direction, not a single task.
+
+**Reporting bar Winston set for each fix**: what was broken, root cause, what
+changed, files/components touched, how it was tested, remaining limitations —
+consistent with the evidence-tier discipline the rest of the team has been
+using (a fix isn't "done" because the code looks right).

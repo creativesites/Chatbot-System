@@ -175,10 +175,17 @@ async function streamFetch(url, options = {}, callbacks = {}) {
         return state;
       }
 
-      const fullText = await res.text();
-      parser.feed(fullText);
-      parser.flush();
-      return state;
+      // Neither a real ReadableStream reader nor an async-iterable body is
+      // available (the normal case on React Native's fetch polyfill, which
+      // resolves successfully but exposes no streamable res.body). Do NOT
+      // buffer via res.text() here — fall through to the XMLHttpRequest
+      // onprogress path below, which is what actually streams on-device.
+      if (typeof XMLHttpRequest === 'undefined') {
+        const fullText = await res.text();
+        parser.feed(fullText);
+        parser.flush();
+        return state;
+      }
     } catch (fetchErr) {
       if (fetchErr.name === 'AbortError' || (options.signal && options.signal.aborted)) {
         return state;

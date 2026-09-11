@@ -6,19 +6,24 @@ const React = require('react');
 const { defaultMyaTheme } = require('./theme');
 const { View, Text, TouchableOpacity, StyleSheet } = require('./nativePrimitives');
 
-function renderStepItem(step, theme, onToggle) {
-  const isChecked = Boolean(step.isCompleted);
+function renderStepItem(step, idx, theme, isChecked, onToggle) {
+  const stepObj = typeof step === 'string' ? { id: `step-${idx}`, title: step } : step;
+  const stepId = stepObj.id || `step-${idx}`;
+  const title = stepObj.title || stepObj.text || stepObj.name || `Step ${idx + 1}`;
 
   return React.createElement(
     TouchableOpacity,
     {
-      key: step.id,
+      key: stepId,
       style: [
         styles.stepItem,
         { borderBottomColor: theme.colors.border }
       ],
-      onPress: () => onToggle && onToggle(step.id, !isChecked),
-      activeOpacity: 0.7
+      onPress: () => onToggle && onToggle(stepId, !isChecked),
+      activeOpacity: 0.7,
+      accessibilityRole: 'checkbox',
+      accessibilityState: { checked: isChecked },
+      accessibilityLabel: `${title}${isChecked ? ', completed' : ''}`
     },
     React.createElement(
       View,
@@ -55,26 +60,26 @@ function renderStepItem(step, theme, onToggle) {
               }
             ]
           },
-          step.title
+          title
         ),
-        step.durationMinutes &&
+        stepObj.durationMinutes &&
           React.createElement(
             Text,
             { style: [styles.duration, { color: theme.colors.textMuted }] },
-            `${step.durationMinutes}m`
+            `${stepObj.durationMinutes}m`
           )
       ),
-      step.description &&
+      stepObj.description &&
         React.createElement(
           Text,
           { style: [styles.stepDesc, { color: theme.colors.textSecondary }] },
-          step.description
+          stepObj.description
         ),
-      step.productRecommendation &&
+      stepObj.productRecommendation &&
         React.createElement(
           Text,
           { style: [styles.productTag, { color: theme.colors.accentGold }] },
-          `✨ ${step.productRecommendation}`
+          `✨ ${stepObj.productRecommendation}`
         )
     )
   );
@@ -83,9 +88,35 @@ function renderStepItem(step, theme, onToggle) {
 function MyaRoutineChecklist(props) {
   const { routine = {}, theme = {}, onToggleStep } = props;
   const activeTheme = { ...defaultMyaTheme, ...theme };
-  const steps = routine.steps || [];
-  const completedCount = steps.filter((s) => s.isCompleted).length;
-  const progressPercent = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
+  const rawSteps = routine.steps || routine.items || [];
+  
+  // Optimistic local state
+  const [completedMap, setCompletedMap] = React.useState(() => {
+    const map = {};
+    rawSteps.forEach((s, idx) => {
+      const id = (typeof s === 'object' && s.id) || `step-${idx}`;
+      if (typeof s === 'object' && (s.isCompleted || s.completed)) {
+        map[id] = true;
+      }
+    });
+    return map;
+  });
+
+  const handleToggle = (stepId, nextVal) => {
+    setCompletedMap((prev) => ({
+      ...prev,
+      [stepId]: nextVal
+    }));
+    if (onToggleStep) {
+      onToggleStep(stepId, nextVal);
+    }
+  };
+
+  const completedCount = rawSteps.filter((s, idx) => {
+    const id = (typeof s === 'object' && s.id) || `step-${idx}`;
+    return Boolean(completedMap[id]);
+  }).length;
+  const progressPercent = rawSteps.length > 0 ? Math.round((completedCount / rawSteps.length) * 100) : 0;
 
   return React.createElement(
     View,
@@ -126,7 +157,7 @@ function MyaRoutineChecklist(props) {
       React.createElement(
         Text,
         { style: [styles.counter, { color: activeTheme.colors.textSecondary }] },
-        `${completedCount}/${steps.length}`
+        `${completedCount}/${rawSteps.length}`
       )
     ),
     React.createElement(
@@ -150,7 +181,11 @@ function MyaRoutineChecklist(props) {
     React.createElement(
       View,
       { style: styles.stepsList },
-      ...steps.map((step) => renderStepItem(step, activeTheme, onToggleStep))
+      ...rawSteps.map((step, idx) => {
+        const id = (typeof step === 'object' && step.id) || `step-${idx}`;
+        const isChecked = Boolean(completedMap[id]);
+        return renderStepItem(step, idx, activeTheme, isChecked, handleToggle);
+      })
     )
   );
 }

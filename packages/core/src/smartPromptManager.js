@@ -1,5 +1,6 @@
 // smartPromptManager.js - Fixed version with proper exports and functionality
 const { pgClient, redisClient } = require('./database');
+const { HairMediaService } = require('./hairMedia/hairMediaService');
 
 class SmartPromptManager {
     constructor() {
@@ -50,6 +51,9 @@ class SmartPromptManager {
             
             // Get relevant additional instructions
             const relevantInstructions = await this.getRelevantInstructions(contextAnalysis.topics);
+
+            // Get relevant visual media references (Item D)
+            const relevantMedia = await this.getRelevantMedia(userQuery, contextAnalysis.topics, userInfo);
             
             // Select most relevant conversation history (not all)
             const relevantHistory = this.selectRelevantHistory(chatHistory, contextAnalysis, 5);
@@ -62,6 +66,7 @@ class SmartPromptManager {
                 relevantFaqs,
                 relevantProducts,
                 relevantInstructions,
+                relevantMedia,
                 allchatsSummary,
                 contextAnalysis
             });
@@ -72,7 +77,8 @@ class SmartPromptManager {
                 topicsDetected: contextAnalysis.topics,
                 promptLength: optimizedPrompt.length,
                 faqsUsed: relevantFaqs.length,
-                productsUsed: relevantProducts.length
+                productsUsed: relevantProducts.length,
+                mediaUsed: relevantMedia.length
             });
 
             return optimizedPrompt;
@@ -98,7 +104,9 @@ class SmartPromptManager {
             'services': ['hairai', 'hairsi', 'analysis', 'consultation', 'appointment', 'book'],
             'company_info': ['myavana', 'about', 'company', 'mission', 'team', 'story'],
             'products': ['buy', 'purchase', 'recommend', 'best products', 'ingredients'],
-            'styling': ['style', 'protect', 'heat', 'curling', 'straightening', 'braids']
+            'styling': ['style', 'protect', 'heat', 'curling', 'straightening', 'braids'],
+            'hairstyles': ['bantu knots', 'cornrows', 'box braids', 'flat twists', 'twist out', 'afro', 'twa', 'locs', 'protective style', 'braids', 'protective styling', 'updo'],
+            'diagnostics': ['cuticle', 'sem', 'microscopy', 'split ends', 'trichoptilosis', 'seborrheic dermatitis', 'traction alopecia', 'scalp', 'follicle', 'shaft', 'shrinkage']
         };
 
         const detectedTopics = [];
@@ -145,13 +153,13 @@ class SmartPromptManager {
             return this.promptCache.get(cacheKey);
         }
 
-        // CRITICAL: Myavana-specific system prompt
+        // CRITICAL: Myavana-specific system prompt with Response Format Intelligence Layer (TASK_MSDK_009)
         const corePrompt = `You are Mya, MYAVANA's official hair care AI assistant. You must ALWAYS represent MYAVANA and NEVER mention being powered by any other AI service.
 
 CRITICAL INSTRUCTIONS:
 1. NEVER mention xAI, Grok, or any other AI service
 2. ALWAYS maintain Myavana's brand voice and identity
-3. ALWAYS format responses in valid JSON for Kommunicate
+3. ALWAYS format responses in valid JSON
 
 Core Personality:
 - Empathetic and encouraging about hair journeys
@@ -159,37 +167,83 @@ Core Personality:
 - Expert in personalized hair care advice
 - Focused on MYAVANA's services and solutions
 
+================================================================================
+🤖 RESPONSE FORMAT INTELLIGENCE LAYER (TASK_MSDK_009)
+================================================================================
+
+You must dynamically choose between two output modes based on the user's intent:
+
+1. PROSE MODE:
+   - Trigger: Conversational greetings, empathy, simple check-ins, or brief factual answers.
+   - Response structure: ONLY a single "text" block in the blocks array, accompanied by 2-3 relevant quickReplies.
+   - Word count: Keep concise, warm, and direct (max 100-150 words).
+
+2. STRUCTURED MODE:
+   - Trigger: Regimens, multi-step routines, wash day checklists, hair goals, strand DNA analysis, or diary logging.
+   - HARD COMPONENT DENSITY BUDGET: Max 1 to 2 structured components per response! NEVER stack more than 2 components. Quality over quantity.
+   - Accompanying text: When structured components are present, keep accompanying text concise (under 80-120 words). Let the cards do the heavy lifting instead of dumping walls of text.
+
+When-To-Use Heuristics for Block Types:
+- "text" Block: Conversational dialogue, empathetic encouragement, concise explanations.
+- "today_checklist" Block: Immediate step-by-step wash day or styling execution (3-6 clear actionable steps).
+- "routine_card" Block: Complete hair care regimens, multi-step morning/night regimens.
+- "hair_profile_summary" Block: Strand diagnostic attributes (porosity, texture, elasticity, density).
+- "goal_card" Block: Active hair milestones (length retention, moisture restoration, transition tracking).
+- "journal_entry" Block: Confirming or summarizing a hair diary log.
+- "community_post" Block: Surfacing relevant peer discussions or community tips.
+- "media_card" Block: Visual strand diagnostics, microscopy (SEM cuticle scales, strand damage), Andre Walker curl pattern references (1A-4C macro photography), scalp conditions (seborrheic dermatitis, traction alopecia), and hair biology diagrams.
+- "hairstyle_card" Block: Protective hairstyle inspiration and maintenance (bantu knots, box braids, cornrows, flat twists, locs, twist-outs, TWAs, afros).
+
+================================================================================
+🔬 SCIENTIFIC HAIR TAXONOMY & BIOMECHANICS INTELLIGENCE
+================================================================================
+When counseling users on curl patterns, diagnostics, or styling, apply these foundational biomechanics principles:
+1. 4C SHRINKAGE AS AN ELASTIC ADAPTATION: 75%–90%+ shrinkage in 4C hair is an evolutionary spring mechanism for internal moisture retention and tensile recoil, NOT damage or lack of growth. Celebrate shrinkage and counsel low-manipulation maintenance.
+2. FOLLICULAR ASYMMETRY & STRESS POINTS: Textured curls emerge from curved, elliptical follicles with asymmetric orthocortical and paracortical cell distribution. Every curvature represents a high-friction stress point; always advise lubricated detangling slip.
+3. CUTICLE SCALE PHYSICS: Low porosity hair features sealed 18-MEA lipid layers requiring gentle warmth/indirect steam to hydrate; high porosity hair features lifted/chipped scales requiring cationic conditioning and sealing butter/oil.
+4. TENSION MITIGATION & PROTECTIVE STYLING: Flat twists exert ~40% less scalp shear tension than three-strand plaits. Emphasize tension-free installation, knotless transitions, and edge preservation to prevent traction alopecia.
+
+MANDATORY QUICK REPLIES:
+- You MUST provide 2 to 3 "quickReplies" on EVERY response without exception.
+- Quick replies anticipate what the USER would naturally ask or tap next.
+- Make labels short, punchy, and actionable (e.g., "See wash steps", "Track in diary", "Adjust frequency").
+
 Response Format Requirements:
 You MUST respond in valid JSON using this EXACT structure:
 
-For regular messages:
 {
-  "messageType": "html",
-  "message": "<html><head><style>body{font-family:'Archivo',sans-serif;background-color:#f5f5f7;color:#222323;font-size:15px;line-height:1.5;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}i{font-style:italic;color:#4a4d68;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}</style></head><body>YOUR_RESPONSE_HERE</body></html>",
-  "metadata": {
-    "contentType": "300",
-    "templateId": "12",
-    "payload": [
-      {
-        "title": "Suggestion 1 Text",
-        "message": "What the user would type when clicking this"
-      },
-      {
-        "title": "Suggestion 2 Text", 
-        "message": "Another question the user might ask"
-      },
-      {
-        "title": "Suggestion 3 Text",
-        "message": "A related follow-up question"
+  "blocks": [
+    {
+      "id": "text_block_1",
+      "type": "text",
+      "data": {
+        "text": "Your concise, warm conversational or descriptive text here (plain markdown, bolding allowed)."
       }
-    ]
-  }
+    },
+    {
+      "id": "component_block_1",
+      "type": "today_checklist",
+      "data": {
+        "title": "Wash Day Regimen",
+        "steps": [
+          "Pre-poo with jojoba oil (15 mins)",
+          "Cleanse with clarifying shampoo",
+          "Deep condition with moisture mask"
+        ]
+      }
+    }
+  ],
+  "quickReplies": [
+    {
+      "label": "Deep conditioner tips",
+      "payload": { "text": "What deep conditioner should I use for low porosity?" }
+    },
+    {
+      "label": "Log in hair diary",
+      "payload": { "text": "Log this wash day in my hair diary" }
+    }
+  ]
 }
-
-IMPORTANT Suggestion Rules:
-- Suggestions are questions/statements the USER would ask next
-- The "message" field is what gets sent AS IF the user typed it
-- Keep suggestions relevant to the current conversation topic
 
 Your Primary Goals:
 1. Understand user's hair journey stage and provide personalized advice
@@ -201,6 +255,50 @@ Never break character or mention technical details about AI models or services.`
 
         this.promptCache.set(cacheKey, corePrompt);
         return corePrompt;
+    }
+
+    /**
+     * Get relevant visual media references from verified catalog
+     */
+    async getRelevantMedia(userQuery, topics, userInfo) {
+        try {
+            if (!HairMediaService) return [];
+            let matches = [];
+            const query = (userQuery || '').toLowerCase();
+            
+            if (topics.includes('hairstyles') || query.includes('braid') || query.includes('twist') || query.includes('knot') || query.includes('loc')) {
+                matches.push(...HairMediaService.searchMedia(query, { category: 'hairstyles', limit: 3 }));
+            }
+            if (topics.includes('diagnostics') || query.includes('cuticle') || query.includes('scalp') || query.includes('split') || query.includes('damage')) {
+                matches.push(...HairMediaService.searchMedia(query, { category: 'microscopic_anatomy', limit: 3 }));
+            }
+            if (topics.includes('hair_type') || query.includes('4c') || query.includes('4b') || query.includes('4a') || query.includes('3c')) {
+                let userType = null;
+                if (typeof userInfo === 'object' && userInfo) {
+                    userType = userInfo.hair_type || userInfo.curl_pattern;
+                } else if (typeof userInfo === 'string') {
+                    const m = userInfo.match(/(?:hair_type|curl_pattern)["':\s]+([1-4][A-C])/i);
+                    if (m) userType = m[1];
+                }
+                if (!userType) {
+                    const typeMatch = query.match(/\b([1-4][a-c])\b/i);
+                    if (typeMatch) userType = typeMatch[1];
+                }
+                if (userType) {
+                    matches.push(...HairMediaService.getMediaForHairType(userType, 2));
+                }
+            }
+            // Deduplicate by ID
+            const seen = new Set();
+            return matches.filter(m => {
+                if (seen.has(m.id)) return false;
+                seen.add(m.id);
+                return true;
+            }).slice(0, 3);
+        } catch (error) {
+            console.error('Error fetching relevant media:', error);
+            return [];
+        }
     }
 
     /**
@@ -356,6 +454,33 @@ Never break character or mention technical details about AI models or services.`
 
         let prompt = corePrompt + '\n\n';
 
+        // TASK_MSDK_007: Adherence-to-Recommendation Personalization Check
+        if (userInfo) {
+            let userObj = {};
+            if (typeof userInfo === 'string') {
+                try {
+                    userObj = JSON.parse(userInfo);
+                } catch {
+                    userObj = {};
+                }
+            } else if (typeof userInfo === 'object') {
+                userObj = userInfo;
+            }
+
+            if (userObj.adherence_30d !== undefined && parseFloat(userObj.adherence_30d) < 0.50) {
+                const percentage = Math.round(parseFloat(userObj.adherence_30d) * 100);
+                prompt += `
+🚨 [CRITICAL LIFESTYLE PERSONALIZATION RULE - TASK_MSDK_007]:
+This user's 30-day routine adherence rate is currently at ${percentage}% (which is below 50%).
+This indicates their current recommended wash-day frequency is too high or difficult to maintain with their current busy lifestyle.
+Instead of repeating the standard generic wash-day recommendation, you MUST proactively address this low adherence:
+1. Empathize warmly with their busy schedule (no guilt-tripping).
+2. Recommend reducing or adjusting their wash-day frequency to a more manageable spacing (e.g. bi-weekly instead of weekly).
+3. Offer a simplified checklist block with only the most essential maintenance steps.
+\n`;
+            }
+        }
+
         // Add user context
         if (userInfo) {
             prompt += `User Profile: ${JSON.stringify(userInfo)}\n`;
@@ -382,11 +507,20 @@ Never break character or mention technical details about AI models or services.`
             prompt += '\n';
         }
 
-        // Add specific instructions
+        // Add relevant instructions
         if (relevantInstructions.length > 0) {
             prompt += `Additional Instructions:\n`;
             relevantInstructions.forEach(instruction => {
                 prompt += `- ${instruction.instruction_text}\n`;
+            });
+            prompt += '\n';
+        }
+
+        // Add verified visual media references if available (Item D)
+        if (components.relevantMedia && components.relevantMedia.length > 0) {
+            prompt += `Verified Visual Media References (Can emit as "media_card" or "hairstyle_card"):\n`;
+            components.relevantMedia.forEach(m => {
+                prompt += `- [${m.id}] ${m.title} (${m.category}/${m.subcategory}) Image: ${m.source_url} Attribution: ${m.author_attribution} License: ${m.license}\n`;
             });
             prompt += '\n';
         }

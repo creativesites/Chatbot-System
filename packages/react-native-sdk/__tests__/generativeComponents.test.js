@@ -8,12 +8,56 @@ const {
   MyaGoalCard,
   MyaJournalCard,
   MyaConsultationCard,
+  MyaMediaCard,
   MyaQuickReplies,
   MyaBlockRenderer,
   defaultMyaTheme
 } = require('../src/components');
 
 describe('Mobile Generative UI Components & MyaChatView', () => {
+  describe('MyaMediaCard', () => {
+    it('renders verified visual media card with image, notes, attribution and callbacks', () => {
+      let mediaPressed = false;
+      const media = {
+        id: 'media_curl_4c_macro_001',
+        title: 'Macro Close-up 4C Afro-Coily Hair Texture with High Shrinkage',
+        category: 'hair_type',
+        subcategory: 'type_4c',
+        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Black_natural_afro-textured_hair_macro_texture_coils.jpg',
+        hairType: '4C',
+        caption: 'High-density spring coil structure.',
+        educationalNotes: 'Shrinkage is an evolutionary adaptation, not damage.',
+        attribution: 'Creative Commons Attribution / Wikimedia',
+        license: 'CC BY-SA 4.0',
+        tags: ['4c', 'coily', 'shrinkage']
+      };
+
+      const element = MyaMediaCard({
+        media,
+        onPressMedia: () => {
+          mediaPressed = true;
+        }
+      });
+      expect(element).toBeDefined();
+      expect(element.props.style).toBeDefined();
+    });
+
+    it('supports dual-prop contract (data and onPressAction)', () => {
+      let actionFired = false;
+      const element = MyaMediaCard({
+        data: {
+          title: 'Protective Bantu Knots',
+          category: 'hairstyles',
+          imageUrl: 'https://example.com/bantu.jpg'
+        },
+        onPressAction: (action, data) => {
+          if (action === 'view_media') actionFired = true;
+        }
+      });
+      expect(element).toBeDefined();
+    });
+  });
+
   describe('MyaGoalCard', () => {
     it('renders hair goal card with title, progress, and milestones', () => {
       const goal = {
@@ -151,6 +195,32 @@ describe('Mobile Generative UI Components & MyaChatView', () => {
         data: {
           name: 'Dr. Holmes',
           title: 'Trichologist'
+        }
+      };
+      const element = MyaBlockRenderer({ block });
+      expect(element).toBeDefined();
+    });
+
+    it('delegates media_card block to MyaMediaCard', () => {
+      const block = {
+        type: 'media_card',
+        data: {
+          id: 'media_curl_4c_macro_001',
+          title: 'Macro Close-up 4C Coils',
+          category: 'hair_type'
+        }
+      };
+      const element = MyaBlockRenderer({ block });
+      expect(element).toBeDefined();
+    });
+
+    it('delegates hairstyle_card block to MyaMediaCard', () => {
+      const block = {
+        type: 'hairstyle_card',
+        data: {
+          id: 'media_style_bantu_knots_019',
+          title: 'Bantu Knots',
+          category: 'hairstyles'
         }
       };
       const element = MyaBlockRenderer({ block });

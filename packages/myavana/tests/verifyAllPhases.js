@@ -9,7 +9,7 @@ const {
   encodeFrame,
   parseNDJSON,
   parseModelOutput
-} = require('../../chat-protocol/src');
+} = require('../src/chatProtocol');
 const { ExperienceContextService } = require('../../core/src/experience/experienceContextService');
 const { HairJourneyService } = require('../../core/src/hairJourney/hairJourneyService');
 const { WordPressHairJourneyProvider } = require('../../core/src/hairJourney/wordPressHairJourneyProvider');
@@ -91,8 +91,31 @@ Here is your hair journey summary:
   console.log('   ✅ Experience Context prompt snippet generated successfully.');
 
   // 4. Verify Hair Journey Service
-  console.log('4️⃣ Verifying WordPress Hair Journey Provider & Service...');
-  const service = new HairJourneyService(new WordPressHairJourneyProvider());
+  console.log('4️⃣ Verifying Hair Journey Service with Provider...');
+  const mockProvider = {
+    getGoals: async () => ({
+      available: true,
+      goals: [{ id: 'goal_123', title: 'Retain Length', category: 'Growth', progressPercent: 68 }]
+    }),
+    getTodayData: async () => ({
+      available: true,
+      date: '2026-09-04',
+      streakDays: 7,
+      checklist: [{ id: 's1', title: 'Mist hair', completed: false }]
+    }),
+    getProfile: async () => ({
+      available: true,
+      hairType: '4A',
+      porosity: 'Medium',
+      density: 'Medium',
+      hairConcerns: ['Dryness']
+    }),
+    getJournalEntries: async () => ({
+      available: true,
+      items: [{ id: 'j_1', date: '2026-09-04', notes: 'Wash day', photos: [] }]
+    })
+  };
+  const service = new HairJourneyService({ provider: mockProvider });
   const goalsData = await service.getGoalsWithBlocks('test-user-candace');
   assert(goalsData.blocks.length > 0);
   assert.strictEqual(goalsData.blocks[0].type, BlockType.GOAL_CARD);

@@ -291,7 +291,35 @@ class AiCore {
         return {
             genaiChat,
             send: async (message) => {
-                let res = await genaiChat.sendMessage({ message });
+                let parts = [];
+                
+                // Real vision pipeline: Download image URL and append as base64 inlineData (TASK_MSDK_011)
+                if (opts.image && opts.image.url) {
+                    try {
+                        console.log(`📸 [MyaOS Vision] Fetching attachment image pixels: ${opts.image.url}`);
+                        const imgRes = await fetch(opts.image.url);
+                        if (imgRes.ok) {
+                            const buffer = await imgRes.arrayBuffer();
+                            const b64 = Buffer.from(buffer).toString('base64');
+                            const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+                            
+                            parts.push({
+                                inlineData: {
+                                    mimeType: contentType,
+                                    data: b64
+                                }
+                            });
+                            console.log('   ✅ Attachment image successfully converted to inlineData.');
+                        }
+                    } catch (e) {
+                        console.warn('   ⚠️ Failed to fetch multimodal image for Gemini:', e.message);
+                    }
+                }
+                
+                parts.push({ text: message });
+                const messagePayload = parts.length > 1 ? parts : message;
+
+                let res = await genaiChat.sendMessage({ message: messagePayload });
                 const toolCalls = [];
                 let loopCount = 0;
                 const maxLoops = 5;
@@ -355,7 +383,33 @@ class AiCore {
 
                 const streamGenerator = async function* () {
                     try {
-                        let currentMessage = message;
+                        let parts = [];
+                        
+                        // Real vision pipeline: Download image URL and append as base64 inlineData (TASK_MSDK_011)
+                        if (opts.image && opts.image.url) {
+                            try {
+                                console.log(`📸 [MyaOS Vision Stream] Fetching attachment image pixels: ${opts.image.url}`);
+                                const imgRes = await fetch(opts.image.url);
+                                if (imgRes.ok) {
+                                    const buffer = await imgRes.arrayBuffer();
+                                    const b64 = Buffer.from(buffer).toString('base64');
+                                    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+                                    
+                                    parts.push({
+                                        inlineData: {
+                                            mimeType: contentType,
+                                            data: b64
+                                        }
+                                    });
+                                    console.log('   ✅ Attachment image successfully converted to inlineData for stream.');
+                                }
+                            } catch (e) {
+                                console.warn('   ⚠️ Failed to fetch streaming image for Gemini:', e.message);
+                            }
+                        }
+                        
+                        parts.push({ text: message });
+                        let currentMessage = parts.length > 1 ? parts : message;
                         let loopCount = 0;
                         const maxLoops = 5;
 

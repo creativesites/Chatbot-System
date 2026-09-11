@@ -6,6 +6,7 @@ const { constructPrompt } = require('./constructPrompt');
 const { handleWelcomeEvent, handleImageMessage } = require('./eventHandlers');
 const { buildMessageContext } = require('myavana-bot-test-core/src/messageContextBuilder');
 const { globalTools, createUserTools } = require('myavana-bot-test-core/src/agentTools');
+const { HairJourneyService } = require('myavana-bot-test-core/src/hairJourney/hairJourneyService');
 const {
     encodeFrame,
     createDeltaFrame,
@@ -14,7 +15,7 @@ const {
     createDoneFrame,
     createErrorFrame,
     parseModelOutput,
-} = require('../../chat-protocol/src');
+} = require('./chatProtocol');
 require('dotenv').config();
 
 // Helper functions
@@ -260,6 +261,53 @@ class MyavanaChatbotServer {
             return res.json({ success: true, conversationId: newId });
         });
 
+        // Direct, non-conversational access to real Hair Journey journal data.
+        // The chat/stream path routes entry creation through model tool-calling,
+        // which was found to unreliably execute (confident false "logged it"
+        // claims with no actual write - see TASK_HJ_025 task_notes, reproduced
+        // twice against staging). These bypass the model entirely for the
+        // mobile app's dedicated timeline UI, calling the same
+        // HairJourneyService the tools use, so reads/writes are guaranteed to
+        // actually happen rather than depending on the model choosing to call
+        // the right tool.
+        const hairJourneyService = new HairJourneyService();
+
+        this.app.get('/journal/entries', async (req, res) => {
+            const userId = req.query.userId || req.headers['x-user-id'];
+            if (!userId) {
+                return res.status(400).json({ error: true, message: 'userId is required' });
+            }
+            try {
+                const perPage = req.query.perPage ? parseInt(req.query.perPage, 10) : undefined;
+                const { result, blocks } = await hairJourneyService.getJournalEntriesWithBlocks(
+                    String(userId),
+                    { perPage }
+                );
+                return res.json({ success: true, result, blocks });
+            } catch (err) {
+                console.error('Error fetching journal entries:', err);
+                return res.status(500).json({ error: true, message: err.message });
+            }
+        });
+
+        this.app.post('/journal/entries', async (req, res) => {
+            const userId = req.body.userId || req.headers['x-user-id'];
+            if (!userId) {
+                return res.status(400).json({ error: true, message: 'userId is required' });
+            }
+            try {
+                const { userId: _omit, ...entryData } = req.body;
+                const { result, blocks } = await hairJourneyService.createJournalEntryWithBlock(
+                    String(userId),
+                    entryData
+                );
+                return res.json({ success: true, result, blocks });
+            } catch (err) {
+                console.error('Error creating journal entry:', err);
+                return res.status(500).json({ error: true, message: err.message });
+            }
+        });
+
         console.log('✅ Routes configured successfully!');
         console.log('🛣️ Available routes:');
         console.log('   GET  /             - Service information');
@@ -296,7 +344,7 @@ class MyavanaChatbotServer {
      * @param {object} [opts.experienceContext]
      * @returns {Promise<{chat: object, messageWithContext: string, cacheResult: object, aiPrompt: string|null, chatTools: Array, messageContext: string}>}
      */
-    async prepareChatTurn({ userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel = 'kommunicate', experienceContext }) {
+    async prepareChatTurn({ userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel = 'kommunicate', experienceContext, imageObj }) {
         // widget-channel prompts use a different output-format instruction (plain text vs
         // Kommunicate JSON), so they must not share a cache slot with the kommunicate channel
         const cacheKey = channel === 'widget' ? `${userId}_widget` : userId;
@@ -346,6 +394,7 @@ class MyavanaChatbotServer {
             model: 'gemini-3.7-flash',
             tools: chatTools,
             config: { temperature: 1.1 },
+            ...(imageObj ? { image: imageObj } : {}),
         };
         const chat = cacheResult.cacheName
             ? session.chat({ ...chatConfig, cache: cacheResult.cacheName })
@@ -569,9 +618,21 @@ class MyavanaChatbotServer {
                 }
             }
 
+            // Extract attachments for multimodal vision pipeline (TASK_MSDK_011 / HJ_024)
+            const attachments = req.body.attachments || metadata?.KM_CHAT_CONTEXT?.attachments || [];
+            let imageObj = null;
+            if (Array.isArray(attachments) && attachments.length > 0) {
+                const firstAttachment = attachments[0];
+                const mimeType = firstAttachment.mimeType || firstAttachment.type || '';
+                const fileUrl = firstAttachment.uri || firstAttachment.url || firstAttachment.payload?.url || '';
+                if (mimeType.startsWith('image/') && fileUrl) {
+                    imageObj = { url: fileUrl };
+                }
+            }
+
             // ===== SHARED CHAT-TURN SETUP (cache, prompt, context, tools) =====
             const { chat, messageWithContext, cacheResult, aiPrompt, chatTools } = await this.prepareChatTurn({
-                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'kommunicate',
+                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'kommunicate', imageObj,
             });
 
             // ===== AI MODEL PROCESSING (primary + fallback) =====
@@ -711,8 +772,20 @@ class MyavanaChatbotServer {
             let chatHistory = await core.getConversationHistory(conversationId, userId);
             if (!Array.isArray(chatHistory)) chatHistory = [];
 
+            // Extract attachments for stream vision pipeline (TASK_MSDK_011 / HJ_024)
+            const attachments = req.body.attachments || [];
+            let imageObj = null;
+            if (Array.isArray(attachments) && attachments.length > 0) {
+                const firstAttachment = attachments[0];
+                const mimeType = firstAttachment.mimeType || firstAttachment.type || '';
+                const fileUrl = firstAttachment.uri || firstAttachment.url || '';
+                if (mimeType.startsWith('image/') && fileUrl) {
+                    imageObj = { url: fileUrl };
+                }
+            }
+
             const { chat, messageWithContext, aiPrompt, chatTools } = await this.prepareChatTurn({
-                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'widget', experienceContext,
+                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'widget', experienceContext, imageObj,
             });
 
             let aiOutput = '';

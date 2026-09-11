@@ -16,11 +16,79 @@ function formatTimestamp(isoString) {
   }
 }
 
+/**
+ * Parses simple inline markdown (bold **text**, italic *text*) into nested Text components.
+ */
+function renderFormattedContent(rawText, baseStyle) {
+  if (!rawText) return null;
+  const lines = rawText.split('\n');
+
+  return lines.map((line, lineIdx) => {
+    const parts = [];
+    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(
+          React.createElement(Text, { key: `txt-${lineIdx}-${lastIndex}` }, line.substring(lastIndex, match.index))
+        );
+      }
+      const token = match[0];
+      if (token.startsWith('**') && token.endsWith('**')) {
+        parts.push(
+          React.createElement(
+            Text,
+            { key: `b-${lineIdx}-${match.index}`, style: { fontWeight: '700' } },
+            token.slice(2, -2)
+          )
+        );
+      } else if (token.startsWith('*') && token.endsWith('*')) {
+        parts.push(
+          React.createElement(
+            Text,
+            { key: `i-${lineIdx}-${match.index}`, style: { fontStyle: 'italic' } },
+            token.slice(1, -1)
+          )
+        );
+      }
+      lastIndex = match.index + token.length;
+    }
+
+    if (lastIndex < line.length) {
+      parts.push(
+        React.createElement(Text, { key: `txt-${lineIdx}-${lastIndex}` }, line.substring(lastIndex))
+      );
+    }
+
+    const isBullet = line.trim().startsWith('•') || line.trim().startsWith('- ') || line.trim().startsWith('* ');
+
+    return React.createElement(
+      Text,
+      {
+        key: `l-${lineIdx}`,
+        style: [baseStyle, isBullet ? { paddingLeft: 4 } : null]
+      },
+      ...parts,
+      lineIdx < lines.length - 1 ? '\n' : ''
+    );
+  });
+}
+
 function MyaChatBubble(props) {
-  const { message = {}, theme = {} } = props;
-  const activeTheme = { ...defaultMyaTheme, ...theme };
-  const isUser = message.role === 'user';
-  const isError = message.error;
+  const { message = {}, theme = {}, role, content, timestamp, isStreaming, error } = props;
+  const activeTheme = Object.assign({}, defaultMyaTheme, theme);
+
+  // Dual contract: support both props.message and flat props
+  const effectiveRole = role || message.role || 'assistant';
+  const effectiveContent = content !== undefined ? content : (message.content || '');
+  const effectiveTimestamp = timestamp || message.timestamp;
+  const effectiveIsStreaming = isStreaming !== undefined ? isStreaming : Boolean(message.isStreaming);
+  const effectiveError = error !== undefined ? error : Boolean(message.error);
+
+  const isUser = effectiveRole === 'user';
+  const isError = effectiveError;
 
   const bubbleBg = isUser
     ? activeTheme.colors.userBubbleBackground
@@ -33,6 +101,8 @@ function MyaChatBubble(props) {
     : isError
     ? activeTheme.colors.error
     : activeTheme.colors.assistantBubbleText;
+
+  const displayText = effectiveContent || (effectiveIsStreaming ? 'Thinking...' : '');
 
   return React.createElement(
     View,
@@ -60,21 +130,15 @@ function MyaChatBubble(props) {
           }
         ]
       },
-      React.createElement(
-        Text,
-        {
-          style: [
-            styles.messageText,
-            {
-              color: textColor,
-              fontSize: activeTheme.typography.fontSizeMedium
-            }
-          ]
-        },
-        message.content || (message.isStreaming ? 'Thinking...' : '')
+      renderFormattedContent(
+        displayText,
+        Object.assign({}, styles.messageText, {
+          color: textColor,
+          fontSize: activeTheme.typography.fontSizeMedium
+        })
       ),
-      message.isStreaming &&
-        Boolean(message.content) &&
+      effectiveIsStreaming &&
+        Boolean(effectiveContent) &&
         React.createElement(
           Text,
           { style: [styles.streamingCursor, { color: activeTheme.colors.accentGold }] },
@@ -93,7 +157,7 @@ function MyaChatBubble(props) {
           }
         ]
       },
-      formatTimestamp(message.timestamp)
+      formatTimestamp(effectiveTimestamp)
     )
   );
 }

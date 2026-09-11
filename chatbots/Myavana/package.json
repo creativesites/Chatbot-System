@@ -10,7 +10,7 @@
   "dependencies": {
     "@google-cloud/functions-framework": "3.4.5",
     "myavana-bot-test-core": "2.6.0",
-    "myavana-ai-bot-test": "2.2.0"
+    "myavana-ai-bot-test": "2.3.0"
   },
   "engines": {
     "node": ">=18.0.0"

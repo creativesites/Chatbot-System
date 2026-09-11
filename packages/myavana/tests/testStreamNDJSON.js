@@ -3,7 +3,7 @@
  */
 const { performance } = require('perf_hooks');
 const MyavanaChatbotServer = require('../src/index');
-const { parseNDJSON, FrameType } = require('../../chat-protocol/src');
+const { parseNDJSON, FrameType } = require('../src/chatProtocol');
 
 console.log('🧪 Testing MyavanaChatbotServer NDJSON streaming & ExperienceContext...');
 

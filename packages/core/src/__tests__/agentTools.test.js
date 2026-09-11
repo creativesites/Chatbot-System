@@ -163,3 +163,70 @@ describe('getUserHairProfile', () => {
         expect(result.error).toBeDefined();
     });
 });
+
+describe('getWeatherForecast tool (TASK_MSDK_005)', () => {
+    it('executes cleanly and calculates frizz index correctly based on relative humidity', async () => {
+        const handler = mockCapturedHandlers['getWeatherForecast'];
+        expect(handler).toBeDefined();
+
+        const originalFetch = global.fetch;
+
+        try {
+            // Mock Open-Meteo success payload with HIGH humidity
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    current: {
+                        temperature_2m: 28,
+                        relative_humidity_2m: 85,
+                        weather_code: 3
+                    }
+                })
+            });
+
+            const resultHigh = await handler({ location: 'Atlanta' });
+            expect(resultHigh.location).toContain('Atlanta, GA');
+            expect(resultHigh.temperature).toBe('28°C');
+            expect(resultHigh.humidity).toBe('85%');
+            expect(resultHigh.frizzIndex).toBe('HIGH');
+            expect(resultHigh.advisory).toContain('Curls are highly prone to swelling');
+
+            // Mock Open-Meteo success payload with LOW humidity
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    current: {
+                        temperature_2m: 15,
+                        relative_humidity_2m: 20,
+                        weather_code: 1
+                    }
+                })
+            });
+
+            const resultLow = await handler({ location: 'Chicago' });
+            expect(resultLow.location).toContain('Chicago, IL');
+            expect(resultLow.temperature).toBe('15°C');
+            expect(resultLow.humidity).toBe('20%');
+            expect(resultLow.frizzIndex).toBe('LOW (DRY AIR)');
+            expect(resultLow.advisory).toContain('Moisture will evaporate rapidly');
+
+        } finally {
+            global.fetch = originalFetch;
+        }
+    });
+});
+
+describe('getCommunityPost tool (TASK_MSDK_008)', () => {
+    it('executes cleanly and retrieves the latest social post from SQLite', async () => {
+        const handler = mockCapturedHandlers['getCommunityPost'];
+        expect(handler).toBeDefined();
+
+        // Run tool and verify it returns a valid social post payload from DB or its fallback
+        const result = await handler({ query: 'watercooler' });
+        expect(result.id).toBeDefined();
+        expect(result.author).toBeDefined();
+        expect(result.content).toBeDefined();
+        expect(typeof result.likesCount).toBe('number');
+        expect(typeof result.commentsCount).toBe('number');
+    });
+});

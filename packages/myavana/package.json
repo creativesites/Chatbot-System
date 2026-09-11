@@ -1,6 +1,6 @@
 {
     "name": "myavana-ai-bot-test",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "Myavana-specific bot implementation",
     "main": "index.js",
     "scripts": {

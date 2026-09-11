@@ -19,6 +19,31 @@ const { MyaChatBubble } = require('./MyaChatBubble');
 const { MyaBlockRenderer } = require('./MyaBlockRenderer');
 const { MyaQuickReplies } = require('./MyaQuickReplies');
 
+/**
+ * Weave prose and cards back into the order the model produced them.
+ */
+function interleave(text, blocks) {
+  const body = text || '';
+  const list = (blocks || [])
+    .map((b, i) => ({ b, i, pos: typeof b.position === 'number' ? b.position : Infinity }))
+    .sort((x, y) => (x.pos - y.pos) || (x.i - y.i));
+
+  const items = [];
+  let cursor = 0;
+
+  for (const { b, pos } of list) {
+    const at = Math.max(cursor, Math.min(Number.isFinite(pos) ? pos : body.length, body.length));
+    const chunk = body.slice(cursor, at).trim();
+    if (chunk) items.push({ kind: 'text', text: chunk });
+    items.push({ kind: 'block', block: b });
+    cursor = at;
+  }
+
+  const tail = body.slice(cursor).trim();
+  if (tail) items.push({ kind: 'text', text: tail });
+  return items;
+}
+
 function MyaChatView({
   messages = [],
   streamingText = '',
@@ -32,6 +57,7 @@ function MyaChatView({
   onSendMessage,
   onSelectQuickReply,
   onPressAction,
+  onToggleRoutineStep,
   onPressVoice,
   onClearSession
 }) {
@@ -56,7 +82,36 @@ function MyaChatView({
 
   const renderMessageItem = ({ item }) => {
     const isUser = item.role === 'user';
-    const messageBlocks = (item.metadata && item.metadata.blocks) || [];
+    const messageBlocks = item.blocks || (item.metadata && item.metadata.blocks) || [];
+    const messageQuickReplies = item.quickReplies || (item.metadata && item.metadata.quickReplies) || [];
+
+    if (isUser || messageBlocks.length === 0) {
+      return React.createElement(
+        View,
+        {
+          key: item.id,
+          style: [
+            styles.messageRow,
+            isUser ? styles.messageRowUser : styles.messageRowAssistant
+          ]
+        },
+        React.createElement(MyaChatBubble, {
+          role: item.role,
+          content: item.content,
+          timestamp: item.timestamp,
+          theme: activeTheme
+        }),
+        !isUser && messageQuickReplies.length > 0 &&
+          React.createElement(MyaQuickReplies, {
+            replies: messageQuickReplies,
+            theme: activeTheme,
+            onSelectReply: handleQuickReply
+          })
+      );
+    }
+
+    // Interleaved message blocks and prose
+    const interleaved = interleave(item.content, messageBlocks);
 
     return React.createElement(
       View,
@@ -64,23 +119,34 @@ function MyaChatView({
         key: item.id,
         style: [
           styles.messageRow,
-          isUser ? styles.messageRowUser : styles.messageRowAssistant
+          styles.messageRowAssistant
         ]
       },
-      React.createElement(MyaChatBubble, {
-        role: item.role,
-        content: item.content,
-        timestamp: item.timestamp,
-        theme: activeTheme
-      }),
-      messageBlocks.map((block, idx) =>
-        React.createElement(MyaBlockRenderer, {
-          key: `msg-block-${item.id}-${idx}`,
-          block: block,
+      interleaved.map((entry, idx) => {
+        if (entry.kind === 'text') {
+          return React.createElement(MyaChatBubble, {
+            key: `interleaved-text-${item.id}-${idx}`,
+            role: item.role,
+            content: entry.text,
+            timestamp: idx === interleaved.length - 1 ? item.timestamp : null,
+            theme: activeTheme
+          });
+        }
+        return React.createElement(MyaBlockRenderer, {
+          key: `interleaved-block-${item.id}-${idx}`,
+          block: entry.block,
           theme: activeTheme,
-          onPressAction: onPressAction
+          onPressAction: onPressAction,
+          onToggleRoutineStep: onToggleRoutineStep,
+          onSelectQuickReply: handleQuickReply
+        });
+      }),
+      messageQuickReplies.length > 0 &&
+        React.createElement(MyaQuickReplies, {
+          replies: messageQuickReplies,
+          theme: activeTheme,
+          onSelectReply: handleQuickReply
         })
-      )
     );
   };
 

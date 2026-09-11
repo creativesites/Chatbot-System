@@ -9,6 +9,7 @@ const { MyaGoalCard } = require('./MyaGoalCard');
 const { MyaJournalCard } = require('./MyaJournalCard');
 const { MyaConsultationCard } = require('./MyaConsultationCard');
 const { MyaQuickReplies } = require('./MyaQuickReplies');
+const { MyaMediaCard } = require('./MyaMediaCard');
 const { View } = require('./nativePrimitives');
 
 function MyaBlockRenderer({
@@ -18,7 +19,8 @@ function MyaBlockRenderer({
   onSelectQuickReply,
   onToggleRoutineStep,
   onPressJournalEntry,
-  onBookConsultation
+  onBookConsultation,
+  onPressMedia
 }) {
   if (!block) return null;
 
@@ -34,13 +36,14 @@ function MyaBlockRenderer({
         theme: theme
       });
 
+    case 'today_checklist':
     case 'routine_card':
     case 'routine':
     case 'hair_routine':
       return React.createElement(MyaRoutineChecklist, {
         routine: data,
         theme: theme,
-        onToggleStep: onToggleRoutineStep
+        onToggleStep: onToggleRoutineStep || (onPressAction ? (stepId, nextVal) => onPressAction('toggle_routine_step', { stepId, isCompleted: nextVal, routine: data }) : undefined)
       });
 
     case 'goal_card':
@@ -56,7 +59,7 @@ function MyaBlockRenderer({
       return React.createElement(MyaJournalCard, {
         entry: data,
         theme: theme,
-        onPressEntry: onPressJournalEntry
+        onPressEntry: onPressJournalEntry || (onPressAction ? () => onPressAction('view_journal_entry', data) : undefined)
       });
 
     case 'consultation_card':
@@ -67,6 +70,16 @@ function MyaBlockRenderer({
         bookingUrl: data.bookingUrl,
         theme: theme,
         onBookConsultation: onBookConsultation || (onPressAction ? (s) => onPressAction('book_consultation', s) : undefined)
+      });
+
+    case 'media_card':
+    case 'hairstyle_card':
+    case 'hair_media':
+      return React.createElement(MyaMediaCard, {
+        media: data,
+        theme: theme,
+        onPressAction: onPressAction,
+        onPressMedia: onPressMedia || (onPressAction ? (m) => onPressAction('view_media', m) : undefined)
       });
 
     case 'quick_replies':

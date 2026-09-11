@@ -7,18 +7,15 @@ jest.mock('../database', () => ({
     redisClient: { get: mockRedisGet, set: mockRedisSet },
 }));
 
-jest.mock('../ai', () => ({}));
-jest.mock('@genkit-ai/google-genai', () => ({
-    googleAI: { model: jest.fn(() => 'mocked-model') },
+const mockCacheCreate = jest.fn();
+jest.mock('../ai', () => ({
+    client: {
+        caches: {
+            create: mockCacheCreate,
+        },
+    },
 }));
 jest.mock('../config', () => ({ genkitApiKey: 'test-key' }));
-
-const mockCacheCreate = jest.fn();
-jest.mock('@google/genai', () => ({
-    GoogleGenAI: jest.fn().mockImplementation(() => ({
-        caches: { create: mockCacheCreate },
-    })),
-}));
 
 const CacheManager = require('../cacheManager');
 

@@ -19,7 +19,10 @@ try {
     ActivityIndicator: createMock('ActivityIndicator'),
     Image: createMock('Image'),
     KeyboardAvoidingView: createMock('KeyboardAvoidingView'),
-    StyleSheet: { create: (styles) => styles },
+    StyleSheet: {
+      create: (styles) => styles,
+      flatten: (style) => (Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : (style || {}))
+    },
     Platform: { OS: 'ios', select: (obj) => obj.ios || obj.default }
   };
 }

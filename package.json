@@ -80,10 +80,5 @@
       "eslint --fix",
       "git add"
     ]
-  },
-  "jest": {
-    "projects": [
-      "<rootDir>/jest.config.js"
-    ]
   }
 }

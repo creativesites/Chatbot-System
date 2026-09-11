@@ -1,6 +1,6 @@
 {
   "name": "myavana-chatbot-cloudrun",
-  "version": "1.3.4",
+  "version": "2.1.0",
   "description": "Myavana Cloud Run chatbot implementation",
   "main": "index.js",
   "scripts": {
@@ -8,9 +8,9 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@google-cloud/functions-framework": "^3.4.5",
-    "myavana-bot-test-core": "2.3.3",
-    "myavana-ai-bot-test": "1.3.4"
+    "@google-cloud/functions-framework": "3.4.5",
+    "myavana-bot-test-core": "2.6.0",
+    "myavana-ai-bot-test": "2.2.0"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -27,7 +27,7 @@
         "dotenv": "^16.4.7",
         "express": "^4.21.2",
         "html-format": "^1.1.7",
-        "myavana-bot-test-core": "2.6.0",
+        "myavana-bot-test-core": "^2.8.0",
         "openai": "^4.86.1",
         "perf_hooks": "^0.0.1"
     },

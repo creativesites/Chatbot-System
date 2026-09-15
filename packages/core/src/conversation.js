@@ -1,6 +1,12 @@
 // conversation.js
 const { pgClient, redisClient } = require('./database');
 const ai = require('./ai');
+const {
+    isPlaceholderSummary,
+    cleanTurnContent,
+    buildTitleFromHistory,
+    buildSummaryFromHistory,
+} = require('./conversationMeta');
 
 const saveConversationSummary = async (conversationId, userId, summary) => {
     const query = `
@@ -10,6 +16,10 @@ const saveConversationSummary = async (conversationId, userId, summary) => {
         DO UPDATE SET summary = EXCLUDED.summary
         RETURNING *;
     `;
+    if (isPlaceholderSummary(summary)) {
+        // Never persist a fallback placeholder as if it were a real summary.
+        return null;
+    }
     const values = [conversationId, userId, summary];
     try {
         const res = await pgClient.query(query, values);
@@ -87,14 +97,28 @@ const getConversationHistory = async (conversationId, userId) => {
 };
 
 const saveConversation = async (conversationId, userId, chatHistory, summary) => {
+    // Callers historically passed getAllConversationsSummary()'s value here,
+    // which is a *cross-conversation* prompt-context string and is the literal
+    // placeholder "conversation summary not available." when the member has no
+    // summary yet. Persisting that gave every row the same useless summary and,
+    // because titles were derived from it, the same useless title. Always store
+    // a real per-conversation title/summary built from this conversation's own
+    // history; a caller-supplied summary is only used when it is genuinely one.
+    const effectiveSummary = buildSummaryFromHistory(chatHistory, summary);
+    const title = buildTitleFromHistory(chatHistory, summary);
+
     const query = `
-        INSERT INTO conversations (conversation_id, user_id, chat_history, summary)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO conversations (conversation_id, user_id, chat_history, summary, title)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (conversation_id)
-        DO UPDATE SET chat_history = EXCLUDED.chat_history, summary = EXCLUDED.summary
+        DO UPDATE SET chat_history = EXCLUDED.chat_history,
+                      summary = EXCLUDED.summary,
+                      title = EXCLUDED.title
         RETURNING *;
     `;
-    const res = await pgClient.query(query, [conversationId, userId, JSON.stringify(chatHistory), summary]);
+    const res = await pgClient.query(query, [
+        conversationId, userId, JSON.stringify(chatHistory), effectiveSummary, title
+    ]);
     await redisClient.set(`conversation:${conversationId}`, JSON.stringify({ chatHistory: chatHistory }));
     return res.rows[0];
 };
@@ -149,10 +173,26 @@ const generateAndSaveSummary = async (userId, conversationId, chatHistory) => {
     return newSummary;
 };
 
+const deriveTitle = (summary, firstMsg) => {
+    if (!isPlaceholderSummary(summary)) {
+        const words = String(summary).split(/\s+/).slice(0, 6).join(' ');
+        return words.replace(/[.:,;]+$/, '');
+    }
+    if (firstMsg) {
+        const clean = cleanTurnContent(firstMsg);
+        const words = clean.split(/\s+/).slice(0, 6).join(' ');
+        return words.replace(/[.:,;]+$/, '') || 'Hair Journey Consultation';
+    }
+    return 'Hair Care Consultation';
+};
+
 const getUserConversationsList = async (userId) => {
     try {
+        // chat_history comes back in full so a title/summary can always be built
+        // from the real exchange, even for rows written before titles existed or
+        // whose stored summary is one of the placeholder strings.
         const query = `
-            SELECT conversation_id, summary, created_at, updated_at,
+            SELECT conversation_id, title, summary, chat_history, created_at, updated_at,
                    jsonb_array_length(CASE WHEN jsonb_typeof(chat_history) = 'array' THEN chat_history ELSE '[]'::jsonb END) AS message_count
             FROM conversations
             WHERE user_id = $1
@@ -160,17 +200,39 @@ const getUserConversationsList = async (userId) => {
             LIMIT 30;
         `;
         const res = await pgClient.query(query, [userId]);
-        return res.rows.map(r => ({
-            id: r.conversation_id,
-            summary: r.summary || 'Hair Journey Discussion',
-            messageCount: parseInt(r.message_count, 10) || 0,
-            createdAt: r.created_at,
-            updatedAt: r.updated_at || r.created_at
-        }));
+        return res.rows.map(r => {
+            const history = Array.isArray(r.chat_history) ? r.chat_history : [];
+            const title = (r.title && r.title.trim())
+                ? r.title.trim()
+                : buildTitleFromHistory(history, r.summary);
+            return {
+                id: r.conversation_id,
+                title,
+                summary: buildSummaryFromHistory(history, r.summary),
+                messageCount: parseInt(r.message_count, 10) || 0,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at || r.created_at
+            };
+        });
     } catch (err) {
         console.error('Error fetching user conversations list:', err);
         return [];
     }
+};
+
+/**
+ * Writes a real title + summary for one conversation, derived from its own
+ * history. Deterministic, so it costs no model call and works for the whole
+ * historical backlog.
+ */
+const backfillConversationMeta = async (conversationId, chatHistory, existingSummary) => {
+    const title = buildTitleFromHistory(chatHistory, existingSummary);
+    const summary = buildSummaryFromHistory(chatHistory, existingSummary);
+    await pgClient.query(
+        `UPDATE conversations SET title = $1, summary = $2 WHERE conversation_id = $3`,
+        [title, summary, conversationId]
+    );
+    return { title, summary };
 };
 
 module.exports = {
@@ -181,5 +243,10 @@ module.exports = {
     saveConversation,
     getAllChatsAsSingleArray,
     generateAndSaveSummary,
-    getUserConversationsList
+    getUserConversationsList,
+    backfillConversationMeta,
+    buildTitleFromHistory,
+    buildSummaryFromHistory,
+    isPlaceholderSummary,
+    cleanTurnContent
 };

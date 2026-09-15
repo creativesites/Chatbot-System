@@ -22,6 +22,10 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
     this.baseUrl = (options.baseUrl || process.env.WORDPRESS_API_BASE || 'http://myavana-hair-journey.local')
       .replace(/\/$/, '');
     this.authHeader = options.authHeader || process.env.WORDPRESS_AUTH_HEADER || null;
+    this.serviceKey = options.serviceKey || process.env.WORDPRESS_SERVICE_KEY ||
+      (this.baseUrl.includes('.local') || this.baseUrl.includes('localhost') || process.env.NODE_ENV !== 'production'
+        ? 'myavana_secret_service_key_2026'
+        : null);
     this.timeoutMs = options.timeoutMs || 4000;
   }
 
@@ -32,13 +36,17 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
    * @returns {Promise<any>}
    */
   async _request(path, { method = 'GET', body, userId } = {}) {
-    const url = `${this.baseUrl}/wp-json/myavana/v1${path}`;
+    const sep = path.includes('?') ? '&' : '?';
+    const requestPath = method === 'GET' ? `${path}${sep}_t=${Date.now()}` : path;
+    const url = `${this.baseUrl}/wp-json/myavana/v1${requestPath}`;
     const headers = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache'
     };
 
-    const serviceKey = process.env.WORDPRESS_SERVICE_KEY;
+    const serviceKey = this.serviceKey || process.env.WORDPRESS_SERVICE_KEY;
     if (serviceKey) {
       headers['X-Myavana-Service-Key'] = serviceKey;
     }
@@ -82,17 +90,25 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
    */
   async getProfile(userId) {
     const data = await this._request('/profile', { userId });
-    if (data && (data.hairType || data.hair_type || data.porosity || data.density)) {
+    const profile = data?.profile || data;
+    const routines = Array.isArray(data?.routines) ? data.routines : (Array.isArray(profile?.routines) ? profile.routines : []);
+    const concerns = profile?.concerns || data?.concerns || [];
+    const goals = profile?.goals || data?.goals || [];
+
+    if (profile && (profile.hairType || profile.hair_type || profile.porosity || profile.density || profile.strandDiameter || profile.elasticity || (Array.isArray(concerns) && concerns.length > 0) || (Array.isArray(goals) && goals.length > 0))) {
       return {
         available: true,
-        userId: data.userId || userId,
-        hairType: data.hairType || data.hair_type || null,
-        porosity: data.porosity || null,
-        elasticity: data.elasticity || null,
-        strandDiameter: data.density || null,
-        hairConcerns: data.concerns || [],
-        hairGoals: (data.goals || []).map(g => typeof g === 'string' ? g : (g.title || 'Hair Goal')),
-        currentRegimen: data.routines && data.routines[0] ? (data.routines[0].title || data.routines[0].name) : null
+        userId: profile.userId || data?.userId || userId,
+        displayName: profile.displayName || profile.display_name || profile.username || 'Member',
+        hairType: profile.hairType || profile.hair_type || null,
+        porosity: profile.porosity || null,
+        density: profile.density || null,
+        strandDiameter: profile.strandDiameter || profile.strand_diameter || null,
+        elasticity: profile.elasticity || null,
+        hairConcerns: Array.isArray(concerns) ? concerns : [],
+        hairGoals: (Array.isArray(goals) ? goals : []).map(g => typeof g === 'string' ? g : (g.title || g.goal_title || g.goal || 'Hair Goal')),
+        routines: Array.isArray(routines) ? routines : [],
+        currentRegimen: routines && routines[0] ? (routines[0].title || routines[0].name) : null
       };
     }
 
@@ -101,12 +117,15 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
       return {
         available: true,
         userId,
+        displayName: profile?.displayName || profile?.display_name || profile?.username || 'Member',
         hairType: null,
         porosity: null,
-        elasticity: null,
+        density: null,
         strandDiameter: null,
+        elasticity: null,
         hairConcerns: [],
         hairGoals: [],
+        routines: [],
         currentRegimen: null
       };
     }
@@ -116,12 +135,15 @@ class WordPressHairJourneyProvider extends HairJourneyProvider {
       available: false,
       error: 'WordPress Hair Journey profile API unavailable',
       userId,
+      displayName: 'Member',
       hairType: null,
       porosity: null,
-      elasticity: null,
+      density: null,
       strandDiameter: null,
+      elasticity: null,
       hairConcerns: [],
       hairGoals: [],
+      routines: [],
       currentRegimen: null
     };
   }

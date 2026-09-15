@@ -112,17 +112,21 @@ function getDepthCategory(chatHistory) {
  * @param {string|null} opts.trendSummary   - Short trend names string from trendManager (optional)
  * @returns {string}
  */
-function buildDrivingDirective({ stage, depth, questionStats, personaType, trendSummary = null }) {
+function buildDrivingDirective({ stage, depth, questionStats, personaType, trendSummary = null, hasKnownProfile = false }) {
     const parts = [];
 
-    // Opening: always gather profile info if we don't have a stage read yet
+    // Opening: always gather profile info if we don't have a stage read yet, UNLESS profile is already known
     if (depth === 'opening' && stage === null) {
-        parts.push('ask one open question to understand their hair type or primary concern — do not assume');
+        if (hasKnownProfile) {
+            parts.push('tailor your direct advice based on their existing hair profile — do not ask for known profile traits');
+        } else {
+            parts.push('ask one open question to understand their hair type or primary concern — do not assume');
+        }
     }
 
     // Exploring: AI should be asking questions to understand, not just informing
     else if (depth === 'exploring') {
-        if (!questionStats.lastTurnHadQuestion) {
+        if (!questionStats.lastTurnHadQuestion && !hasKnownProfile) {
             parts.push('end your response with a specific follow-up question to learn more about their routine or goals');
         }
         if (stage !== null) {
@@ -193,8 +197,11 @@ function buildDrivingDirective({ stage, depth, questionStats, personaType, trend
  * @param {string|null} trendSummary  - Trend names from trendManager (optional)
  * @returns {string}
  */
-function getConversationDirective(chatHistory, personaType = null, trendSummary = null) {
+function getConversationDirective(chatHistory, personaType = null, trendSummary = null, hasKnownProfile = false) {
     if (!chatHistory || chatHistory.length === 0) {
+        if (hasKnownProfile) {
+            return '[Conversation driver: welcome the member warmly, acknowledge their hair profile is already connected, and directly invite their questions or hair goals]\n';
+        }
         return '[Conversation driver: this is the very first message — warmly open with a question about their hair type or what brings them in today]\n';
     }
 
@@ -202,7 +209,7 @@ function getConversationDirective(chatHistory, personaType = null, trendSummary 
     const depth         = getDepthCategory(chatHistory);
     const questionStats = analyzeAIQuestions(chatHistory);
 
-    return buildDrivingDirective({ stage, depth, questionStats, personaType, trendSummary });
+    return buildDrivingDirective({ stage, depth, questionStats, personaType, trendSummary, hasKnownProfile });
 }
 
 /**

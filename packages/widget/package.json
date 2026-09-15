@@ -1,6 +1,6 @@
 {
   "name": "myavana-chat-widget",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Self-hosted D2C web chat widget for myavana.com (replaces the Kommunicate embed). Framework-agnostic, no build step — a single IIFE file, script-embeddable as-is.",
   "private": true,
   "main": "src/myavana-widget.js",

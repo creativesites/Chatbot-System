@@ -1,0 +1,120 @@
+# Isolated staging service for Candace's first end-to-end test.
+#
+# DELIBERATELY SEPARATE from the live `myavana-chatbot` / `myavana-ai-bot-fulfillment`
+# service. Nothing here shares a name, a revision, or a traffic split with production.
+# Kommunicate's live users are unaffected by anything that happens to this service.
+#
+# ⚠️ DO NOT DEPLOY until the gates in DEPLOY_RUNBOOK.md are green. As of 2026-09-04
+#    the team decision is NO-GO on four independently verified blockers.
+#
+# Prepared by @Atlas ⏣.
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: myavana-chatbot-staging
+  labels:
+    cloud.googleapis.com/location: us-central1
+    myavana.io/environment: staging
+    myavana.io/purpose: candace-e2e
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/startup-cpu-boost: "true"
+
+        # Staging runs lean — one instance is plenty for a guided session, and a
+        # low ceiling is a cost guardrail, not a capacity plan.
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "2"
+
+        # 300s is ample: a streamed turn is one held-open request lasting seconds.
+        # No session affinity needed — each turn is an independent request, which is
+        # exactly why we chose NDJSON-over-POST rather than WebSockets.
+        run.googleapis.com/timeout: "300s"
+    spec:
+      containerConcurrency: 40
+      containers:
+        - name: myavana-chatbot-staging
+          image: gcr.io/PROJECT_ID/myavana-chatbot-staging:GIT_SHA   # never :latest — see runbook
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "8080"
+
+            # ---- Hair Journey integration -------------------------------------
+            # MUST be a publicly resolvable host. `myavana-hair-journey.local` is a
+            # Local-by-Flywheel hostname resolved through one laptop's /etc/hosts and
+            # is UNREACHABLE from Cloud Run. Deploying with it set to .local causes 8
+            # of 11 agent tools to fail — every Hair Journey read and write — which
+            # presents as a product failure rather than a networking one.
+            - name: WORDPRESS_API_BASE
+              value: "https://myhairjourney.ai"
+
+            # Scoped to THIS service only. Must NOT reuse the value currently sitting
+            # in the working trees. There is deliberately no fallback: if this is
+            # unset the provider fails closed rather than authenticating with a
+            # known string. See threads/004_service_key_auth_bypass.md.
+            - name: WORDPRESS_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: myavana-staging-secrets
+                  key: WORDPRESS_SERVICE_KEY
+
+            # ---- Data ----------------------------------------------------------
+            - name: DB_HOST
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: DB_HOST } }
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: DB_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: DB_PASSWORD } }
+            - name: DB_NAME
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: DB_NAME } }
+            - name: DB_PORT
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: DB_PORT } }
+            - name: REDIS_HOST
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: REDIS_HOST } }
+            - name: REDIS_PORT
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: REDIS_PORT } }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: REDIS_PASSWORD } }
+            - name: REDIS_USERNAME
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: REDIS_USERNAME } }
+
+            # ---- Model ---------------------------------------------------------
+            # Free tier is 20 requests/day/model and ONE user turn costs several
+            # (response + post-processing + memory extraction + persona + summary).
+            # A billing-enabled key is a hard prerequisite for a real session.
+            - name: GENKIT_API_KEY
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: GENKIT_API_KEY } }
+            - name: OPENAI_API_KEY
+              valueFrom: { secretKeyRef: { name: myavana-staging-secrets, key: OPENAI_API_KEY } }
+
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 240
+            periodSeconds: 240
+            failureThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /health
+            initialDelaySeconds: 10
+            periodSeconds: 30
+
+  traffic:
+    - percent: 100
+      latestRevision: true

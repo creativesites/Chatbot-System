@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@google-cloud/functions-framework": "3.4.5",
-    "myavana-bot-test-core": "2.6.0",
-    "myavana-ai-bot-test": "2.3.0"
+    "myavana-bot-test-core": "file:./vendor/myavana-bot-test-core-2.6.0.tgz",
+    "myavana-ai-bot-test": "file:./vendor/myavana-ai-bot-test-2.3.0.tgz"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -7,6 +7,12 @@ const { handleWelcomeEvent, handleImageMessage } = require('./eventHandlers');
 const { buildMessageContext } = require('myavana-bot-test-core/src/messageContextBuilder');
 const { globalTools, createUserTools } = require('myavana-bot-test-core/src/agentTools');
 const { HairJourneyService } = require('myavana-bot-test-core/src/hairJourney/hairJourneyService');
+const { HairMediaService } = require('myavana-bot-test-core/src/hairMedia/hairMediaService');
+const { extractImageAttachments } = require('myavana-bot-test-core/src/imageAttachments');
+const {
+    loadServiceCatalog, enrichProductBlock, productCardKey, collectShownProductKeys,
+    shouldOfferStoreLink, buildStoreLinkBlock, repairStoreLinks, PRODUCT_BLOCK_TYPES, STORE_URL,
+} = require('myavana-bot-test-core/src/serviceCatalog');
 const {
     encodeFrame,
     createDeltaFrame,
@@ -41,6 +47,212 @@ function cleanKommunicateResponse(jsonObj) {
     } catch (error) {
         console.error("Error parsing AI response JSON:", error);
         return jsonObj;
+    }
+}
+
+/**
+ * Removes a trailing ```mya-blocks ... ``` fence (and any stray fence markers)
+ * from model prose so the structured JSON never reaches the member as visible
+ * chat text. The blocks themselves are emitted separately as NDJSON frames.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function stripBlocksFence(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+        .replace(/```(?:json|mya-blocks|mya|blocks)?\s*[\s\S]*?```/gi, '')
+        .replace(/```(?:json|mya-blocks|mya|blocks)?\s*[\s\S]*$/i, '')
+        .trim();
+}
+
+/**
+ * True for upstream errors that are worth retrying as-is.
+ *
+ * gemini-3.7-flash returns a 503 UNAVAILABLE ("This model is currently
+ * experiencing high demand... Please try again later") on a meaningful share
+ * of requests. Falling straight through to the fallback chain on one of those
+ * is a real quality loss - the fallback models skip tools and fabricate image
+ * URLs - so a transient capacity error earns one more attempt at the primary.
+ *
+ * Deliberately narrow: quota exhaustion, auth failures and bad requests are
+ * NOT retryable and must fall through immediately.
+ */
+function isRetryableModelError(error) {
+    const text = `${error?.message || ''} ${error?.status || ''} ${error?.code || ''}`;
+    if (/RESOURCE_EXHAUSTED|PERMISSION_DENIED|quota|INVALID_ARGUMENT|NOT_FOUND|401|403|404|429/i.test(text)) {
+        return false;
+    }
+    return /\b503\b|UNAVAILABLE|Service Unavailable|high demand|\b500\b|\b502\b|\b504\b|ETIMEDOUT|ECONNRESET/i.test(text);
+}
+
+/**
+ * Block types whose whole point is the picture. A wrong image on one of these
+ * is a trust failure, not a cosmetic one.
+ */
+const VISUAL_BLOCK_TYPES = new Set(['hairstyle_card', 'media_card']);
+
+/**
+ * Replace or remove fabricated imagery on a visual block.
+ *
+ * The model is told to call searchHairMedia and use the URLs it returns, but
+ * the weaker fallback models routinely skip the tool and invent a plausible
+ * looking URL instead - a MYAVANA marketing banner showed up captioned as
+ * "Box Braids". Rather than trusting the model, every visual block's image is
+ * checked against the verified catalog here:
+ *
+ *   1. URL is in the catalog  -> pass through untouched.
+ *   2. URL is not in the catalog but the title matches a catalog asset
+ *      -> swap in the real asset's image and attribution.
+ *   3. Neither -> drop the image so the card renders text-only.
+ *
+ * Never show a picture we cannot vouch for.
+ *
+ * @param {object} block a parsed block, possibly with a fabricated image
+ * @returns {object|null} the sanitized block, or null if it should not be sent
+ */
+function sanitizeVisualBlock(block) {
+    if (!block || !VISUAL_BLOCK_TYPES.has(block.type)) return block;
+
+    const data = block.data || {};
+    const imageUrl = data.imageUrl || data.image || data.mediaUrl || data.thumbnailUrl;
+    if (!imageUrl) return block;
+
+    try {
+        if (HairMediaService.isVerifiedImageUrl(imageUrl)) return block;
+
+        const label = data.title || data.caption || data.name || '';
+        const match = HairMediaService.findAssetForText(label);
+        if (match) {
+            console.warn(
+                `🖼️  Unverified image on ${block.type} ("${label}") replaced with catalog asset ${match.id}`
+            );
+            const repaired = HairMediaService.formatMediaBlock(match, block.type);
+            // Keep the model's own copy - it is written for this conversation -
+            // but take every image and attribution field from the catalog.
+            return {
+                ...repaired,
+                id: block.id || repaired.id,
+                data: { ...repaired.data, title: data.title || repaired.data.title, caption: data.caption || repaired.data.caption },
+            };
+        }
+
+        console.warn(`🖼️  Unverified image on ${block.type} ("${label}") dropped - no catalog match`);
+        const stripped = { ...block, data: { ...data } };
+        delete stripped.data.imageUrl;
+        delete stripped.data.image;
+        delete stripped.data.mediaUrl;
+        delete stripped.data.thumbnailUrl;
+        return stripped;
+    } catch (err) {
+        // A guard that throws must not take the response down with it.
+        console.error('sanitizeVisualBlock error:', err.message);
+        return block;
+    }
+}
+
+/**
+ * Links a navigation card may open. The model writes these URLs itself, and it
+ * has already shown it will invent plausible-looking ones.
+ */
+const ALLOWED_NAVIGATION_LINKS = [
+    /^https:\/\/(?:www\.)?myavana\.com(?:[/?#]|$)/i,
+    /^https:\/\/myavana\.refersion\.com(?:[/?#]|$)/i,
+    /^https:\/\/apps\.apple\.com\/[^?#]*myavana/i,
+    /^https:\/\/play\.google\.com\/store\/apps\/details\?id=com\.myavana\b/i,
+];
+
+/**
+ * A "Shop" / "Store" navigation card always opens the real store front, no
+ * matter what URL the model wrote. Any other off-site link is removed, so the
+ * card falls back to its in-widget screen rather than sending the member to
+ * a page we cannot vouch for.
+ *
+ * @param {object} block a navigation block
+ * @returns {object}
+ */
+function sanitizeNavigationBlock(block) {
+    const data = block.data || {};
+    const label = `${data.title || ''} ${data.label || ''}`;
+    if (/\b(shop|store)\b/i.test(label)) {
+        return { ...block, data: { ...data, url: STORE_URL } };
+    }
+    if (!data.url || ALLOWED_NAVIGATION_LINKS.some((re) => re.test(String(data.url)))) return block;
+
+    console.warn(`🧭 Removed off-site navigation link "${data.url}" from "${label.trim()}"`);
+    const stripped = { ...block, data: { ...data } };
+    delete stripped.data.url;
+    return stripped;
+}
+
+/** Text fields on a block that are shown to the member. */
+const BLOCK_TEXT_FIELDS = ['title', 'name', 'caption', 'description', 'reason', 'label'];
+
+function decodeHtmlEntities(value) {
+    // &amp; last, so "&amp;lt;" becomes the literal text "&lt;", not "<".
+    return value
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&');
+}
+
+/**
+ * Undo HTML escaping the model copies into card text. The widget used to send
+ * escaped titles back as messages ("Moisture &amp; Repair"), they landed in
+ * chat history, and the model reproduced them - a card rendered as
+ * "4C Coils &amp; Texture". The widget escapes on render, so plain text is
+ * both correct and safe here.
+ */
+function decodeBlockText(block) {
+    if (!block || !block.data || typeof block.data !== 'object') return block;
+    let changed = false;
+    const data = { ...block.data };
+    for (const field of BLOCK_TEXT_FIELDS) {
+        if (typeof data[field] === 'string' && /&(?:amp|lt|gt|quot|#39);/.test(data[field])) {
+            data[field] = decodeHtmlEntities(data[field]);
+            changed = true;
+        }
+    }
+    return changed ? { ...block, data } : block;
+}
+
+/**
+ * Every guard a block passes through before it reaches the member: visual
+ * blocks get their imagery verified, product/service cards get rebuilt from
+ * the catalog. Returns null when a block must not be sent at all.
+ *
+ * @param {object} block
+ * @param {object[]} serviceCatalog rows from loadServiceCatalog()
+ * @param {Set<string>} [shownProductKeys] products already shown in this
+ *   conversation; a repeat is skipped, and each card sent is added so the
+ *   same response cannot carry it twice either
+ * @returns {object|null}
+ */
+function sanitizeBlock(block, serviceCatalog, shownProductKeys) {
+    const visual = sanitizeVisualBlock(block);
+    if (!visual) return null;
+    if (visual.type === 'navigation') return sanitizeNavigationBlock(visual);
+    try {
+        const grounded = enrichProductBlock(visual, serviceCatalog);
+        if (!grounded) {
+            const label = visual.data?.name || visual.data?.title || '';
+            console.warn(`🛍️  Dropped ${visual.type} "${label}" - not in the product/service catalog`);
+            return null;
+        }
+        const key = shownProductKeys ? productCardKey(grounded, serviceCatalog) : null;
+        if (key) {
+            if (shownProductKeys.has(key)) {
+                console.warn(`🔁 Skipped repeat ${grounded.type} "${grounded.data?.name || key}" - already shown in this conversation`);
+                return null;
+            }
+            shownProductKeys.add(key);
+        }
+        return grounded;
+    } catch (err) {
+        console.error('enrichProductBlock error:', err.message);
+        return visual;
     }
 }
 
@@ -224,6 +436,24 @@ class MyavanaChatbotServer {
             await this.handleLiveVoiceCommitRequest(req, res);
         });
 
+        // Prompt Cache Invalidation & Hot-Reload (invoked by Dashboard when Candace saves directives)
+        this.app.post('/admin/cache/invalidate', async (req, res) => {
+            console.log('🔄 Received prompt cache invalidation request from Dashboard');
+            try {
+                if (core.cacheManager && typeof core.cacheManager.invalidateAllCaches === 'function') {
+                    await core.cacheManager.invalidateAllCaches();
+                }
+                return res.json({
+                    success: true,
+                    message: 'Prompt cache purged successfully. Active master directives are now live.',
+                    timestamp: new Date().toISOString(),
+                });
+            } catch (err) {
+                console.error('Error clearing prompt cache:', err);
+                return res.status(500).json({ error: true, message: err.message });
+            }
+        });
+
         // Conversation History & Session Management
         this.app.get('/conversations', async (req, res) => {
             const userId = req.query.userId || req.headers['x-user-id'];
@@ -344,20 +574,35 @@ class MyavanaChatbotServer {
      * @param {object} [opts.experienceContext]
      * @returns {Promise<{chat: object, messageWithContext: string, cacheResult: object, aiPrompt: string|null, chatTools: Array, messageContext: string}>}
      */
-    async prepareChatTurn({ userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel = 'kommunicate', experienceContext, imageObj }) {
+    async prepareChatTurn({ userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel = 'kommunicate', experienceContext, imageObj, images }) {
         // widget-channel prompts use a different output-format instruction (plain text vs
         // Kommunicate JSON), so they must not share a cache slot with the kommunicate channel
         const cacheKey = channel === 'widget' ? `${userId}_widget` : userId;
 
-        console.log('🔍 Checking cache validity...', { channel, cacheKey });
-        const cacheCheckStart = performance.now();
-        const cacheStatus = await core.cacheManager.checkCacheValidity(cacheKey);
-        console.log('✅ Cache check complete:', (performance.now() - cacheCheckStart).toFixed(0), 'ms', cacheStatus);
+        // Tools for this request: global (searchServices, lookupFAQ,
+        // findStylistOrSalon) + per-user dynamic (saveHairGoal, getUserHairProfile).
+        const chatTools = [...globalTools, ...createUserTools(userId)];
+
+        // Gemini rejects a request that supplies CachedContent *and* tools/
+        // system_instruction ("CachedContent can not be used with GenerateContent
+        // request setting system_instruction, tools or tool_config"). Mya always
+        // sends tools, so the context cache can never legally be used on this
+        // path - every request that got a cache hit was failing on the primary
+        // model with a 400 and silently degrading to the weaker fallback model.
+        // Skipping the cache entirely keeps the primary model working; the real
+        // optimization is to move the tools into CachedContent at creation time,
+        // which is a larger change than belongs in a pre-test fix.
+        const canUseContextCache = chatTools.length === 0;
 
         let aiPrompt = null;
-        let cacheResult = null;
+        let cacheResult = { cacheName: null, isNewCache: false };
+        const cacheStatus = canUseContextCache
+            ? await core.cacheManager.checkCacheValidity(cacheKey)
+            : { hasValidCache: false, cacheName: null, needsRefresh: false, reason: 'tools_present' };
 
-        if (!cacheStatus.hasValidCache) {
+        if (!canUseContextCache) {
+            aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
+        } else if (!cacheStatus.hasValidCache) {
             console.log('🧠 No valid cache - constructing prompt...');
             aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
             cacheResult = await core.cacheManager.getOrCreateCache(cacheKey, aiPrompt);
@@ -386,15 +631,11 @@ class MyavanaChatbotServer {
         const messageWithContext = messageContext ? `${messageContext}${safeMessage}` : safeMessage;
         if (messageContext) console.log('🎭 Context injected:', messageContext.trim());
 
-        // Assemble tools for this request: global (searchServices, lookupFAQ)
-        // + per-user dynamic tools (saveHairGoal, getUserHairProfile)
-        const chatTools = [...globalTools, ...createUserTools(userId)];
-
         const chatConfig = {
             model: 'gemini-3.7-flash',
             tools: chatTools,
             config: { temperature: 1.1 },
-            ...(imageObj ? { image: imageObj } : {}),
+            ...(Array.isArray(images) && images.length ? { images } : imageObj ? { image: imageObj } : {}),
         };
         const chat = cacheResult.cacheName
             ? session.chat({ ...chatConfig, cache: cacheResult.cacheName })
@@ -483,12 +724,16 @@ class MyavanaChatbotServer {
      * @param {object} opts
      * @returns {Promise<{aiOutput: any, modelUsed: string}>}
      */
-    async sendFallbackModel({ messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel = 'kommunicate' }) {
+    async sendFallbackModel({ messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel = 'kommunicate', images }) {
         if (!aiPrompt) {
             aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
         }
 
-        const candidateModels = ['gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+        // gemini-2.5-flash and gemini-2.5-flash-lite now 404 with "no longer
+        // available to new users" - they were dead weight at the end of the
+        // chain, adding two guaranteed-failed round trips to every fallback.
+        // Google's own error points at the 3.x equivalents.
+        const candidateModels = ['gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
         for (const candidate of candidateModels) {
             console.log(`🔄 ===== TRYING FALLBACK MODEL: ${candidate.toUpperCase()} =====`);
             try {
@@ -497,6 +742,10 @@ class MyavanaChatbotServer {
                     system: aiPrompt,
                     tools: chatTools,
                     config: { temperature: 1.0 },
+                    // Without this, every fallback answer to a photo was given
+                    // blind - and while the primary is quota-limited, that is
+                    // every photo.
+                    ...(Array.isArray(images) && images.length ? { images } : {}),
                 });
                 const response = await fallbackChat.send(messageWithContext);
                 const output = channel === 'widget' ? response.text : response.output;
@@ -623,10 +872,10 @@ class MyavanaChatbotServer {
             let imageObj = null;
             if (Array.isArray(attachments) && attachments.length > 0) {
                 const firstAttachment = attachments[0];
-                const mimeType = firstAttachment.mimeType || firstAttachment.type || '';
-                const fileUrl = firstAttachment.uri || firstAttachment.url || firstAttachment.payload?.url || '';
-                if (mimeType.startsWith('image/') && fileUrl) {
-                    imageObj = { url: fileUrl };
+                const mimeType = firstAttachment.mimeType || firstAttachment.type || 'image/jpeg';
+                const fileUrl = firstAttachment.url || firstAttachment.uri || firstAttachment.payload?.url || '';
+                if (fileUrl) {
+                    imageObj = { url: fileUrl, mimeType };
                 }
             }
 
@@ -772,41 +1021,119 @@ class MyavanaChatbotServer {
             let chatHistory = await core.getConversationHistory(conversationId, userId);
             if (!Array.isArray(chatHistory)) chatHistory = [];
 
-            // Extract attachments for stream vision pipeline (TASK_MSDK_011 / HJ_024)
-            const attachments = req.body.attachments || [];
-            let imageObj = null;
-            if (Array.isArray(attachments) && attachments.length > 0) {
-                const firstAttachment = attachments[0];
-                const mimeType = firstAttachment.mimeType || firstAttachment.type || '';
-                const fileUrl = firstAttachment.uri || firstAttachment.url || '';
-                if (mimeType.startsWith('image/') && fileUrl) {
-                    imageObj = { url: fileUrl };
-                }
-            }
+            // Photos: the widget sends them inline as data: URLs, the mobile SDK
+            // as https links. Up to four go to the model with the message - see
+            // imageAttachments.js for what is accepted.
+            const images = extractImageAttachments(req.body.attachments);
+            const imageObj = images[0] || null;
+            if (images.length) console.log(`📸 ${images.length} image attachment(s) on this turn`);
 
-            const { chat, messageWithContext, aiPrompt, chatTools } = await this.prepareChatTurn({
-                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'widget', experienceContext, imageObj,
-            });
+            const turnArgs = {
+                userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'widget', experienceContext, imageObj, images,
+            };
+            let { chat, messageWithContext, aiPrompt, chatTools } = await this.prepareChatTurn(turnArgs);
+            // Cached for five minutes inside loadServiceCatalog, so this is
+            // not a DB round trip per message.
+            const serviceCatalog = await loadServiceCatalog();
+            const shownProductKeys = collectShownProductKeys(chatHistory, serviceCatalog);
+
+            // Every block the member sees goes out through emitBlock, so the
+            // guards cannot be bypassed by a new emission site. Quick replies
+            // are held back and sent last by finishBlocks, so a server-added
+            // store card lands above the reply pills rather than below them.
+            const turnBlocks = { productCards: 0, storeLink: false, heldQuickReplies: null };
+            const emitBlock = (block) => {
+                const safe = sanitizeBlock(decodeBlockText(block), serviceCatalog, shownProductKeys);
+                if (!safe) return;
+                if (safe.type === 'quick_replies') {
+                    turnBlocks.heldQuickReplies = safe;
+                    return;
+                }
+                if (PRODUCT_BLOCK_TYPES.has(safe.type)) turnBlocks.productCards += 1;
+                if (safe.type === 'navigation' && safe.data?.url === STORE_URL) turnBlocks.storeLink = true;
+                res.write(encodeFrame(createBlockFrame(safe)));
+            };
+            const finishBlocks = () => {
+                if (!turnBlocks.storeLink && shouldOfferStoreLink(safeMessage, turnBlocks.productCards)) {
+                    res.write(encodeFrame(createBlockFrame(buildStoreLinkBlock())));
+                    turnBlocks.storeLink = true;
+                    console.log('🛒 Added MYAVANA store link to this turn');
+                }
+                if (turnBlocks.heldQuickReplies) {
+                    res.write(encodeFrame(createBlockFrame(turnBlocks.heldQuickReplies)));
+                    turnBlocks.heldQuickReplies = null;
+                }
+            };
 
             let aiOutput = '';
             let modelUsed = 'gemini37Flash-stream';
             let streamedText = '';
             let anyChunkWritten = false;
 
+            // One retry on a transient upstream 503 before degrading to the
+            // fallback chain - see isRetryableModelError.
+            const MAX_PRIMARY_ATTEMPTS = 2;
+            for (let attempt = 1; attempt <= MAX_PRIMARY_ATTEMPTS; attempt++) {
             try {
-                console.log('🚀 ===== STREAMING PRIMARY MODEL: GEMINI 3.7 FLASH =====');
+                console.log(`🚀 ===== STREAMING PRIMARY MODEL: GEMINI 3.7 FLASH (attempt ${attempt}/${MAX_PRIMARY_ATTEMPTS}) =====`);
                 const { stream, response } = chat.sendStream(messageWithContext);
+                let inCodeBlock = false;
+                let pendingProse = '';
+
                 for await (const chunk of stream) {
                     if (chunk.text) {
-                        if (acceptsNDJSON) {
-                            res.write(encodeFrame(createDeltaFrame(chunk.text)));
-                        } else {
-                            res.write(chunk.text);
-                        }
                         streamedText += chunk.text;
+
+                        if (!inCodeBlock) {
+                            const fenceIndex = streamedText.indexOf('```');
+                            if (fenceIndex !== -1) {
+                                inCodeBlock = true;
+                                const proseBeforeFence = streamedText.slice(0, fenceIndex);
+                                const newProseChunk = proseBeforeFence.slice(pendingProse.length);
+                                if (newProseChunk) {
+                                    if (acceptsNDJSON) {
+                                        res.write(encodeFrame(createDeltaFrame(repairStoreLinks(newProseChunk))));
+                                    } else {
+                                        res.write(repairStoreLinks(newProseChunk));
+                                    }
+                                    pendingProse = proseBeforeFence;
+                                    anyChunkWritten = true;
+                                }
+                            } else {
+                                // Buffer potential partial fence marker
+                                const safeLength = streamedText.endsWith('``')
+                                    ? streamedText.length - 2
+                                    : (streamedText.endsWith('`') ? streamedText.length - 1 : streamedText.length);
+
+                                const safeProse = streamedText.slice(0, safeLength);
+                                const newProseChunk = safeProse.slice(pendingProse.length);
+                                if (newProseChunk) {
+                                    if (acceptsNDJSON) {
+                                        res.write(encodeFrame(createDeltaFrame(repairStoreLinks(newProseChunk))));
+                                    } else {
+                                        res.write(repairStoreLinks(newProseChunk));
+                                    }
+                                    pendingProse = safeProse;
+                                    anyChunkWritten = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Flush any remaining un-fenced prose
+                if (!inCodeBlock && pendingProse.length < streamedText.length) {
+                    const remaining = streamedText.slice(pendingProse.length);
+                    if (remaining) {
+                        if (acceptsNDJSON) {
+                            res.write(encodeFrame(createDeltaFrame(repairStoreLinks(remaining))));
+                        } else {
+                            res.write(repairStoreLinks(remaining));
+                        }
                         anyChunkWritten = true;
                     }
                 }
+
                 const finalResponse = await response;
                 aiOutput = finalResponse?.text ?? (typeof finalResponse?.output === 'string' ? finalResponse.output : '') ?? streamedText;
                 if (!aiOutput) throw new Error('Empty streamed output from Gemini 3.7 Flash');
@@ -817,26 +1144,51 @@ class MyavanaChatbotServer {
                     // Emit any blocks returned directly by tools
                     if (finalResponse?.toolBlocks && Array.isArray(finalResponse.toolBlocks)) {
                         for (const toolBlock of finalResponse.toolBlocks) {
-                            res.write(encodeFrame(createBlockFrame(toolBlock)));
+                            emitBlock(toolBlock);
                         }
                     }
 
                     const parsed = parseModelOutput(aiOutput);
+                    // If no chunks were written as prose yet (e.g. model output pure JSON), emit parsed prose text
+                    if (!anyChunkWritten && parsed.text) {
+                        res.write(encodeFrame(createDeltaFrame(repairStoreLinks(parsed.text))));
+                        anyChunkWritten = true;
+                    }
+
+                    let emittedQuickReplyBlock = false;
                     for (const block of parsed.blocks) {
                         if (block.type !== 'text') {
-                            res.write(encodeFrame(createBlockFrame(block)));
+                            if (block.type === 'quick_replies') emittedQuickReplyBlock = true;
+                            emitBlock(block);
                         }
                     }
-                    if (parsed.quickReplies && parsed.quickReplies.length > 0) {
+                    finishBlocks();
+                    // Only send the action frame when the replies did NOT already
+                    // go out as a quick_replies block - clients render both, so
+                    // sending both showed every reply pill twice.
+                    if (!emittedQuickReplyBlock && parsed.quickReplies && parsed.quickReplies.length > 0) {
                         res.write(encodeFrame(createActionFrame(parsed.quickReplies)));
                     }
-                    res.write(encodeFrame(createDoneFrame({ 
-                        modelUsed, 
+                    res.write(encodeFrame(createDoneFrame({
+                        modelUsed,
                         blocksCount: (parsed.blocks.length || 0) + (finalResponse?.toolBlocks?.length || 0) 
                     })));
                 }
+                break;
             } catch (streamError) {
                 console.error('❌ Streaming primary model failed:', streamError.message);
+
+                // Nothing has reached the member yet and the upstream said it
+                // was momentarily overloaded - rebuild the turn and try the
+                // primary once more rather than handing this to a weaker model.
+                if (!anyChunkWritten && attempt < MAX_PRIMARY_ATTEMPTS && isRetryableModelError(streamError)) {
+                    console.warn(`⏳ Transient upstream error — retrying the primary model (attempt ${attempt + 1}/${MAX_PRIMARY_ATTEMPTS})`);
+                    await new Promise((resolve) => setTimeout(resolve, 750));
+                    streamedText = '';
+                    ({ chat, messageWithContext, aiPrompt, chatTools } = await this.prepareChatTurn(turnArgs));
+                    continue;
+                }
+
                 if (anyChunkWritten) {
                     console.warn('⚠️ Partial stream already sent to client — not falling back, ending with partial content.');
                     aiOutput = streamedText;
@@ -847,26 +1199,44 @@ class MyavanaChatbotServer {
                 } else {
                     console.log('🔄 No content sent yet — falling back to Gemini 3.6 Flash.');
                     const fallback = await this.sendFallbackModel({
-                        messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel: 'widget',
+                        messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel: 'widget', images,
                     });
                     aiOutput = fallback.aiOutput;
                     modelUsed = fallback.modelUsed;
                     if (acceptsNDJSON) {
-                        res.write(encodeFrame(createDeltaFrame(aiOutput)));
                         const parsed = parseModelOutput(aiOutput);
+                        console.log('🧩 Fallback blocks:', parsed.blocks.map(b => b.type).join(', ') || 'none');
+                        // parsed.text is the prose before the ```mya-blocks fence.
+                        // Falling back to the raw aiOutput when it is empty dumped
+                        // the entire fenced JSON into the chat as visible text, so
+                        // strip the fence explicitly instead of showing raw blocks.
+                        const proseText = parsed.text || stripBlocksFence(aiOutput);
+                        res.write(encodeFrame(createDeltaFrame(repairStoreLinks(proseText))));
+                        let emittedQuickReplyBlock = false;
                         for (const block of parsed.blocks) {
                             if (block.type !== 'text') {
-                                res.write(encodeFrame(createBlockFrame(block)));
+                                if (block.type === 'quick_replies') emittedQuickReplyBlock = true;
+                                emitBlock(block);
                             }
                         }
-                        if (parsed.quickReplies && parsed.quickReplies.length > 0) {
+                        finishBlocks();
+                        if (!emittedQuickReplyBlock && parsed.quickReplies && parsed.quickReplies.length > 0) {
                             res.write(encodeFrame(createActionFrame(parsed.quickReplies)));
                         }
-                        res.write(encodeFrame(createDoneFrame({ modelUsed, fallback: true })));
+                        res.write(encodeFrame(createDoneFrame({
+                            modelUsed,
+                            fallback: true,
+                            blocksCount: parsed.blocks.filter(b => b.type !== 'text').length,
+                        })));
                     } else {
-                        res.write(aiOutput);
+                        // Plain-text clients get prose only. Writing aiOutput
+                        // straight through dumped the whole ```mya-blocks
+                        // fence into the chat as visible JSON.
+                        res.write(repairStoreLinks(stripBlocksFence(aiOutput) || aiOutput));
                     }
                 }
+                break;
+            }
             }
 
             res.end();

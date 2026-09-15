@@ -15,6 +15,8 @@
 const { z } = require('zod');
 const ai = require('./ai');
 const { pgClient } = require('./database');
+const StylistEcosystemService = require('./ecosystem/stylistEcosystemService');
+const { HairMediaService } = require('./hairMedia/hairMediaService');
 
 // ---------------------------------------------------------------------------
 // Global tools (no user context — safe to register once)
@@ -42,44 +44,74 @@ const searchServices = ai.defineTool(
                 'Max number of results to return (default 5)'
             ),
         }),
-        outputSchema: z.array(z.record(z.unknown())),
+        // Object, not a bare array - see the note on searchHairMedia's
+        // outputSchema. A top-level array breaks the functionResponse proto.
+        outputSchema: z.object({
+            results: z.array(z.record(z.unknown())),
+            message: z.string().optional()
+        }),
     },
     async ({ query, limit = 5 }) => {
         const pattern = `%${query}%`;
         try {
-            // Search Myavana services
+            // The products table's columns are general_description and
+            // product_category - NOT description/category. Querying the wrong
+            // names threw on every single call, so this tool had been
+            // answering "Service search temporarily unavailable" for every
+            // query, and no service or product card could ever be built.
+            //
+            // Selecting named columns rather than * also keeps the large
+            // details/images JSON blobs out of the functionResponse payload.
             const servicesResult = await pgClient.query(
-                `SELECT * FROM products
-                 WHERE product_name ILIKE $1
-                    OR description   ILIKE $1
-                    OR category      ILIKE $1
-                 LIMIT $2`,
+                `SELECT product_name,
+                        general_description AS description,
+                        product_category    AS category,
+                        cost                AS price,
+                        url,
+                        main_image          AS image_url,
+                        'myavana'           AS source
+                   FROM products
+                  WHERE product_name        ILIKE $1
+                     OR general_description ILIKE $1
+                     OR product_category    ILIKE $1
+                  LIMIT $2`,
                 [pattern, limit]
             );
 
-            // Search partner products if table exists
+            // Search partner products if the table is populated.
             let partnerRows = [];
             try {
                 const partnerResult = await pgClient.query(
-                    `SELECT *, 'partner' AS source FROM partner_products
-                     WHERE product_name ILIKE $1
-                        OR description  ILIKE $1
-                        OR brand_name   ILIKE $1
-                     LIMIT $2`,
+                    `SELECT product_name,
+                            brand_name,
+                            description,
+                            category,
+                            price_usd AS price,
+                            url,
+                            image_url,
+                            'partner' AS source
+                       FROM partner_products
+                      WHERE active IS NOT FALSE
+                        AND (product_name ILIKE $1
+                          OR description  ILIKE $1
+                          OR brand_name   ILIKE $1
+                          OR category     ILIKE $1)
+                      LIMIT $2`,
                     [pattern, limit]
                 );
                 partnerRows = partnerResult.rows;
-            } catch {
-                // partner_products table doesn't exist yet — skip silently
+            } catch (partnerErr) {
+                // partner_products may not exist in every environment.
+                console.warn('searchServices partner lookup skipped:', partnerErr.message);
             }
 
             const combined = [...servicesResult.rows, ...partnerRows].slice(0, limit);
             return combined.length > 0
-                ? combined
-                : [{ message: `No services or products found matching "${query}".` }];
+                ? { results: combined }
+                : { results: [], message: `No services or products found matching "${query}".` };
         } catch (err) {
             console.error('searchServices tool error:', err.message);
-            return [{ error: 'Service search temporarily unavailable.' }];
+            return { results: [], message: 'Service search temporarily unavailable.' };
         }
     }
 );
@@ -105,10 +137,15 @@ const lookupFAQ = ai.defineTool(
                 'Max results to return (default 3)'
             ),
         }),
-        outputSchema: z.array(z.object({
-            question: z.string().optional(),
-            answer:   z.string().optional(),
-        }).passthrough()),
+        // Object, not a bare array - see the note on searchHairMedia's
+        // outputSchema. A top-level array breaks the functionResponse proto.
+        outputSchema: z.object({
+            faqs: z.array(z.object({
+                question: z.string().optional(),
+                answer:   z.string().optional(),
+            }).passthrough()),
+            message: z.string().optional()
+        }),
     },
     async ({ query, limit = 3 }) => {
         const pattern = `%${query}%`;
@@ -120,11 +157,11 @@ const lookupFAQ = ai.defineTool(
                 [pattern, limit]
             );
             return result.rows.length > 0
-                ? result.rows
-                : [{ question: query, answer: `No FAQ found for "${query}". Answer based on your knowledge.` }];
+                ? { faqs: result.rows }
+                : { faqs: [], message: `No FAQ found for "${query}". Answer based on your knowledge.` };
         } catch (err) {
             console.error('lookupFAQ tool error:', err.message);
-            return [{ error: 'FAQ lookup temporarily unavailable.' }];
+            return { faqs: [], message: 'FAQ lookup temporarily unavailable.' };
         }
     }
 );
@@ -622,6 +659,142 @@ const getCommunityPost = ai.defineTool(
     }
 );
 
-const globalTools = [searchServices, lookupFAQ, getWeatherForecast, getCommunityPost];
+/**
+ * Search and recommend certified salons, stylists, and beauty retailers from the MYAVANA Ecosystem.
+ */
+const findStylistOrSalon = ai.defineTool(
+    {
+        name: 'findStylistOrSalon',
+        description:
+            'Search and recommend official MYAVANA-certified stylists, partner salons, and beauty supply retailers. ' +
+            'Call this whenever a user asks for a stylist recommendation, hair salon near them, where to get their hair analyzed or styled in-person, ' +
+            'or where to purchase MYAVANA products locally. Supports searching by city, state, zip code, or geographic coordinates.',
+        inputSchema: z.object({
+            locationQuery: z.string().optional().describe(
+                'City, state, zip code, or address to search near (e.g. "Atlanta", "MD", "Brooklyn", "75001")'
+            ),
+            query: z.string().optional().describe(
+                'Alias for locationQuery'
+            ),
+            latitude: z.number().optional().describe('User latitude for proximity-based search'),
+            longitude: z.number().optional().describe('User longitude for proximity-based search'),
+            category: z.enum(['all', 'salon', 'salon_or_stylist', 'retailer']).default('salon').describe(
+                'Filter by "salon" (salons & stylists), "retailer" (beauty supplies), or "all"'
+            ),
+            limit: z.number().int().min(1).max(10).default(5).describe('Maximum results to return')
+        }),
+        // Object, not a bare array - see the note on searchHairMedia's
+        // outputSchema. A top-level array breaks the functionResponse proto.
+        outputSchema: z.object({
+            partners: z.array(z.record(z.unknown())),
+            message: z.string().optional()
+        })
+    },
+    async ({ locationQuery, query, latitude, longitude, category = 'salon', limit = 5 }) => {
+        try {
+            const searchTerm = locationQuery || query;
+            const normalizedCategory = category === 'salon_or_stylist' ? 'salon' : category;
+            const hasCoordinates = latitude != null && longitude != null;
 
-module.exports = { globalTools, createUserTools };
+            // The ecosystem is 26 partners scattered across the US and
+            // internationally (Atlanta, Dayton, Brooklyn, Kampala...). With no
+            // location at all, the old fallback returned an arbitrary "top
+            // salons" list - a member in Seattle got Too Groovy Salon in
+            // Atlanta with no indication it was 2,000 miles away. Asking for
+            // a location first is what makes a result useful, so a call with
+            // neither a location string nor coordinates gets no partners and
+            // an explicit instruction back to the model instead of a guess.
+            if (!searchTerm && !hasCoordinates) {
+                return {
+                    partners: [],
+                    needsLocation: true,
+                    message:
+                        'No location provided. Ask the member for their city, state, or zip code, ' +
+                        'then call findStylistOrSalon again with that as locationQuery.',
+                };
+            }
+
+            if (hasCoordinates) {
+                const nearest = StylistEcosystemService.findNearest({
+                    latitude,
+                    longitude,
+                    category: normalizedCategory,
+                    limit
+                });
+                if (nearest.length > 0) return { partners: nearest };
+            }
+
+            if (searchTerm) {
+                const results = StylistEcosystemService.searchPartners({
+                    query: searchTerm,
+                    category: normalizedCategory,
+                    limit
+                });
+                if (results.length > 0) return { partners: results };
+                return {
+                    partners: [],
+                    message: `No certified MYAVANA partners found near "${searchTerm}" yet. ` +
+                        'Direct the member to the full ecosystem map at https://www.myavana.com/pages/myavana-ecosystem.',
+                };
+            }
+
+            return { partners: [], needsLocation: true, message: 'No location provided.' };
+        } catch (err) {
+            console.error('[findStylistOrSalon] Tool execution error:', err.message);
+            return { partners: [], message: 'Unable to query stylist ecosystem at this time.' };
+        }
+    }
+);
+
+/**
+ * Search the verified visual media catalog for hairstyles, curl patterns, and strand diagnostics.
+ */
+const searchHairMedia = ai.defineTool(
+    {
+        name: 'searchHairMedia',
+        description:
+            'Search the MYAVANA verified visual media catalog for hairstyle images, hair type references, ' +
+            'microscopic strand diagnostics, and styling regimen illustrations. Call this tool whenever ' +
+            'a user asks to SEE a hairstyle (e.g. "show me box braids", "crochet braids", "silk press", "twist out", "halo braid", "butterfly locs"), ' +
+            'wants visual examples of hair types (e.g. "what does 4C hair look like?"), asks about protective styles, ' +
+            'or needs diagnostic/microscopy imagery (e.g. "cuticle damage", "split ends"). ' +
+            'Returns verified image URLs, educational science notes, and attribution data.',
+        inputSchema: z.object({
+            query: z.string().describe('Search term (e.g. "box braids", "crochet braids", "4c coils", "silk press", "cuticle damage")'),
+            category: z.enum(['all', 'hairstyles', 'hair_type', 'microscopic_anatomy', 'regimen_steps']).default('all').describe(
+                'Filter by category: "hairstyles", "hair_type", "microscopic_anatomy", "regimen_steps", or "all"'
+            ),
+            limit: z.number().int().min(1).max(5).default(3).describe('Maximum assets to return')
+        }),
+        // Must be an OBJECT, not a bare array. Gemini's functionResponse.response
+        // is a protobuf Struct, so returning a top-level array fails the whole
+        // turn with "Proto field is not repeating, cannot start list" - the model
+        // then falls through every fallback and answers without the tool, which
+        // is why visual queries came back as prose with no card.
+        outputSchema: z.object({
+            assets: z.array(z.record(z.unknown())),
+            message: z.string().optional()
+        })
+    },
+    async ({ query, category = 'all', limit = 3 }) => {
+        try {
+            if (!HairMediaService) {
+                return { assets: [], message: 'Hair media service temporarily unavailable.' };
+            }
+            const catOption = category === 'all' ? undefined : category;
+            const results = HairMediaService.searchMedia(query, { category: catOption, limit });
+            if (results && results.length > 0) {
+                return { assets: results };
+            }
+            return { assets: [], message: `No media found matching "${query}".` };
+        } catch (err) {
+            console.error('[searchHairMedia] Tool execution error:', err.message);
+            return { assets: [], message: 'Unable to query hair media catalog at this time.' };
+        }
+    }
+);
+
+const globalTools = [searchServices, lookupFAQ, getWeatherForecast, getCommunityPost, findStylistOrSalon, searchHairMedia];
+
+module.exports = { globalTools, createUserTools, findStylistOrSalon, searchHairMedia };
+

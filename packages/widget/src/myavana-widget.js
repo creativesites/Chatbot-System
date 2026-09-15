@@ -32,9 +32,10 @@
     // Bump on every widget change. Logged on init so it is possible to tell
     // at a glance which build a page actually loaded — a stale cache and a
     // not-yet-deployed plugin look identical from the outside otherwise.
-    var BUILD = '2026-09-04.5-composer-inline';
+    var BUILD = '2026-09-15.1-premium-composer';
 
     var USER_ID_KEY = 'myavana_widget_user_id';
+    var DEFAULT_WELCOME_BANNER = 'https://www.myavana.com/cdn/shop/files/myavana-homepage-hairai_3f6d7318-35d1-4d25-88c5-2b5faa0d6d63.jpg';
     var CONVERSATION_ID_KEY = 'myavana_widget_conversation_id';
 
     var MYA_LOGO_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAH0CAYAAADL1t+KAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAE4mlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4KPHg6eG1wbWV0YSB4bWxuczp4PSdhZG9iZTpuczptZXRhLyc+CjxyZGY6UkRGIHhtbG5zOnJkZj0naHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyc+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpBdHRyaWI9J2h0dHA6Ly9ucy5hdHRyaWJ1dGlvbi5jb20vYWRzLzEuMC8nPgogIDxBdHRyaWI6QWRzPgogICA8cmRmOlNlcT4KICAgIDxyZGY6bGkgcmRmOnBhcnNlVHlwZT0nUmVzb3VyY2UnPgogICAgIDxBdHRyaWI6Q3JlYXRlZD4yMDI1LTAyLTIwPC9BdHRyaWI6Q3JlYXRlZD4KICAgICA8QXR0cmliOkV4dElkPmRkMzAxZDhhLWIyZDktNDFhNS05MWZmLTg1ZjJiY2I4MmUxZTwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5Ccm93biBBbmQgV2hpdGUgTWluaW1hbGlzdCBJbml0aWFsIExvZ28gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3Jp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0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIEDQASBA0AEgQNABIOBfuXcxCFjPQdcAAAAASUVORK5CYII=';
@@ -65,6 +66,7 @@
 
     // Elegant Vector SVG Icon Library (Zero Emojis)
     var ICONS = {
+        arrowLeft: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
         chat: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
         stories: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/></svg>',
         history: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
@@ -94,7 +96,12 @@
         copy: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
         chevronDown: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
         messageDots: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>',
-        leaf: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>'
+        leaf: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>',
+        heart: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+        heartOutline: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+        shoppingBag: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+        compass: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+        scissors: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>'
     };
 
     var state = {
@@ -107,7 +114,7 @@
         open: false,
         expanded: false,
         infoOpen: false,
-        drawerOpen: false,
+        addSheetOpen: false,
         activeView: 'chat', // 'chat' | 'stories' | 'history'
         // Platform Architecture: Global vs Local Capabilities
         platform: 'web', // 'wordpress' | 'web' | 'mobile_sdk' | 'salon_pro' | 'shopify'
@@ -128,7 +135,13 @@
         },
         els: {},
         isStreaming: false,
-        stagedPhoto: null,
+        // Composer
+        attachments: [],        // { id, name, status: processing|ready|error, dataUrl, mimeType, previewUrl, error }
+        composerMode: 'empty',  // see computeComposerMode()
+        activeRequest: null,    // the in-flight reply, so it can be stopped
+        dictationPhase: null,   // null | 'recording' | 'transcribing'
+        dictationRecognition: null,
+        dictationTimer: null,
         audioListening: false,
         activeStatusEl: null,
         // Voice Dictation
@@ -151,6 +164,8 @@
         // Local platform bridge (WordPress Hair Journey supplies these surfaces)
         localPlatform: null,
         journeyData: null,
+        identityResolved: true,
+        welcomeBanner: null,
         journeyLoading: false,
         journeyError: false,
         // Data Cache
@@ -177,7 +192,11 @@
     function ensureIdentity() {
         var userId = safeStorageGet(USER_ID_KEY);
         if (!userId) {
-            userId = 'candace-demo';
+            // Was a literal shared string ('candace-demo') - every anonymous
+            // visitor before login got the SAME identity, so their agentMemory
+            // and conversation context could mix. Each guest needs their own
+            // unique id, same as conversationId two lines below.
+            userId = 'guest_' + uuid();
             safeStorageSet(USER_ID_KEY, userId);
         }
         var conversationId = safeStorageGet(CONVERSATION_ID_KEY);
@@ -187,6 +206,37 @@
         }
         state.userId = userId;
         state.conversationId = conversationId;
+    }
+
+    // ---- Identity upgrade race guard ----
+    //
+    // On a WordPress page, init() starts the chat immediately under a guest
+    // id while mya-widget-embed.js asynchronously fetches the member's real
+    // WP user id and calls setContext({wpUserId}) to upgrade it. If a member
+    // sends a message before that upgrade lands, that message - and Mya's
+    // profile lookup for it - happens under the wrong identity, which is
+    // exactly what produced "have you done the HairAI assessment yet?" for a
+    // member who already has one on file. sendMessage() now waits (briefly,
+    // bounded) for the upgrade before the first request goes out.
+    var identityWaiters = [];
+    function resolveIdentity() {
+        state.identityResolved = true;
+        var waiters = identityWaiters;
+        identityWaiters = [];
+        waiters.forEach(function (fn) { fn(); });
+    }
+    function waitForIdentity(timeoutMs) {
+        if (state.identityResolved) return Promise.resolve();
+        return new Promise(function (resolve) {
+            var done = false;
+            var finish = function () {
+                if (done) return;
+                done = true;
+                resolve();
+            };
+            identityWaiters.push(finish);
+            setTimeout(finish, timeoutMs || 2000);
+        });
     }
 
     function getMyaLogoHtml(size, extraClass) {
@@ -228,6 +278,18 @@
             // Hidden — not display:none — so it animates back on close.
             '.mya-launcher.is-morphed{opacity:0;transform:scale(0.6) translateY(10px);pointer-events:none;',
             'transition:opacity 0.2s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1);}',
+
+            // Scoped reset. This widget is embedded into arbitrary WordPress
+            // themes whose global input/button rules otherwise win on
+            // specificity or load order - the search field's left padding was
+            // being overridden by the host theme, dropping the placeholder
+            // underneath the search icon. Scoped to widget roots so nothing
+            // here can leak back out onto the host page.
+            '.mya-panel,.mya-panel *,.mya-panel *::before,.mya-panel *::after,',
+            '.mya-launcher,.mya-launcher *{box-sizing:border-box!important;}',
+            '.mya-panel input,.mya-panel textarea,.mya-panel button{font-family:inherit;margin:0;',
+            'letter-spacing:normal;text-transform:none;min-height:0;max-width:none;}',
+            '.mya-panel input:focus,.mya-panel textarea:focus{outline:none;}',
 
             // Main AI Workspace Panel
             '.mya-panel{position:fixed;bottom:20px;left:20px;width:520px;max-width:calc(100vw - 28px);height:min(840px, calc(100vh - 40px));',
@@ -312,11 +374,16 @@
             'transform:translateY(-2px);box-shadow:0 10px 24px rgba(212,149,111,0.32);}',
             '.mya-new-chat-btn:active{transform:translateY(0);}',
 
-            '.mya-search-wrap{position:relative;margin-bottom:4px;z-index:1;}',
-            '.mya-search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:' + COLORS.muted + ';pointer-events:none;transition:color 0.18s ease;}',
-            '.mya-search-wrap:focus-within svg{color:' + COLORS.coralDark + ';}',
+            '.mya-search-wrap{position:relative;margin-bottom:4px;z-index:1;display:block;}',
+            // Fixed 16px box and centred so the glyph can never drift into the
+            // placeholder text regardless of the host theme's svg defaults.
+            '.mya-search-wrap > svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);',
+            'width:16px!important;height:16px!important;flex:none;color:' + COLORS.muted + ';pointer-events:none;transition:color 0.18s ease;}',
+            '.mya-search-wrap:focus-within > svg{color:' + COLORS.coralDark + ';}',
             '.mya-history-search{width:100%;background:#ffffff;border:1.5px solid ' + COLORS.borderInput + ';border-radius:13px;border-color:' + COLORS.borderInput + '!important;',
-            'padding:11px 34px 11px 36px;font-size:12.5px;outline:none;font-family:inherit;color:' + COLORS.onyx + ';',
+            // !important because host themes style bare input selectors and were
+            // overriding the left padding, putting text under the icon.
+            'padding:11px 36px 11px 39px!important;font-size:12.5px;line-height:1.4;outline:none;font-family:inherit;color:' + COLORS.onyx + ';',
             // An inset top highlight so the upper edge reads crisply even where
             // the panel background is almost the same white as the field.
             'box-shadow:inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(34,35,35,0.05);',
@@ -347,6 +414,8 @@
             '.mya-history-main{flex:1;min-width:0;}',
             '.mya-history-t{font-size:13px;font-weight:600;color:' + COLORS.onyx + ';white-space:nowrap;overflow:hidden;',
             'text-overflow:ellipsis;letter-spacing:-0.01em;}',
+            '.mya-history-sum{display:block;font-size:11.5px;color:' + COLORS.muted + ';margin-top:2px;line-height:1.4;',
+            'overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}',
             '.mya-history-meta{font-size:10.5px;color:' + COLORS.muted + ';margin-top:3px;display:flex;align-items:center;gap:6px;}',
             '.mya-history-meta .sep{width:2.5px;height:2.5px;border-radius:50%;background:' + COLORS.muted + ';opacity:0.5;}',
             '.mya-history-chev{color:' + COLORS.muted + ';flex-shrink:0;opacity:0.45;transition:opacity 0.22s ease,transform 0.22s ease;}',
@@ -469,6 +538,18 @@
             '.mya-check-box{width:18px;height:18px;border-radius:50%;border:1.5px solid ' + COLORS.muted + ';display:flex;align-items:center;justify-content:center;margin-right:10px;font-size:11px;font-weight:700;transition:all 0.18s ease;flex-shrink:0;}',
             '.mya-checklist-item.is-done .mya-check-box{background:' + COLORS.emerald + ';color:#ffffff;border-color:' + COLORS.emerald + ';}',
             '.mya-synced-badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:' + COLORS.emerald + ';margin-top:8px;}',
+            '.mya-welcome-banner{position:relative;width:100%;height:132px;overflow:hidden;flex-shrink:0;}',
+            '.mya-welcome-banner img{width:100%;height:100%;object-fit:cover;object-position:center 32%;display:block;}',
+            '.mya-welcome-banner-fade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,0) 40%,' + COLORS.stone + ' 100%);}',
+            '.mya-welcome-body{display:flex;flex-direction:column;align-items:center;padding:0 16px;margin-top:-28px;position:relative;z-index:1;}',
+            '.mya-checklist-item.is-next{border-color:' + COLORS.coral + ';background:#ffffff;box-shadow:0 0 0 2px rgba(231,166,144,0.18);}',
+            '.mya-checklist-item.is-next .mya-check-box{border-color:' + COLORS.coralDark + ';}',
+            '.mya-routine-progress{margin:2px 0 10px;}',
+            '.mya-routine-progress-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}',
+            '.mya-routine-progress-label{font-size:11px;font-weight:700;color:' + COLORS.onyx + ';letter-spacing:0.01em;}',
+            '.mya-routine-progress-done{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:' + COLORS.emerald + ';}',
+            '.mya-routine-bar{height:5px;border-radius:999px;background:' + COLORS.stone + ';overflow:hidden;}',
+            '.mya-routine-bar-fill{height:100%;border-radius:999px;background:' + COLORS.coral + ';transition:width 0.28s cubic-bezier(0.22,1,0.36,1);}',
 
             // Consultation Card
             '.mya-consult-card{background:linear-gradient(135deg,' + COLORS.onyx + ' 0%,' + COLORS.blueberry + ' 100%);color:#ffffff;border-radius:18px;padding:18px;margin:10px 0;max-width:94%;box-shadow:0 8px 24px rgba(34,35,35,0.16);}',
@@ -477,40 +558,201 @@
             '.mya-consult-btn{background:' + COLORS.coral + ';color:' + COLORS.onyx + ';border:none;border-radius:12px;padding:8px 16px;',
             'font-size:12px;font-weight:700;cursor:pointer;transition:all 0.16s ease;display:inline-flex;align-items:center;gap:6px;}',
 
-            // Google AI Studio Command Center Composer Box
-            '.mya-composer-box{background:#ffffff;border-top:1px solid ' + COLORS.border + ';padding:8px 14px 12px;position:relative;}',
-            '.mya-input-wrapper{background:#ffffff;border:1.5px solid ' + COLORS.borderInput + ';border-radius:18px;padding:8px 10px;',
-            'box-shadow:inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(34,35,35,0.05);',
-            'display:flex;flex-direction:row;align-items:flex-end;gap:6px;}',
-            '.mya-input-wrapper:focus-within{background:#ffffff;border-color:' + COLORS.coral + ';box-shadow:0 0 0 3px rgba(231,166,144,0.18);}',
-            '.mya-textarea.is-scrolling{overflow-y:auto;}',
-            // Single line at rest. It grows with the content and collapses
-            // straight back — a composer that stays tall after one long message
-            // permanently steals space from the conversation.
-            '.mya-textarea{flex:1;min-width:0;height:24px;min-height:24px;max-height:132px;background:transparent;border:none;outline:none;',
-            'overflow-y:hidden;display:block;padding:4px 2px;',
-            'font-family:Archivo,-apple-system,sans-serif;font-size:13.5px;line-height:1.45;color:' + COLORS.onyx + ';resize:none;}',
-            '.mya-textarea::placeholder{color:' + COLORS.muted + ';}',
+            // Hair Profile Card (Canonical HairAI Component)
+            '.mya-profile-card{padding:0 !important;overflow:hidden;border:1px solid ' + COLORS.border + ';border-radius:20px;box-shadow:0 8px 24px rgba(34,35,35,0.06);background:#ffffff;margin:10px 0;max-width:94%;animation:myaFadeIn 0.25s ease;}',
+            '.mya-profile-banner-wrap{position:relative;width:100%;height:112px;background:linear-gradient(135deg, ' + COLORS.onyx + ' 0%, ' + COLORS.blueberry + ' 100%);overflow:hidden;}',
+            '.mya-profile-banner-img{width:100%;height:100%;object-fit:cover;display:block;}',
+            '.mya-profile-banner-overlay{position:absolute;inset:0;background:linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(34,35,35,0.65) 100%);}',
+            '.mya-profile-banner-badge{position:absolute;top:10px;left:12px;display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);color:' + COLORS.onyx + ';padding:3px 8px;border-radius:9999px;font-size:9.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;}',
+            '.mya-profile-content{padding:14px 16px;}',
+            '.mya-profile-greeting{font-size:16px;font-weight:700;color:' + COLORS.onyx + ';margin:0 0 4px;letter-spacing:-0.01em;}',
+            '.mya-profile-subtitle{font-size:10px;color:' + COLORS.coralDark + ';margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;}',
+            '.mya-profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}',
+            '.mya-profile-trait{background:' + COLORS.stone + ';padding:8px 11px;border-radius:12px;border:1px solid rgba(34,35,35,0.04);}',
+            '.mya-profile-trait-label{display:block;font-size:9px;font-weight:700;color:' + COLORS.muted + ';text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;}',
+            '.mya-profile-trait-val{display:block;font-size:13px;font-weight:700;color:' + COLORS.onyx + ';}',
+            '.mya-profile-goals{margin-top:10px;padding-top:10px;border-top:1px solid ' + COLORS.border + ';}',
+            '.mya-profile-goals-label{font-size:10px;font-weight:700;color:' + COLORS.muted + ';text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:4px;}',
+            '.mya-profile-goals-chips{display:flex;flex-wrap:wrap;gap:5px;}',
+            '.mya-profile-goal-chip{background:' + COLORS.sand + ';color:' + COLORS.onyx + ';font-size:11px;font-weight:600;padding:4px 9px;border-radius:8px;display:inline-flex;align-items:center;gap:4px;}',
+            '.mya-profile-statement{font-size:12px;color:' + COLORS.blueberry + ';line-height:1.45;margin:10px 0 4px;padding:8px 10px;background:rgba(231,166,144,0.12);border-left:3px solid ' + COLORS.coral + ';border-radius:6px;}',
+            '.mya-profile-cta-btn{width:100%;justify-content:center;padding:9px 16px;font-size:12.5px;margin-top:10px;}',
 
-            // Composer Action Bar
-            '.mya-action-bar{display:flex;align-items:center;justify-content:space-between;}',
-            '.mya-action-group-left{display:flex;align-items:center;gap:2px;flex-shrink:0;}',
-            '.mya-action-group-right{display:flex;align-items:center;gap:4px;flex-shrink:0;}',
-            '.mya-tool-btn{background:transparent;border:none;color:' + COLORS.muted + ';width:30px;height:30px;border-radius:50%;',
-            'display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s ease;}',
-            '.mya-tool-btn:hover{background:rgba(34,35,35,0.06);color:' + COLORS.onyx + ';}',
-            '.mya-tool-btn.active{color:' + COLORS.coralDark + ';background:' + COLORS.lightCoral + ';}',
-            '.mya-send-btn{width:32px;height:32px;border-radius:50%;background:' + COLORS.onyx + ';color:#ffffff;border:none;flex-shrink:0;',
-            'display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.18s ease;}',
-            '.mya-send-btn:hover{background:' + COLORS.coralDark + ';transform:scale(1.05);}',
-            '.mya-send-btn:disabled{background:' + COLORS.stoneAlt + ';color:' + COLORS.muted + ';cursor:not-allowed;transform:none;}',
+            // ---- Composer ----
+            // One raised surface: an attachment rail that only exists while
+            // something is attached, above a single row of
+            // [+] [draft] [primary action]. Quiet at rest; the primary button
+            // is the only control that changes (see updateComposerState).
+            '.mya-composer-box{position:relative;padding:8px 14px 14px;background:linear-gradient(180deg,rgba(255,255,255,0) 0%,#ffffff 32%);}',
+            '.mya-composer{position:relative;background:#ffffff;border:1px solid rgba(34,35,35,0.13);border-radius:26px;',
+            'box-shadow:0 1px 2px rgba(34,35,35,0.04),0 12px 30px -14px rgba(34,35,35,0.2);',
+            'transition:border-color 0.2s ease,box-shadow 0.28s ease,background 0.2s ease;}',
+            '.mya-composer:focus-within{border-color:rgba(212,149,111,0.6);',
+            'box-shadow:0 0 0 4px rgba(231,166,144,0.15),0 14px 34px -14px rgba(34,35,35,0.24);}',
+            '.mya-composer.is-drop{border-color:' + COLORS.coralDark + ';box-shadow:0 0 0 5px rgba(231,166,144,0.24);}',
+            '.mya-composer[data-mode="recording"],.mya-composer[data-mode="transcribing"]{border-color:rgba(212,149,111,0.6);background:#fffaf7;}',
 
-            // Attachment Drawer Menu
-            '.mya-drawer{position:absolute;bottom:78px;left:16px;background:#ffffff;border:1px solid ' + COLORS.border + ';',
-            'border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,0.14);padding:8px 0;width:240px;display:none;z-index:20;animation:myaFadeIn 0.18s ease;}',
-            '.mya-drawer-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12.5px;font-weight:500;',
-            'color:' + COLORS.onyx + ';cursor:pointer;transition:background 0.14s ease;user-select:none;}',
-            '.mya-drawer-item:hover{background:' + COLORS.stone + ';}',
+            // Attachment rail: one horizontal row, no visible scrollbar, edge
+            // fades only on the side that has more to scroll to.
+            '.mya-attach-rail{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:10px 12px 2px;',
+            'scroll-snap-type:x proximity;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;',
+            'max-height:92px;transition:max-height 0.26s cubic-bezier(0.22,1,0.36,1),padding 0.26s cubic-bezier(0.22,1,0.36,1),opacity 0.2s ease;}',
+            '.mya-attach-rail::-webkit-scrollbar{display:none;}',
+            '.mya-attach-rail.is-empty{max-height:0;padding-top:0;padding-bottom:0;opacity:0;}',
+            '.mya-attach-rail.fade-right{-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent);mask-image:linear-gradient(90deg,#000 80%,transparent);}',
+            '.mya-attach-rail.fade-left{-webkit-mask-image:linear-gradient(90deg,transparent,#000 20%);mask-image:linear-gradient(90deg,transparent,#000 20%);}',
+            '.mya-attach-rail.fade-left.fade-right{-webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);}',
+            '.mya-attach-chip{position:relative;flex:0 0 auto;width:68px;height:68px;border-radius:20px;scroll-snap-align:start;',
+            'background:' + COLORS.stone + ';animation:myaChipIn 0.26s cubic-bezier(0.22,1,0.36,1) both;',
+            'transition:width 0.2s ease,margin 0.2s ease,opacity 0.18s ease,transform 0.18s ease;}',
+            '.mya-attach-chip img{width:100%;height:100%;object-fit:cover;border-radius:20px;display:block;}',
+            '.mya-attach-chip::after{content:"";position:absolute;inset:0;border-radius:20px;box-shadow:inset 0 0 0 1px rgba(34,35,35,0.08);pointer-events:none;}',
+            '.mya-attach-chip.is-leaving{width:0!important;margin-right:-8px;opacity:0;transform:scale(0.85);}',
+            '.mya-attach-chip.is-processing img{filter:blur(2px) saturate(0.6);opacity:0.75;}',
+            '.mya-attach-chip.is-processing::before{content:"";position:absolute;inset:0;z-index:1;border-radius:20px;pointer-events:none;',
+            'background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,0.7) 50%,transparent 70%);background-size:220% 100%;animation:myaShimmer 1.2s linear infinite;}',
+            '.mya-attach-chip.is-error{width:auto;min-width:92px;max-width:150px;padding:0 30px 0 12px;display:flex;align-items:center;',
+            'background:#fdf1ee;color:#9a4a34;font-size:11px;font-weight:600;line-height:1.25;}',
+            '.mya-attach-chip.is-error::after{box-shadow:inset 0 0 0 1px rgba(154,74,52,0.25);}',
+            // 22px visual, 44px touch target via the ::before halo.
+            '.mya-attach-remove{position:absolute;top:5px;right:5px;z-index:2;width:22px;height:22px;border-radius:50%;border:none;padding:0;',
+            'background:rgba(24,25,26,0.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#ffffff;',
+            'display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.16s ease,background 0.16s ease;}',
+            '.mya-attach-remove::before{content:"";position:absolute;inset:-11px;border-radius:50%;}',
+            '.mya-attach-remove svg{width:11px;height:11px;stroke-width:3;}',
+            '.mya-attach-remove:hover{background:' + COLORS.onyx + ';}',
+            '.mya-attach-remove:active{transform:scale(0.88);}',
+            '.mya-attach-chip.is-error .mya-attach-remove{top:50%;margin-top:-11px;background:rgba(154,74,52,0.85);}',
+
+            // The row. Controls sit at the bottom so a growing draft extends
+            // upward and the buttons never move.
+            '.mya-composer-row{display:flex;align-items:flex-end;gap:2px;padding:6px;}',
+            '.mya-cmp-btn{flex:0 0 auto;position:relative;width:44px;height:44px;border-radius:50%;border:none;padding:0;background:transparent;',
+            'color:' + COLORS.onyxSoft + ';display:flex;align-items:center;justify-content:center;cursor:pointer;',
+            'transition:background 0.18s ease,color 0.18s ease,transform 0.22s cubic-bezier(0.34,1.56,0.64,1);}',
+            '.mya-cmp-btn svg{width:21px;height:21px;transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);}',
+            '.mya-cmp-btn:hover{background:' + COLORS.stone + ';}',
+            '.mya-cmp-btn:active{transform:scale(0.92);}',
+            '.mya-cmp-btn:disabled{opacity:0.4;cursor:not-allowed;}',
+            '.mya-cmp-btn[aria-expanded="true"]{background:' + COLORS.lightCoral + ';color:' + COLORS.coralDark + ';}',
+            '.mya-cmp-btn[aria-expanded="true"] svg{transform:rotate(45deg);}',
+
+            '.mya-textarea{flex:1 1 auto;min-width:0;height:24px;min-height:24px;max-height:144px;margin:10px 4px;padding:0;',
+            'border:none;outline:none;background:transparent;resize:none;overflow-y:hidden;display:block;',
+            'font-family:Archivo,-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px;line-height:24px;color:' + COLORS.onyx + ';',
+            'transition:height 0.14s cubic-bezier(0.22,1,0.36,1);}',
+            // The panel reset (.mya-panel textarea{margin:0}) outranks a bare
+            // .mya-textarea rule, which dropped the draft 10px below the button
+            // centres. Scoping to the row restores the margin that centres it.
+            '.mya-composer-row .mya-textarea{margin:10px 4px;min-height:24px;}',
+            '.mya-textarea.is-scrolling{overflow-y:auto;scrollbar-width:thin;}',
+            // One line, always: a wrapped placeholder made the empty composer
+            // taller than a composer with a one-line draft in it.
+            '.mya-textarea::placeholder{color:#8b8b90;opacity:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+
+            // Dictation replaces the draft area in place - same row, same height.
+            '.mya-voice-status{flex:1 1 auto;display:none;align-items:center;gap:10px;min-height:44px;padding:0 6px;',
+            'color:' + COLORS.onyxSoft + ';font-size:14px;font-weight:600;}',
+            '.mya-composer[data-mode="recording"] .mya-voice-status,.mya-composer[data-mode="transcribing"] .mya-voice-status{display:flex;}',
+            '.mya-composer[data-mode="recording"] .mya-textarea,.mya-composer[data-mode="transcribing"] .mya-textarea{display:none;}',
+            '.mya-voice-bars{display:flex;align-items:center;gap:3px;height:18px;}',
+            '.mya-voice-bars i{display:block;width:3px;height:100%;border-radius:3px;background:' + COLORS.coralDark + ';transform:scaleY(0.35);animation:myaVoiceBar 1s ease-in-out infinite;}',
+            '.mya-voice-bars i:nth-child(2){animation-delay:0.12s;}.mya-voice-bars i:nth-child(3){animation-delay:0.24s;}',
+            '.mya-voice-bars i:nth-child(4){animation-delay:0.36s;}.mya-voice-bars i:nth-child(5){animation-delay:0.48s;}',
+            '.mya-composer[data-mode="transcribing"] .mya-voice-bars i{animation-duration:1.8s;opacity:0.55;}',
+            '.mya-voice-timer{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:500;color:' + COLORS.muted + ';font-size:12.5px;}',
+
+            // Primary action: every icon is stacked in the one button and the
+            // mode decides which is visible, so changing state crossfades
+            // instead of re-rendering the control.
+            '.mya-primary-btn{flex:0 0 auto;position:relative;width:44px;height:44px;border-radius:50%;border:none;padding:0;cursor:pointer;',
+            'background:transparent;color:' + COLORS.onyxSoft + ';',
+            'transition:background 0.22s ease,color 0.22s ease,box-shadow 0.22s ease,transform 0.22s cubic-bezier(0.34,1.56,0.64,1);}',
+            '.mya-primary-btn:active:not(:disabled){transform:scale(0.9);}',
+            '.mya-primary-btn .ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;',
+            'opacity:0;transform:scale(0.55) rotate(-25deg);transition:opacity 0.18s ease,transform 0.28s cubic-bezier(0.22,1,0.36,1);}',
+            '.mya-primary-btn .ic svg{width:21px;height:21px;}',
+            '.mya-primary-btn .ic-send svg{width:19px;height:19px;}',
+            '.mya-primary-btn .ic-stop svg{width:13px;height:13px;fill:currentColor;}',
+            '.mya-primary-btn .mya-status-dots i{background:' + COLORS.coralDark + ';width:4px;height:4px;}',
+            '.mya-composer[data-mode="empty"] .ic-mic,',
+            '.mya-composer[data-mode="ready"] .ic-send,.mya-composer[data-mode="processing"] .ic-send,.mya-composer[data-mode="idle"] .ic-send,',
+            '.mya-composer[data-mode="streaming"] .ic-stop,.mya-composer[data-mode="recording"] .ic-stop,',
+            '.mya-composer[data-mode="transcribing"] .ic-busy{opacity:1;transform:none;}',
+            '.mya-composer[data-mode="empty"] .mya-primary-btn:hover{background:' + COLORS.stone + ';}',
+            '.mya-composer[data-mode="ready"] .mya-primary-btn{background:' + COLORS.onyx + ';color:#ffffff;box-shadow:0 5px 14px -4px rgba(34,35,35,0.45);}',
+            '.mya-composer[data-mode="ready"] .mya-primary-btn:hover{background:' + COLORS.coralDark + ';box-shadow:0 7px 18px -5px rgba(212,149,111,0.7);}',
+            '.mya-composer[data-mode="streaming"] .mya-primary-btn{background:' + COLORS.onyx + ';color:#ffffff;}',
+            '.mya-composer[data-mode="recording"] .mya-primary-btn{background:' + COLORS.coralDark + ';color:#ffffff;animation:myaRecPulse 1.6s ease-out infinite;}',
+            '.mya-composer[data-mode="processing"] .mya-primary-btn,.mya-composer[data-mode="idle"] .mya-primary-btn{background:' + COLORS.stone + ';color:#9d9da3;cursor:default;}',
+            '.mya-composer[data-mode="transcribing"] .mya-primary-btn{cursor:progress;}',
+            '.mya-composer[data-mode="idle"] .ic-send{opacity:0.5;}',
+
+            // Inline, non-blocking notes (photo limit, mic permission, failed send).
+            '.mya-composer-note{display:flex;align-items:center;gap:8px;margin:0 4px 8px;padding:9px 13px;border-radius:14px;',
+            'background:#fdf1ee;color:#8a4431;font-size:12.5px;line-height:1.4;animation:myaChipIn 0.24s cubic-bezier(0.22,1,0.36,1) both;}',
+            '.mya-composer-note[hidden]{display:none!important;}',
+
+            // "Add to Mya" bottom sheet
+            '.mya-add-sheet{position:absolute;inset:0;z-index:45;display:none;}',
+            '.mya-add-sheet.is-mounted{display:block;}',
+            '.mya-add-sheet-backdrop{position:absolute;inset:0;background:rgba(24,25,26,0.34);opacity:0;transition:opacity 0.3s ease;',
+            '-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}',
+            '.mya-add-sheet.is-open .mya-add-sheet-backdrop{opacity:1;}',
+            '.mya-add-sheet-panel{position:absolute;left:0;right:0;bottom:0;margin:0 auto;max-width:560px;background:#ffffff;',
+            'border-radius:28px 28px 0 0;padding:4px 14px calc(16px + env(safe-area-inset-bottom, 0px));',
+            'box-shadow:0 -14px 44px -10px rgba(34,35,35,0.25);transform:translateY(105%);',
+            'transition:transform 0.44s cubic-bezier(0.32,0.72,0,1);will-change:transform;}',
+            '.mya-add-sheet.is-open .mya-add-sheet-panel{transform:translateY(0);}',
+            '.mya-add-sheet-panel.is-dragging{transition:none;}',
+            '.mya-add-sheet-head{touch-action:none;cursor:grab;padding-top:8px;}',
+            '.mya-add-sheet-grab{display:block;width:38px;height:5px;margin:0 auto 14px;border-radius:9999px;background:rgba(34,35,35,0.16);}',
+            '.mya-add-sheet-title{font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:' + COLORS.muted + ';margin:0 6px 10px;}',
+            '.mya-add-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:18px;}',
+            '.mya-add-tile{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:12px;min-height:96px;padding:14px;',
+            'border-radius:20px;border:none;cursor:pointer;background:' + COLORS.stone + ';color:' + COLORS.onyx + ';text-align:left;',
+            'font:600 13.5px/1.2 Archivo,-apple-system,BlinkMacSystemFont,sans-serif;',
+            'transition:background 0.18s ease,transform 0.22s cubic-bezier(0.34,1.56,0.64,1);}',
+            '.mya-add-tile:hover:not(:disabled){background:' + COLORS.lightCoral + ';}',
+            '.mya-add-tile:active:not(:disabled){transform:scale(0.97);}',
+            '.mya-add-tile small{display:block;margin-top:3px;font-weight:500;font-size:11.5px;color:' + COLORS.muted + ';}',
+            '.mya-add-tile-ico{width:38px;height:38px;border-radius:13px;background:#ffffff;color:' + COLORS.coralDark + ';',
+            'display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(34,35,35,0.07);}',
+            '.mya-add-tile-ico svg{width:19px;height:19px;}',
+            '.mya-add-list{display:flex;flex-direction:column;gap:2px;}',
+            '.mya-add-row{display:flex;align-items:center;gap:14px;min-height:48px;padding:0 10px;border:none;border-radius:14px;',
+            'background:transparent;color:' + COLORS.onyx + ';cursor:pointer;text-align:left;',
+            'font:500 14.5px/1.3 Archivo,-apple-system,BlinkMacSystemFont,sans-serif;transition:background 0.16s ease;}',
+            '.mya-add-row:hover:not(:disabled){background:' + COLORS.stone + ';}',
+            '.mya-add-row svg{width:18px;height:18px;color:' + COLORS.muted + ';flex-shrink:0;}',
+            '.mya-add-tile:disabled,.mya-add-row:disabled{opacity:0.45;cursor:not-allowed;}',
+
+            // Sent photos in the thread
+            '.mya-msg-photos{display:grid;gap:4px;margin:2px 0 6px;grid-template-columns:repeat(2,minmax(0,1fr));max-width:240px;}',
+            '.mya-msg-photos.count-1{grid-template-columns:1fr;}',
+            '.mya-msg-photos img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px;}',
+            '.mya-msg-photos.count-1 img{aspect-ratio:auto;max-height:280px;}',
+            '.mya-msg-stopped{display:block;margin:4px 0 12px;font-size:11.5px;font-weight:600;color:' + COLORS.muted + ';}',
+
+            '.mya-sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}',
+
+            // With the on-screen keyboard up, the home-indicator inset no longer
+            // applies - keeping it left a gap between the composer and the keys.
+            '.mya-panel.mya-kb-open .mya-composer-box{padding-bottom:8px!important;}',
+
+            '.mya-cmp-btn:focus-visible,.mya-primary-btn:focus-visible,.mya-attach-remove:focus-visible,',
+            '.mya-add-tile:focus-visible,.mya-add-row:focus-visible{outline:2px solid ' + COLORS.coralDark + ';outline-offset:2px;}',
+
+            '@keyframes myaChipIn{from{opacity:0;transform:scale(0.86) translateY(4px);}to{opacity:1;transform:none;}}',
+            '@keyframes myaVoiceBar{0%,100%{transform:scaleY(0.35);}50%{transform:scaleY(1);}}',
+            '@keyframes myaRecPulse{0%{box-shadow:0 0 0 0 rgba(212,149,111,0.5);}100%{box-shadow:0 0 0 12px rgba(212,149,111,0);}}',
+
+            '@media (prefers-reduced-motion: reduce){',
+            '  .mya-composer,.mya-attach-rail,.mya-attach-chip,.mya-cmp-btn,.mya-cmp-btn svg,.mya-primary-btn,.mya-primary-btn .ic,',
+            '  .mya-textarea,.mya-add-sheet-backdrop,.mya-add-sheet-panel,.mya-add-tile,.mya-composer-note{transition:none!important;animation:none!important;}',
+            '  .mya-voice-bars i{animation:none!important;transform:scaleY(0.7);}',
+            '  .mya-attach-chip.is-processing::before{animation:none!important;}',
+            '}',
 
             // Gemini Live Voice Chat Overlay
             '.mya-live-overlay{position:absolute;inset:0;z-index:50;background:radial-gradient(circle at 50% 25%, #25262c 0%, #17181b 70%, #101012 100%);',
@@ -708,11 +950,17 @@
 
             // Mobile-First Responsive Breakpoint (< 640px)
             '@media (max-width: 640px) {',
-            '  .mya-panel{position:fixed;inset:0;width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;border:none;left:0!important;right:0!important;bottom:0!important;}',
+            '  body.mya-open-mobile, html.mya-open-mobile{overflow:hidden!important;height:100%!important;position:fixed!important;width:100%!important;}',
+            '  .mya-panel{position:fixed;inset:0;width:100vw;max-width:100vw;height:100vh;height:100dvh;height:-webkit-fill-available;max-height:100dvh;border-radius:0;border:none;left:0!important;right:0!important;bottom:0!important;padding-top:env(safe-area-inset-top, 0px);background:#ffffff!important;overscroll-behavior:contain;z-index:999999;}',
             '  .mya-btn-icon.mobile-back{display:flex;}',
+            '  .mya-stream{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-left:max(16px, env(safe-area-inset-left, 16px))!important;padding-right:max(16px, env(safe-area-inset-right, 16px))!important;}',
+            '  .mya-msg{max-width:88%;word-break:break-word;}',
+            '  .mya-msg.assistant{margin-left:0!important;margin-right:auto!important;}',
+            '  .mya-msg.user{margin-right:0!important;margin-left:auto!important;}',
             '  .mya-btn-icon.expand-btn{display:none;}',
+            '  .mya-textarea{font-size:16px!important;line-height:24px!important;}',
             '  .mya-composer-box{padding-bottom:max(14px, env(safe-area-inset-bottom, 14px));}',
-            '  .mya-launcher{bottom:16px;left:16px;}',
+            '  .mya-launcher{bottom:max(16px, env(safe-area-inset-bottom, 16px));left:16px;}',
             '  .mya-profile-sheet-content{border-radius:24px 24px 0 0;}',
             '  .mya-band-num{font-size:18px;}',
             '  .mya-entry-media{height:200px;}',
@@ -856,151 +1104,129 @@
         viewsContainer.appendChild(storiesView);
         viewsContainer.appendChild(historyView);
 
-        // Composer Box (Active in Chat View)
+        // ---- Composer ----
+        // One adaptive surface: an attachment rail that only exists while
+        // something is attached, then a single row of [+] [draft] [primary].
+        // The primary button is the only control that changes - mic when the
+        // draft is empty, send once there is something to send, stop while
+        // Mya replies or while dictating. See updateComposerState().
         var composerBox = document.createElement('div');
         composerBox.className = 'mya-composer-box';
-
-        var photoStage = document.createElement('div');
-        photoStage.className = 'mya-photo-stage';
-        photoStage.style.display = 'none';
 
         var cameraInput = document.createElement('input');
         cameraInput.type = 'file';
         cameraInput.accept = 'image/*';
-        cameraInput.capture = 'environment';
-        cameraInput.style.display = 'none';
+        cameraInput.setAttribute('capture', 'environment');
+        cameraInput.hidden = true;
         cameraInput.addEventListener('change', handleFileInput);
 
         var fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = 'image/*';
-        fileInput.style.display = 'none';
+        fileInput.multiple = true;
+        fileInput.hidden = true;
         fileInput.addEventListener('change', handleFileInput);
 
-        var drawer = document.createElement('div');
-        drawer.className = 'mya-drawer';
-        drawer.innerHTML = [
-            '<div class="mya-drawer-item" data-action="camera">' + ICONS.camera + '<span>Take journey photo</span></div>',
-            '<div class="mya-drawer-item" data-action="goal">' + ICONS.goal + '<span>Review active goals</span></div>',
-            '<div class="mya-drawer-item" data-action="routine">' + ICONS.routine + '<span>Show today\'s routine</span></div>',
-            '<div class="mya-drawer-item" data-action="product">' + ICONS.leaf + '<span>Check product match</span></div>',
-            '<div class="mya-drawer-item" data-action="weather">' + ICONS.weather + '<span>Today\'s hair weather</span></div>'
-        ].join('');
+        var composerNote = el('div', 'mya-composer-note');
+        composerNote.setAttribute('role', 'status');
+        composerNote.hidden = true;
 
-        drawer.addEventListener('click', function (e) {
-            var item = e.target.closest('.mya-drawer-item');
-            if (!item) return;
-            var action = item.getAttribute('data-action');
-            toggleDrawer(false);
-            if (action === 'camera') cameraInput.click();
-            else if (action === 'upload') fileInput.click();
-            else if (action === 'goal') sendMessage('What are my current hair goals?');
-            else if (action === 'routine') sendMessage('Show today\'s routine checklist');
-            else if (action === 'product') sendMessage('Does my current product regimen match my hair porosity and texture?');
-            else if (action === 'weather') sendMessage('What is the hair weather forecast and humidity recommendation for my hair today?');
-            else if (action === 'journal') sendMessage('I would like to record a hair journey journal entry');
+        var composer = el('div', 'mya-composer');
+        composer.setAttribute('data-mode', 'empty');
+
+        var attachRail = el('div', 'mya-attach-rail is-empty');
+        attachRail.setAttribute('role', 'list');
+        attachRail.setAttribute('aria-label', 'Attached photos');
+        attachRail.addEventListener('scroll', updateRailFade, { passive: true });
+
+        var composerRow = el('div', 'mya-composer-row');
+
+        var plusBtn = el('button', 'mya-cmp-btn');
+        plusBtn.type = 'button';
+        plusBtn.innerHTML = ICONS.plus;
+        plusBtn.setAttribute('aria-label', 'Add photos and more');
+        plusBtn.setAttribute('aria-haspopup', 'dialog');
+        plusBtn.setAttribute('aria-expanded', 'false');
+        plusBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            toggleAddSheet();
         });
-
-        var inputWrapper = document.createElement('div');
-        inputWrapper.className = 'mya-input-wrapper';
 
         var textarea = document.createElement('textarea');
         textarea.className = 'mya-textarea';
         textarea.rows = 1;
-        textarea.placeholder = 'Ask Mya about your hair journey...';
-
+        textarea.placeholder = COMPOSER_PLACEHOLDER;
+        textarea.setAttribute('aria-label', 'Message Mya');
+        if (!isCoarsePointer()) textarea.setAttribute('enterkeyhint', 'send');
         textarea.addEventListener('input', function () {
             autosizeComposer();
-            sendBtn.disabled = this.value.trim().length === 0 && !state.stagedPhoto;
+            updateComposerState();
         });
-
-        // Collapse on blur when there's nothing to keep it open for, so an
-        // abandoned draft doesn't leave the composer tall.
-        textarea.addEventListener('blur', function () {
-            if (!this.value.trim()) autosizeComposer();
-        });
-
         textarea.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            // Enter sends with a hardware keyboard. On touch keyboards Enter is
+            // a newline and the send button sends, as members expect there.
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !isCoarsePointer()) {
                 e.preventDefault();
                 submitComposer();
             }
         });
+        textarea.addEventListener('paste', handleComposerPaste);
 
-        var actionBar = document.createElement('div');
-        actionBar.className = 'mya-action-bar';
+        var voiceStatus = el('div', 'mya-voice-status');
+        voiceStatus.setAttribute('aria-hidden', 'true');
+        voiceStatus.innerHTML = '<span class="mya-voice-bars"><i></i><i></i><i></i><i></i><i></i></span>' +
+            '<span class="mya-voice-label">Listening</span><span class="mya-voice-timer">0:00</span>';
 
-        var leftGroup = document.createElement('div');
-        leftGroup.className = 'mya-action-group-left';
+        var primaryBtn = el('button', 'mya-primary-btn');
+        primaryBtn.type = 'button';
+        primaryBtn.innerHTML = '<span class="ic ic-mic">' + ICONS.mic + '</span>' +
+            '<span class="ic ic-send">' + ICONS.send + '</span>' +
+            '<span class="ic ic-stop">' + ICONS.stop + '</span>' +
+            '<span class="ic ic-busy"><span class="mya-status-dots"><i></i><i></i><i></i></span></span>';
+        primaryBtn.addEventListener('click', handlePrimaryAction);
 
-        var plusBtn = document.createElement('button');
-        plusBtn.className = 'mya-tool-btn';
-        plusBtn.innerHTML = ICONS.plus;
-        plusBtn.setAttribute('title', 'Add to conversation');
-        plusBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            toggleDrawer();
+        // Tapping a control must not steal focus from the draft - on a phone
+        // that would drop the keyboard mid-sentence.
+        [plusBtn, primaryBtn].forEach(function (b) {
+            b.addEventListener('mousedown', function (e) {
+                if (document.activeElement === textarea) e.preventDefault();
+            });
         });
 
-        var quickCameraBtn = document.createElement('button');
-        quickCameraBtn.className = 'mya-tool-btn';
-        quickCameraBtn.innerHTML = ICONS.camera;
-        quickCameraBtn.setAttribute('title', 'Document journey photo');
-        quickCameraBtn.addEventListener('click', function () {
-            cameraInput.click();
+        composerRow.appendChild(plusBtn);
+        composerRow.appendChild(textarea);
+        composerRow.appendChild(voiceStatus);
+        composerRow.appendChild(primaryBtn);
+
+        composer.appendChild(attachRail);
+        composer.appendChild(composerRow);
+
+        var liveRegion = el('div', 'mya-sr-only');
+        liveRegion.setAttribute('aria-live', 'polite');
+
+        // Drag photos straight onto the composer on desktop.
+        composerBox.addEventListener('dragover', function (e) {
+            if (!dragHasFiles(e)) return;
+            e.preventDefault();
+            composer.classList.add('is-drop');
+        });
+        composerBox.addEventListener('dragleave', function (e) {
+            if (!composerBox.contains(e.relatedTarget)) composer.classList.remove('is-drop');
+        });
+        composerBox.addEventListener('drop', function (e) {
+            if (!dragHasFiles(e)) return;
+            e.preventDefault();
+            composer.classList.remove('is-drop');
+            addAttachmentFiles(Array.prototype.slice.call(e.dataTransfer.files || []));
         });
 
-        var quickClipBtn = document.createElement('button');
-        quickClipBtn.className = 'mya-tool-btn';
-        quickClipBtn.innerHTML = ICONS.paperclip;
-        quickClipBtn.setAttribute('title', 'Upload image');
-        quickClipBtn.addEventListener('click', function () {
-            fileInput.click();
-        });
-
-        leftGroup.appendChild(plusBtn);
-        leftGroup.appendChild(quickCameraBtn);
-        leftGroup.appendChild(quickClipBtn);
-
-        var rightGroup = document.createElement('div');
-        rightGroup.className = 'mya-action-group-right';
-
-        var audioWave = document.createElement('div');
-        audioWave.className = 'mya-audio-wave';
-        audioWave.innerHTML = '<div class="mya-audio-bar"></div><div class="mya-audio-bar"></div><div class="mya-audio-bar"></div>';
-
-        var micBtn = document.createElement('button');
-        micBtn.className = 'mya-tool-btn';
-        micBtn.innerHTML = ICONS.mic;
-        micBtn.setAttribute('title', 'Voice dictation');
-        micBtn.addEventListener('click', toggleVoiceInput);
-
-        var sendBtn = document.createElement('button');
-        sendBtn.className = 'mya-send-btn';
-        sendBtn.innerHTML = ICONS.send;
-        sendBtn.disabled = true;
-        sendBtn.setAttribute('aria-label', 'Send message');
-        sendBtn.addEventListener('click', submitComposer);
-
-        rightGroup.appendChild(audioWave);
-        rightGroup.appendChild(micBtn);
-        rightGroup.appendChild(sendBtn);
-
-        // actionBar is retained only so nothing downstream that queries it
-        // breaks; the groups are parented directly to the wrapper below.
-
-        // Single row. Stacking the textarea above a full-width button bar cost
-        // ~82px of vertical space at rest no matter how short the input was;
-        // inline it is ~44px, and the difference goes to the conversation.
-        inputWrapper.appendChild(leftGroup);
-        inputWrapper.appendChild(textarea);
-        inputWrapper.appendChild(rightGroup);
-
-        composerBox.appendChild(photoStage);
-        composerBox.appendChild(drawer);
-        composerBox.appendChild(inputWrapper);
+        composerBox.appendChild(composerNote);
+        composerBox.appendChild(composer);
+        composerBox.appendChild(liveRegion);
         composerBox.appendChild(cameraInput);
         composerBox.appendChild(fileInput);
+
+        var addSheet = buildAddSheet();
 
         // Profile Bottom Sheet / Modal
         var profileSheet = buildProfileSheet();
@@ -1013,6 +1239,7 @@
         panel.appendChild(viewsContainer);
         panel.appendChild(composerBox);
         panel.appendChild(profileSheet);
+        panel.appendChild(addSheet);
         panel.appendChild(liveOverlay);
 
         document.body.appendChild(launcher);
@@ -1033,11 +1260,16 @@
             jumpBtn: jumpBtn,
             composerBox: composerBox,
             textarea: textarea,
-            sendBtn: sendBtn,
-            drawer: drawer,
-            photoStage: photoStage,
-            micBtn: micBtn,
-            audioWave: audioWave,
+            composer: composer,
+            composerNote: composerNote,
+            attachRail: attachRail,
+            plusBtn: plusBtn,
+            primaryBtn: primaryBtn,
+            voiceStatus: voiceStatus,
+            liveRegion: liveRegion,
+            addSheet: addSheet,
+            cameraInput: cameraInput,
+            fileInput: fileInput,
             liveOverlay: liveOverlay,
             liveTimer: liveOverlay.querySelector('.mya-live-timer'),
             liveDot: liveOverlay.querySelector('.mya-live-dot'),
@@ -1048,6 +1280,8 @@
             liveMuteBtn: liveOverlay.querySelector('.mya-live-btn-icon-only'),
             atBottom: true
         };
+
+        updateComposerState();
 
         // Render initial views
         applyLocalPlatformNav();
@@ -1776,13 +2010,19 @@
     }
 
     function buildHistoryItem(conv, bucket, index) {
-        var title = conv.summary || 'Hair Journey Discussion';
+        // The server sends a real title (what the member opened with) and a
+        // separate one-line summary. This used to render conv.summary AS the
+        // title and ignore conv.title entirely, so every row showed the same
+        // placeholder text.
+        var title = (conv.title && String(conv.title).trim()) || 'Hair Journey Discussion';
+        var summary = (conv.summary && String(conv.summary).trim()) || '';
+        if (summary === title) summary = '';
         var isCurrent = conv.id && conv.id === state.conversationId;
 
         var item = el('button', 'mya-history-item' + (isCurrent ? ' current' : ''));
         item.type = 'button';
         item.style.animationDelay = Math.min(index * 35, 280) + 'ms';
-        item.setAttribute('data-search', String(title).toLowerCase());
+        item.setAttribute('data-search', (title + ' ' + summary).toLowerCase());
 
         var meta = [];
         if (conv.messageCount) meta.push(conv.messageCount + (conv.messageCount === 1 ? ' message' : ' messages'));
@@ -1793,6 +2033,7 @@
             '<span class="mya-history-ico">' + ICONS.messageDots + '</span>' +
             '<span class="mya-history-main">' +
             '  <span class="mya-history-t">' + esc(title) + '</span>' +
+            (summary ? '  <span class="mya-history-sum">' + esc(summary) + '</span>' : '') +
             '  <span class="mya-history-meta">' +
                  (isCurrent ? '<span class="mya-history-badge">Current</span><span class="sep"></span>' : '') +
                  meta.map(function (m, i) {
@@ -2276,7 +2517,7 @@
 
         var wrap = document.createElement('div');
         wrap.className = 'mya-empty-state';
-        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px 16px 20px;';
+        wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 0 20px;';
 
         var greetingName = state.userName || 'there';
         var hour = new Date().getHours();
@@ -2289,11 +2530,22 @@
             ? "You're on a <strong style=\"color:" + COLORS.onyx + ';">' + streak + '-day consistency streak.</strong> Let\'s keep it going.'
             : 'Ask me anything about your hair — I read from your Hair Journey as we talk.';
 
+        // Banner: host can override (the WP plugin serves a local copy); falls
+        // back to the public MYAVANA asset, and hides itself entirely if
+        // neither loads rather than leaving a broken image frame.
+        var bannerUrl = state.welcomeBanner || DEFAULT_WELCOME_BANNER;
+
         wrap.innerHTML = [
+            '<div class="mya-welcome-banner">',
+            '  <img src="' + esc(bannerUrl) + '" alt="" aria-hidden="true" onerror="this.parentElement.style.display=\'none\'" />',
+            '  <div class="mya-welcome-banner-fade"></div>',
+            '</div>',
+            '<div class="mya-welcome-body">',
             getMyaLogoHtml(56, 'glow'),
-            '<h3 style="font-size:20px;font-weight:700;color:' + COLORS.onyx + ';margin:12px 0 6px;letter-spacing:-0.02em;">' + timeOfDay + ', ' + esc(greetingName) + '</h3>',
-            '<p style="font-size:13px;color:' + COLORS.muted + ';line-height:1.55;max-width:320px;margin:0 0 18px;">' + sub + '</p>',
-            '<div style="font-size:11px;font-weight:700;color:' + COLORS.blueberry + ';text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Suggested Next Steps</div>'
+            '<h3 style="font-size:20px;font-weight:700;color:' + COLORS.onyx + ';margin:10px 0 6px;letter-spacing:-0.02em;">' + timeOfDay + ', ' + esc(greetingName) + '</h3>',
+            '<p style="font-size:13px;color:' + COLORS.muted + ';line-height:1.55;max-width:320px;margin:0 auto 18px;">' + sub + '</p>',
+            '<div style="font-size:11px;font-weight:700;color:' + COLORS.blueberry + ';text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Suggested Next Steps</div>',
+            '</div>'
         ].join('');
 
         var startersGrid = document.createElement('div');
@@ -2343,6 +2595,46 @@
         state.els.expandBtn.setAttribute('title', state.expanded ? 'Compress workspace' : 'Expand workspace');
     }
 
+    function updateMobileViewport() {
+        // Width changes (rotation, resize) can change which placeholder fits.
+        if (state.els.composer) updateComposerState();
+        if (!state.els.panel || typeof window === 'undefined' || window.innerWidth > 640) {
+            if (state.els.panel) {
+                state.els.panel.style.height = '';
+                state.els.panel.style.top = '';
+                state.els.panel.classList.remove('mya-kb-open');
+            }
+            if (document.body) document.body.classList.remove('mya-open-mobile');
+            if (document.documentElement) document.documentElement.classList.remove('mya-open-mobile');
+            return;
+        }
+
+        if (state.open) {
+            if (document.body) document.body.classList.add('mya-open-mobile');
+            if (document.documentElement) document.documentElement.classList.add('mya-open-mobile');
+            if (window.visualViewport) {
+                var vv = window.visualViewport;
+                state.els.panel.style.height = vv.height + 'px';
+                state.els.panel.style.top = (vv.offsetTop || 0) + 'px';
+                // A visual viewport well short of the layout viewport means the
+                // on-screen keyboard is up.
+                state.els.panel.classList.toggle('mya-kb-open', window.innerHeight - vv.height > 140);
+            }
+            // Keep the latest message in view as the keyboard opens - but only
+            // for a reader already at the bottom. Yanking someone who scrolled
+            // up to re-read something was the "conversation jumps" bug.
+            if (state.els.stream && state.els.atBottom) {
+                scrollToBottom(state.els.stream);
+            }
+        } else {
+            if (document.body) document.body.classList.remove('mya-open-mobile');
+            if (document.documentElement) document.documentElement.classList.remove('mya-open-mobile');
+            state.els.panel.classList.remove('mya-kb-open');
+            state.els.panel.style.height = '';
+            state.els.panel.style.top = '';
+        }
+    }
+
     function togglePanel() {
         if (state.open) closeEntryDetail();
         state.open = !state.open;
@@ -2355,32 +2647,75 @@
             state.els.launcher.classList.toggle('is-morphed', state.open);
         }
 
+        updateMobileViewport();
+
         if (state.open) {
             autosizeComposer();
+            updateComposerState();
             if (state.els.stream.children.length === 0) {
                 renderEmptyState();
             }
-            state.els.textarea.focus();
+            // Don't pop the on-screen keyboard over the welcome the moment Mya
+            // opens on a phone; with a hardware keyboard, focus is expected.
+            if (!isCoarsePointer()) state.els.textarea.focus({ preventScroll: true });
+        } else if (state.addSheetOpen) {
+            toggleAddSheet(false);
         }
     }
 
     function toggleDrawer(force) {
-        state.drawerOpen = typeof force === 'boolean' ? force : !state.drawerOpen;
-        state.els.drawer.style.display = state.drawerOpen ? 'block' : 'none';
+        toggleAddSheet(force);
     }
 
     // ---- Voice Input / Dictation via Gemini 3.5 Transcribe ----
 
     function toggleVoiceInput() {
-        if (state.audioListening) {
-            stopDictation();
-        } else {
-            startDictation();
+        if (state.dictationPhase === 'recording') stopDictation();
+        else if (!state.dictationPhase) startDictation();
+    }
+
+    var DICTATION_MAX_SECONDS = 120;
+
+    /** Drive the composer's dictation UI from one place. */
+    function setDictationPhase(phase) {
+        state.dictationPhase = phase;
+        state.audioListening = phase === 'recording';
+        var status = state.els.voiceStatus;
+        var label = status && status.querySelector('.mya-voice-label');
+        var timer = status && status.querySelector('.mya-voice-timer');
+        clearInterval(state.dictationTimer);
+        state.dictationTimer = null;
+
+        if (phase === 'recording') {
+            var started = Date.now();
+            if (label) label.textContent = 'Listening';
+            if (timer) { timer.textContent = '0:00'; timer.style.visibility = ''; }
+            state.dictationTimer = setInterval(function () {
+                var secs = Math.floor((Date.now() - started) / 1000);
+                if (timer) timer.textContent = Math.floor(secs / 60) + ':' + (secs % 60 < 10 ? '0' : '') + (secs % 60);
+                if (secs >= DICTATION_MAX_SECONDS) stopDictation();
+            }, 250);
+            announce('Listening. Tap stop when you are done.');
+        } else if (phase === 'transcribing') {
+            if (label) label.textContent = 'Transcribing…';
+            if (timer) timer.style.visibility = 'hidden';
         }
+        updateComposerState();
+    }
+
+    function insertDictatedText(text) {
+        var ta = state.els.textarea;
+        if (!ta || !text) return;
+        var existing = ta.value.trim();
+        ta.value = existing ? existing + ' ' + text : text;
+        autosizeComposer();
+        updateComposerState();
+        if (!isCoarsePointer()) ta.focus({ preventScroll: true });
     }
 
     function startDictation() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (state.dictationPhase || state.isStreaming) return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
             fallbackSpeechRecognition();
             return;
         }
@@ -2391,21 +2726,16 @@
                 state.dictationChunks = [];
 
                 var mimeType = 'audio/webm';
-                if (window.MediaRecorder && !MediaRecorder.isTypeSupported('audio/webm')) {
-                    if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
-                    else mimeType = '';
+                if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                    mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
                 }
 
-                var options = mimeType ? { mimeType: mimeType } : {};
-                var recorder = new MediaRecorder(stream, options);
+                var recorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : {});
                 state.dictationRecorder = recorder;
 
                 recorder.ondataavailable = function (e) {
-                    if (e.data && e.data.size > 0) {
-                        state.dictationChunks.push(e.data);
-                    }
+                    if (e.data && e.data.size > 0) state.dictationChunks.push(e.data);
                 };
-
                 recorder.onstop = function () {
                     if (state.dictationStream) {
                         state.dictationStream.getTracks().forEach(function (t) { t.stop(); });
@@ -2415,35 +2745,33 @@
                 };
 
                 recorder.start(250);
-                state.audioListening = true;
-                state.els.micBtn.classList.add('active');
-                state.els.audioWave.style.display = 'flex';
-                state.els.textarea.placeholder = 'Listening to your voice... (tap mic to finish)';
+                setDictationPhase('recording');
             })
             .catch(function (err) {
-                console.warn('[Mya Voice] Mic access failed, falling back:', err);
-                fallbackSpeechRecognition();
+                console.warn('[Mya Voice] Mic access failed:', err);
+                if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) {
+                    setDictationPhase(null);
+                    showComposerNote('Microphone access is off. Allow it in your browser settings to dictate.');
+                } else {
+                    fallbackSpeechRecognition();
+                }
             });
     }
 
     function stopDictation() {
         if (state.dictationRecorder && state.dictationRecorder.state !== 'inactive') {
-            state.audioListening = false;
-            state.els.micBtn.classList.remove('active');
-            state.els.audioWave.style.display = 'none';
-            state.els.textarea.placeholder = 'Transcribing with Gemini 3.5...';
+            setDictationPhase('transcribing');
             state.dictationRecorder.stop();
+        } else if (state.dictationRecognition) {
+            try { state.dictationRecognition.stop(); } catch (e) { /* already ended */ }
         } else {
-            state.audioListening = false;
-            state.els.micBtn.classList.remove('active');
-            state.els.audioWave.style.display = 'none';
-            state.els.textarea.placeholder = 'Ask Mya about your hair journey...';
+            setDictationPhase(null);
         }
     }
 
     function processDictationAudio() {
         if (!state.dictationChunks || state.dictationChunks.length === 0) {
-            state.els.textarea.placeholder = 'Ask Mya about your hair journey...';
+            setDictationPhase(null);
             return;
         }
 
@@ -2455,7 +2783,7 @@
         reader.onload = function () {
             var base64Data = (reader.result || '').split(',')[1];
             if (!base64Data) {
-                state.els.textarea.placeholder = 'Ask Mya about your hair journey...';
+                setDictationPhase(null);
                 return;
             }
 
@@ -2470,58 +2798,52 @@
             })
                 .then(function (res) { return res.json(); })
                 .then(function (data) {
-                    state.els.textarea.placeholder = 'Ask Mya about your hair journey...';
+                    setDictationPhase(null);
                     if (data && data.success && data.text) {
-                        var existing = state.els.textarea.value.trim();
-                        state.els.textarea.value = existing ? (existing + ' ' + data.text) : data.text;
-                        state.els.textarea.style.height = 'auto';
-                        autosizeComposer();
-                        state.els.sendBtn.disabled = false;
+                        insertDictatedText(data.text);
+                    } else {
+                        showComposerNote("Couldn't make that out. Try again?");
                     }
                 })
                 .catch(function (err) {
                     console.error('[Mya Voice] Transcription error:', err);
-                    state.els.textarea.placeholder = 'Ask Mya about your hair journey...';
+                    setDictationPhase(null);
+                    showComposerNote("Couldn't transcribe that. Try again?");
                 });
         };
         reader.readAsDataURL(audioBlob);
     }
 
     function fallbackSpeechRecognition() {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            var recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            state.audioListening = true;
-            state.els.micBtn.classList.add('active');
-            state.els.audioWave.style.display = 'flex';
-            state.els.textarea.placeholder = 'Listening to your voice...';
+        var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            setDictationPhase(null);
+            showComposerNote("Voice dictation isn't supported in this browser.");
+            return;
+        }
+        var recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        state.dictationRecognition = recognition;
 
-            recognition.onresult = function (event) {
-                var transcript = event.results[0][0].transcript;
-                var existing = state.els.textarea.value.trim();
-                state.els.textarea.value = existing ? (existing + ' ' + transcript) : transcript;
-                state.els.textarea.style.height = 'auto';
-                autosizeComposer();
-                state.els.sendBtn.disabled = false;
-                state.audioListening = false;
-                state.els.micBtn.classList.remove('active');
-                state.els.audioWave.style.display = 'none';
-                state.els.textarea.placeholder = 'Ask Mya about your hair journey...';
-            };
-            recognition.onerror = function () {
-                state.audioListening = false;
-                state.els.micBtn.classList.remove('active');
-                state.els.audioWave.style.display = 'none';
-                state.els.textarea.placeholder = 'Ask Mya about your hair journey...';
-            };
+        recognition.onresult = function (event) {
+            insertDictatedText(event.results[0][0].transcript);
+        };
+        recognition.onerror = function (event) {
+            if (event && event.error !== 'aborted' && event.error !== 'no-speech') {
+                showComposerNote("Couldn't hear that. Try again?");
+            }
+        };
+        recognition.onend = function () {
+            state.dictationRecognition = null;
+            setDictationPhase(null);
+        };
+        try {
             recognition.start();
-        } else {
-            state.els.textarea.placeholder = 'Microphone not supported in this browser';
-            setTimeout(function () {
-                state.els.textarea.placeholder = 'Ask Mya about your hair journey...';
-            }, 2000);
+            setDictationPhase('recording');
+        } catch (e) {
+            state.dictationRecognition = null;
+            setDictationPhase(null);
         }
     }
 
@@ -2772,7 +3094,8 @@
         setLiveVoiceState('thinking');
 
         var accumulated = '';
-        fetch(state.apiBase + '/chat/stream', {
+        waitForIdentity().then(function () {
+        return fetch(state.apiBase + '/chat/stream', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2826,6 +3149,7 @@
             .catch(function () {
                 speakLiveAssistantResponse("I'm here with you. What would you like to explore next in your Hair Journey?");
             });
+        });
     }
 
     function speakLiveAssistantResponse(text) {
@@ -2999,115 +3323,516 @@
         }
     }
 
-    // ---- Photo Journey Staging ----
+    // ---- Composer attachments ----
+    //
+    // Photos are prepared on the device (downscaled, re-encoded as JPEG) and
+    // sent to Mya inline with the message, so she can actually see them.
+    // This replaces a staging flow that showed "I've saved this as a visual
+    // progress entry" after a timer without sending or saving anything.
+    // Saving to the journal is the host platform's own entry composer.
+
+    var MAX_ATTACHMENTS = 4;
+    var MAX_IMAGE_EDGE = 1600;
+    var MAX_ENCODED_CHARS = 2 * 1024 * 1024; // per photo, as a data URL; 4 stay under the 10MB request limit
 
     function handleFileInput(e) {
-        var file = e.target.files && e.target.files[0];
-        if (!file) return;
-
-        var reader = new FileReader();
-        reader.onload = function (evt) {
-            stagePhoto({
-                file: file,
-                previewUrl: evt.target.result,
-                category: 'Journal entry',
-                caption: 'Wash day — ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-            });
-        };
-        reader.readAsDataURL(file);
+        var input = e.target;
+        var files = Array.prototype.slice.call((input && input.files) || []);
+        // Reset so the same photo can be picked again after removing it.
+        if (input) input.value = '';
+        addAttachmentFiles(files);
     }
 
-    function stagePhoto(photoData) {
-        state.stagedPhoto = photoData;
-        var container = state.els.photoStage;
-        container.innerHTML = '';
-        container.style.display = 'block';
-
-        var removeBtn = document.createElement('button');
-        removeBtn.className = 'mya-btn-icon';
-        removeBtn.style.cssText = 'position:absolute;top:6px;right:6px;width:22px;height:22px;background:rgba(0,0,0,0.4);color:#fff;';
-        removeBtn.innerHTML = ICONS.close;
-        removeBtn.addEventListener('click', function () {
-            state.stagedPhoto = null;
-            container.style.display = 'none';
-            state.els.sendBtn.disabled = state.els.textarea.value.trim().length === 0;
-        });
-
-        var previewWrap = document.createElement('div');
-        previewWrap.style.cssText = 'display:flex;gap:10px;align-items:center;';
-
-        var img = document.createElement('img');
-        img.src = photoData.previewUrl;
-        img.style.cssText = 'width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid ' + COLORS.border + ';';
-
-        var info = document.createElement('div');
-        info.innerHTML = '<div style="font-size:12px;font-weight:700;color:' + COLORS.onyx + ';">Document Your Journey</div>' +
-            '<div style="font-size:10.5px;color:' + COLORS.muted + ';">Visual progress entry</div>';
-
-        previewWrap.appendChild(img);
-        previewWrap.appendChild(info);
-
-        var captionInput = document.createElement('input');
-        captionInput.style.cssText = 'width:100%;margin-top:8px;padding:6px 10px;border-radius:8px;border:1px solid ' + COLORS.border + ';font-size:12px;outline:none;';
-        captionInput.value = photoData.caption;
-        captionInput.addEventListener('input', function () {
-            if (state.stagedPhoto) state.stagedPhoto.caption = this.value;
-        });
-
-        container.appendChild(removeBtn);
-        container.appendChild(previewWrap);
-        container.appendChild(captionInput);
-
-        state.els.sendBtn.disabled = false;
-        state.els.textarea.focus();
-    }
-
-    function submitComposer() {
-        var text = state.els.textarea.value.trim();
-        var photo = state.stagedPhoto;
-        if (!text && !photo) return;
-
-        state.els.textarea.value = '';
-        autosizeComposer();
-        state.els.sendBtn.disabled = true;
-
-        var empty = state.els.stream.querySelector('.mya-empty-state');
-        if (empty) empty.remove();
-
-        if (photo) {
-            state.stagedPhoto = null;
-            state.els.photoStage.style.display = 'none';
-            appendUserPhotoMessage(photo, text);
-            executePhotoUpload(photo, text);
-        } else {
-            sendMessage(text);
+    function handleComposerPaste(e) {
+        var files = (e.clipboardData && e.clipboardData.files) ? Array.prototype.slice.call(e.clipboardData.files) : [];
+        var images = files.filter(function (f) { return /^image\//.test(f.type || ''); });
+        if (images.length) {
+            e.preventDefault();
+            addAttachmentFiles(images);
         }
     }
 
-    function appendUserPhotoMessage(photo, caption) {
-        var row = document.createElement('div');
-        row.className = 'mya-msg-row';
-        row.innerHTML = '<div class="mya-msg-header" style="justify-content:flex-end;">You</div>';
+    function dragHasFiles(e) {
+        var types = e.dataTransfer && e.dataTransfer.types;
+        return !!types && Array.prototype.indexOf.call(types, 'Files') !== -1;
+    }
 
+    function readyAttachments() {
+        return state.attachments.filter(function (a) { return a.status === 'ready'; });
+    }
+
+    function isAttached(att) {
+        return state.attachments.indexOf(att) !== -1;
+    }
+
+    function addAttachmentFiles(files) {
+        if (!files || !files.length) return;
+        if (state.activeView !== 'chat') switchView('chat');
+
+        var room = MAX_ATTACHMENTS - state.attachments.length;
+        if (room <= 0) {
+            showComposerNote('You can add up to ' + MAX_ATTACHMENTS + ' photos to a message.');
+            return;
+        }
+        if (files.length > room) {
+            showComposerNote('Added ' + room + ' of ' + files.length + ' — up to ' + MAX_ATTACHMENTS + ' photos per message.');
+        }
+
+        files.slice(0, room).forEach(function (file) {
+            var att = {
+                id: 'att_' + uuid(),
+                name: file.name || 'Photo',
+                status: 'processing',
+                dataUrl: null,
+                mimeType: 'image/jpeg',
+                previewUrl: window.URL && URL.createObjectURL ? URL.createObjectURL(file) : '',
+                error: null
+            };
+            state.attachments.push(att);
+            renderAttachmentChip(att);
+
+            prepareImage(file)
+                .then(function (result) {
+                    if (!isAttached(att)) return;
+                    att.dataUrl = result.dataUrl;
+                    att.mimeType = result.mimeType;
+                    att.status = 'ready';
+                    renderAttachmentChip(att);
+                    announce('Photo added');
+                })
+                .catch(function (err) {
+                    if (!isAttached(att)) return;
+                    att.status = 'error';
+                    att.error = (err && err.userMessage) || "Couldn't read this photo";
+                    renderAttachmentChip(att);
+                    announce(att.error);
+                })
+                .then(updateComposerState);
+        });
+        updateComposerState();
+    }
+
+    /**
+     * Decode and downscale a photo to at most MAX_IMAGE_EDGE px on its long
+     * edge. Phone photos are 3-8MB; sent raw, two of them could exceed the
+     * request limit, and Mya doesn't need 12 megapixels to see curl pattern.
+     */
+    function prepareImage(file) {
+        return new Promise(function (resolve, reject) {
+            var type = file.type || '';
+            if (type && !/^image\//.test(type)) return reject({ userMessage: 'Not a photo' });
+
+            var url = URL.createObjectURL(file);
+            var img = new Image();
+            img.onload = function () {
+                try {
+                    var w = img.naturalWidth;
+                    var h = img.naturalHeight;
+                    var scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(w, h));
+                    var canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(w * scale));
+                    canvas.height = Math.max(1, Math.round(h * scale));
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    URL.revokeObjectURL(url);
+                    var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                    if (dataUrl.length > MAX_ENCODED_CHARS) dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    if (dataUrl.length > MAX_ENCODED_CHARS) return reject({ userMessage: 'Photo too large' });
+                    resolve({ dataUrl: dataUrl, mimeType: 'image/jpeg' });
+                } catch (e) {
+                    URL.revokeObjectURL(url);
+                    reject({ userMessage: "Couldn't read this photo" });
+                }
+            };
+            img.onerror = function () {
+                URL.revokeObjectURL(url);
+                reject({ userMessage: "Can't open this format" });
+            };
+            img.src = url;
+        });
+    }
+
+    function renderAttachmentChip(att) {
+        var rail = state.els.attachRail;
+        if (!rail) return;
+        var chip = rail.querySelector('[data-att-id="' + att.id + '"]');
+        var isNew = !chip;
+        if (isNew) {
+            chip = el('div', 'mya-attach-chip');
+            chip.setAttribute('data-att-id', att.id);
+            chip.setAttribute('role', 'listitem');
+            rail.appendChild(chip);
+        }
+
+        var position = state.attachments.indexOf(att) + 1;
+        chip.className = 'mya-attach-chip' +
+            (att.status === 'processing' ? ' is-processing' : '') +
+            (att.status === 'error' ? ' is-error' : '');
+        chip.innerHTML = att.status === 'error'
+            ? '<span>' + esc(att.error) + '</span>'
+            : '<img alt="" src="' + esc(att.previewUrl || att.dataUrl || '') + '">';
+        chip.setAttribute('aria-label', att.status === 'error'
+            ? 'Photo could not be added: ' + att.error
+            : 'Photo ' + position + (att.status === 'processing' ? ', preparing' : ''));
+
+        var remove = el('button', 'mya-attach-remove');
+        remove.type = 'button';
+        remove.innerHTML = ICONS.close;
+        remove.setAttribute('aria-label', att.status === 'error' ? 'Dismiss photo that could not be added' : 'Remove photo ' + position);
+        remove.addEventListener('mousedown', function (e) {
+            if (document.activeElement === state.els.textarea) e.preventDefault();
+        });
+        remove.addEventListener('click', function () { removeAttachment(att.id); });
+        chip.appendChild(remove);
+
+        rail.classList.remove('is-empty');
+        if (isNew) {
+            requestAnimationFrame(function () {
+                rail.scrollTo({ left: rail.scrollWidth, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+                updateRailFade();
+            });
+        }
+        updateRailFade();
+    }
+
+    function removeAttachment(id) {
+        var index = -1;
+        for (var i = 0; i < state.attachments.length; i++) {
+            if (state.attachments[i].id === id) { index = i; break; }
+        }
+        if (index === -1) return;
+        var att = state.attachments.splice(index, 1)[0];
+        if (att.previewUrl && att.previewUrl.indexOf('blob:') === 0) URL.revokeObjectURL(att.previewUrl);
+
+        var rail = state.els.attachRail;
+        var chip = rail.querySelector('[data-att-id="' + id + '"]');
+        var hadFocus = chip && chip.contains(document.activeElement);
+
+        function finish() {
+            if (chip && chip.parentNode) chip.parentNode.removeChild(chip);
+            if (!state.attachments.length) rail.classList.add('is-empty');
+            // Positions shift after a removal; keep the spoken labels right.
+            state.attachments.forEach(function (a, n) {
+                var c = rail.querySelector('[data-att-id="' + a.id + '"]');
+                if (!c || a.status === 'error') return;
+                c.setAttribute('aria-label', 'Photo ' + (n + 1) + (a.status === 'processing' ? ', preparing' : ''));
+                var r = c.querySelector('.mya-attach-remove');
+                if (r) r.setAttribute('aria-label', 'Remove photo ' + (n + 1));
+            });
+            updateRailFade();
+            if (hadFocus) {
+                var next = rail.querySelector('.mya-attach-remove');
+                (next || state.els.textarea).focus({ preventScroll: true });
+            }
+        }
+
+        if (chip && !prefersReducedMotion()) {
+            chip.style.width = chip.offsetWidth + 'px';
+            void chip.offsetWidth;
+            chip.classList.add('is-leaving');
+            setTimeout(finish, 200);
+        } else {
+            finish();
+        }
+        announce('Photo removed');
+        updateComposerState();
+    }
+
+    function clearAttachments() {
+        state.attachments.forEach(function (a) {
+            if (a.previewUrl && a.previewUrl.indexOf('blob:') === 0) URL.revokeObjectURL(a.previewUrl);
+        });
+        state.attachments = [];
+        var rail = state.els.attachRail;
+        if (rail) {
+            rail.innerHTML = '';
+            rail.classList.add('is-empty');
+        }
+        updateRailFade();
+        updateComposerState();
+    }
+
+    function updateRailFade() {
+        var rail = state.els.attachRail;
+        if (!rail) return;
+        var overflow = rail.scrollWidth - rail.clientWidth;
+        rail.classList.toggle('fade-left', rail.scrollLeft > 4);
+        rail.classList.toggle('fade-right', overflow - rail.scrollLeft > 4);
+    }
+
+    /** Put an unsent message back so a retry is one tap, not a retype. */
+    function restoreDraft(draft) {
+        var ta = state.els.textarea;
+        if (!draft || !ta || ta.value.trim() || state.attachments.length) return false;
+        ta.value = draft.text || '';
+        (draft.attachments || []).slice(0, MAX_ATTACHMENTS).forEach(function (p) {
+            var att = {
+                id: 'att_' + uuid(), name: p.name || 'Photo', status: 'ready',
+                dataUrl: p.dataUrl, mimeType: p.mimeType, previewUrl: p.dataUrl, error: null
+            };
+            state.attachments.push(att);
+            renderAttachmentChip(att);
+        });
+        autosizeComposer();
+        updateComposerState();
+        return true;
+    }
+
+    function submitComposer() {
+        if (state.isStreaming || state.dictationPhase) return;
+        if (state.attachments.some(function (a) { return a.status === 'processing'; })) return;
+
+        var ta = state.els.textarea;
+        var text = ta.value.trim();
+        var photos = readyAttachments();
+        if (!text && !photos.length) return;
+
+        // Snapshot before clearing, so a failed send can be put back.
+        var draft = { text: ta.value, attachments: photos.slice() };
+        hideComposerNote();
+
+        ta.value = '';
+        clearAttachments();
+        autosizeComposer();
+
+        var message = text || (photos.length > 1
+            ? 'What can you tell me about my hair from these photos?'
+            : 'What can you tell me about my hair from this photo?');
+        sendMessage(message, { attachments: photos, displayText: text, draft: draft });
+    }
+
+    function appendUserPhotosMessage(photos, text) {
+        var row = buildMessageRow('user', '<span>You</span>');
         var bubble = document.createElement('div');
         bubble.className = 'mya-msg user';
-        bubble.innerHTML = [
-            '<div style="font-size:11px;font-weight:700;color:' + COLORS.lightCoral + ';text-transform:uppercase;margin-bottom:4px;">' + photo.category + '</div>',
-            '<img src="' + photo.previewUrl + '" style="width:100%;max-width:220px;border-radius:10px;object-fit:cover;margin:4px 0;" />',
-            caption ? '<div style="margin-top:4px;">' + caption + '</div>' : ''
-        ].join('');
+
+        var grid = el('div', 'mya-msg-photos count-' + Math.min(photos.length, 4));
+        photos.forEach(function (p, i) {
+            var img = document.createElement('img');
+            img.src = p.dataUrl;
+            img.alt = 'Photo ' + (i + 1) + ' you shared';
+            grid.appendChild(img);
+        });
+        bubble.appendChild(grid);
+
+        if (text) {
+            var caption = document.createElement('div');
+            caption.textContent = text;
+            bubble.appendChild(caption);
+        }
 
         row.appendChild(bubble);
         state.els.stream.appendChild(row);
         scrollToBottom(state.els.stream);
+        return row;
     }
 
-    function executePhotoUpload(photo, caption) {
-        var statusEl = appendStatusIndicator('Recording visual progress to Hair Journey…');
-        setTimeout(function () {
-            statusEl.remove();
-            appendAssistantMessage("I've saved this as a visual progress entry for " + (photo.caption || 'your wash day') + ". Would you like to add a note about how your hair felt today?");
-        }, 1200);
+    // ---- "Add to Mya" sheet ----
+
+    function buildAddSheet() {
+        var sheet = el('div', 'mya-add-sheet');
+        sheet.setAttribute('role', 'dialog');
+        sheet.setAttribute('aria-modal', 'true');
+        sheet.setAttribute('aria-labelledby', 'mya-add-sheet-title');
+
+        var backdrop = el('div', 'mya-add-sheet-backdrop');
+        backdrop.addEventListener('click', function () { toggleAddSheet(false); });
+
+        var sheetPanel = el('div', 'mya-add-sheet-panel');
+
+        var head = el('div', 'mya-add-sheet-head');
+        head.innerHTML = '<span class="mya-add-sheet-grab"></span>' +
+            '<div class="mya-add-sheet-title" id="mya-add-sheet-title">Add to Mya</div>';
+
+        var tiles = el('div', 'mya-add-tiles');
+        var askTitle = el('div', 'mya-add-sheet-title');
+        askTitle.textContent = 'Ask Mya';
+        var list = el('div', 'mya-add-list');
+
+        sheetPanel.appendChild(head);
+        sheetPanel.appendChild(tiles);
+        sheetPanel.appendChild(askTitle);
+        sheetPanel.appendChild(list);
+        sheet.appendChild(backdrop);
+        sheet.appendChild(sheetPanel);
+
+        sheet.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                toggleAddSheet(false);
+            } else if (e.key === 'Tab') {
+                trapFocus(e, sheetPanel);
+            }
+        });
+
+        enableSheetDrag(head, sheetPanel);
+        return sheet;
+    }
+
+    /**
+     * Options are rebuilt on every open: the host platform registers its
+     * adapter after the widget is built, and photo tiles depend on how many
+     * photos are already attached. Only capabilities that actually exist are
+     * offered.
+     */
+    function renderAddSheetOptions() {
+        var sheet = state.els.addSheet;
+        var tiles = sheet.querySelector('.mya-add-tiles');
+        var list = sheet.querySelector('.mya-add-list');
+        tiles.innerHTML = '';
+        list.innerHTML = '';
+
+        var full = state.attachments.length >= MAX_ATTACHMENTS;
+        var limitHint = 'Up to ' + MAX_ATTACHMENTS + ' photos';
+        var touch = isCoarsePointer();
+
+        if (touch) {
+            addSheetTile(tiles, ICONS.camera, 'Camera', full ? limitHint : 'Show Mya your hair', full, function () {
+                state.els.cameraInput.click();
+            });
+        }
+        addSheetTile(tiles, ICONS.image, 'Photos', full ? limitHint : (touch ? 'From your library' : 'From your computer'), full, function () {
+            state.els.fileInput.click();
+        });
+        if (state.localPlatform && typeof state.localPlatform.openEntryComposer === 'function') {
+            addSheetTile(tiles, ICONS.journal, 'Journal entry', 'Log it to your diary', false, openLocalComposer);
+        }
+
+        [
+            [ICONS.goal, 'Review my active goals', 'What are my current hair goals?'],
+            [ICONS.routine, "Show today's routine", "Show today's routine checklist"],
+            [ICONS.leaf, 'Check my product match', 'Does my current product regimen match my hair porosity and texture?'],
+            [ICONS.weather, "Today's hair weather", 'What is the hair weather forecast and humidity recommendation for my hair today?']
+        ].forEach(function (q) {
+            addSheetRow(list, q[0], q[1], function () { sendMessage(q[2]); });
+        });
+    }
+
+    function addSheetTile(container, icon, label, hint, disabled, action) {
+        var b = el('button', 'mya-add-tile');
+        b.type = 'button';
+        b.disabled = !!disabled;
+        b.innerHTML = '<span class="mya-add-tile-ico">' + icon + '</span>' +
+            '<span>' + esc(label) + '<small>' + esc(hint) + '</small></span>';
+        b.addEventListener('click', function () {
+            toggleAddSheet(false);
+            // Still inside the click, so the browser treats the file picker
+            // as user-initiated.
+            action();
+        });
+        container.appendChild(b);
+    }
+
+    function addSheetRow(container, icon, label, action) {
+        var b = el('button', 'mya-add-row');
+        b.type = 'button';
+        b.disabled = state.isStreaming;
+        b.innerHTML = icon + '<span>' + esc(label) + '</span>';
+        b.addEventListener('click', function () {
+            toggleAddSheet(false);
+            action();
+        });
+        container.appendChild(b);
+    }
+
+    function toggleAddSheet(force) {
+        var sheet = state.els.addSheet;
+        if (!sheet) return;
+        var open = typeof force === 'boolean' ? force : !state.addSheetOpen;
+        if (open === state.addSheetOpen) return;
+        state.addSheetOpen = open;
+
+        var sheetPanel = sheet.querySelector('.mya-add-sheet-panel');
+        state.els.plusBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        clearTimeout(state.addSheetTimer);
+
+        if (open) {
+            state.addSheetReturnFocus = document.activeElement;
+            renderAddSheetOptions();
+            sheetPanel.style.transform = '';
+            sheet.classList.add('is-mounted');
+            void sheet.offsetHeight; // start from off-screen so the entrance animates
+            sheet.classList.add('is-open');
+            document.addEventListener('pointerdown', handleOutsideSheetPointer, true);
+            var first = sheet.querySelector('button:not([disabled])');
+            if (first) first.focus({ preventScroll: true });
+        } else {
+            sheet.classList.remove('is-open');
+            document.removeEventListener('pointerdown', handleOutsideSheetPointer, true);
+            sheetPanel.style.transform = '';
+            state.addSheetTimer = setTimeout(function () {
+                sheet.classList.remove('is-mounted');
+            }, prefersReducedMotion() ? 0 : 340);
+            // Hand focus back where it came from on keyboard/mouse devices; on a
+            // phone, refocusing the draft would reopen the keyboard unasked.
+            var back = state.addSheetReturnFocus;
+            state.addSheetReturnFocus = null;
+            if (!isCoarsePointer() && back && document.body.contains(back)) {
+                back.focus({ preventScroll: true });
+            }
+        }
+    }
+
+    /**
+     * Any press outside the sheet closes it - the backdrop, but also the host
+     * page around a floating desktop panel, where the backdrop doesn't reach.
+     * The + button is left to toggle the sheet itself.
+     */
+    function handleOutsideSheetPointer(e) {
+        if (!state.addSheetOpen) return;
+        var sheetPanel = state.els.addSheet && state.els.addSheet.querySelector('.mya-add-sheet-panel');
+        if (sheetPanel && sheetPanel.contains(e.target)) return;
+        if (state.els.plusBtn && state.els.plusBtn.contains(e.target)) return;
+        toggleAddSheet(false);
+    }
+
+    function trapFocus(e, container) {
+        var items = Array.prototype.filter.call(container.querySelectorAll('button:not([disabled])'), function (b) {
+            return b.offsetParent !== null;
+        });
+        if (!items.length) return;
+        var first = items[0];
+        var last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    /** Drag the sheet's header down to dismiss it; a short or slow drag springs back. */
+    function enableSheetDrag(handle, sheetPanel) {
+        var startY = null;
+        var offset = 0;
+        var startedAt = 0;
+
+        handle.addEventListener('pointerdown', function (e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            startY = e.clientY;
+            offset = 0;
+            startedAt = Date.now();
+            sheetPanel.classList.add('is-dragging');
+            try { handle.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ }
+        });
+        handle.addEventListener('pointermove', function (e) {
+            if (startY === null) return;
+            offset = Math.max(0, e.clientY - startY);
+            sheetPanel.style.transform = 'translateY(' + offset + 'px)';
+        });
+        function release() {
+            if (startY === null) return;
+            var velocity = offset / Math.max(1, Date.now() - startedAt);
+            startY = null;
+            sheetPanel.classList.remove('is-dragging');
+            if (offset > sheetPanel.offsetHeight * 0.28 || (offset > 24 && velocity > 0.6)) {
+                toggleAddSheet(false);
+            } else {
+                sheetPanel.style.transform = '';
+            }
+        }
+        handle.addEventListener('pointerup', release);
+        handle.addEventListener('pointercancel', release);
     }
 
     // ---- Markdown & Message Rendering ----
@@ -3405,59 +4130,284 @@
         scrollToBottom(state.els.stream);
     }
 
+    // ---- Routine checklist state ----
+    //
+    // Checking off a step used to call sendMessage('I completed <step>'), which
+    // sent it to the model as if the member had typed it. The model then replied
+    // with fresh praise AND a brand-new checklist with a different title, so one
+    // routine turned into three in under a minute and the member lost track of
+    // what their actual routine was. Completion is a state update, not a
+    // conversation turn: it is applied locally, persisted, and never re-sent to
+    // the model.
+    var CHECKLIST_STATE_KEY = 'myavana_widget_checklist_state';
+
+    function loadChecklistState() {
+        try { return JSON.parse(safeStorageGet(CHECKLIST_STATE_KEY) || '{}') || {}; }
+        catch (e) { return {}; }
+    }
+
+    function saveChecklistState(allState) {
+        try { safeStorageSet(CHECKLIST_STATE_KEY, JSON.stringify(allState)); } catch (e) { /* ignore */ }
+    }
+
+    function slugify(text) {
+        return String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60);
+    }
+
+    /**
+     * A routine's identity is its title, not the block id - the model reuses
+     * ids like "today_checklist_1" for completely different content, so keying
+     * on the id alone would make two different routines share progress.
+     */
+    function checklistKey(block, data) {
+        // Per day: a routine ticked off yesterday must not open as "Routine
+        // complete" today. Keyed by the member's local date.
+        return 'routine_' + (slugify(data.title) || slugify(block && block.id) || 'today') + '_' + localDateKey();
+    }
+
+    function localDateKey(date) {
+        var d = date || new Date();
+        return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+    }
+
+    /** Drop routine progress older than two weeks (and pre-date-keyed entries). */
+    function pruneChecklistState(all) {
+        var cutoff = localDateKey(new Date(Date.now() - 14 * 24 * 60 * 60 * 1000));
+        Object.keys(all).forEach(function (key) {
+            var m = /_(\d{4}-\d{2}-\d{2})$/.exec(key);
+            if (!m || m[1] < cutoff) delete all[key];
+        });
+        return all;
+    }
+
     function renderChecklist(block) {
         var data = block.data || {};
+        var steps = Array.isArray(data.steps) ? data.steps : [];
+
+        // No invented demo steps. An empty checklist renders nothing rather
+        // than showing a routine the member was never actually given.
+        if (steps.length === 0) return;
+
+        var routineKey = checklistKey(block, data);
+        var allState = loadChecklistState();
+        var routineState = allState[routineKey] || {};
+
+        var normalized = steps.map(function (step, idx) {
+            var title = typeof step === 'string' ? step : (step.title || step.text || step.name || '');
+            var stepId = (step && step.id) ? String(step.id) : (slugify(title) || 'step_' + (idx + 1));
+            var storedDone = routineState[stepId];
+            return {
+                id: stepId,
+                title: title,
+                duration: (step && step.duration) || null,
+                completed: storedDone === undefined
+                    ? Boolean(step && (step.completed || step.checked))
+                    : Boolean(storedDone)
+            };
+        });
+
+        // Same routine arriving again (model re-emitted it) updates the card
+        // already on screen instead of stacking another copy below it.
+        var existing = state.els.stream.querySelector('[data-routine-key="' + routineKey + '"]');
+        var card = existing || document.createElement('div');
+        card.className = 'mya-card mya-routine-card';
+        card.setAttribute('data-routine-key', routineKey);
+        card.innerHTML = '';
+
+        var header = document.createElement('div');
+        header.className = 'mya-card-header';
+        header.innerHTML = [
+            '<div>',
+            '  <span class="mya-pill">' + esc(data.category || 'Personalized from your Hair Journey') + '</span>',
+            '  <h4 class="mya-card-title">' + esc(data.title || "Today's Routine") + '</h4>',
+            '</div>'
+        ].join('');
+        card.appendChild(header);
+
+        var progressWrap = document.createElement('div');
+        progressWrap.className = 'mya-routine-progress';
+        card.appendChild(progressWrap);
+
+        var listContainer = document.createElement('div');
+        card.appendChild(listContainer);
+
+        function persist() {
+            var current = pruneChecklistState(loadChecklistState());
+            var next = {};
+            normalized.forEach(function (s) { next[s.id] = s.completed; });
+            current[routineKey] = next;
+            saveChecklistState(current);
+        }
+
+        function renderProgress() {
+            var done = normalized.filter(function (s) { return s.completed; }).length;
+            var total = normalized.length;
+            var pct = total ? Math.round((done / total) * 100) : 0;
+            var allDone = done === total && total > 0;
+
+            progressWrap.innerHTML = [
+                '<div class="mya-routine-progress-row">',
+                '  <span class="mya-routine-progress-label">' +
+                     (allDone ? 'Routine complete' : done + ' of ' + total + ' complete') + '</span>',
+                allDone ? '  <span class="mya-routine-progress-done">' + ICONS.check + ' Nice work</span>' : '',
+                '</div>',
+                '<div class="mya-routine-bar"><div class="mya-routine-bar-fill" style="width:' + pct + '%;"></div></div>'
+            ].join('');
+        }
+
+        function renderSteps() {
+            listContainer.innerHTML = '';
+            var nextIdx = normalized.findIndex(function (s) { return !s.completed; });
+
+            normalized.forEach(function (step, idx) {
+                var item = document.createElement('div');
+                item.className = 'mya-checklist-item' +
+                    (step.completed ? ' is-done' : '') +
+                    (!step.completed && idx === nextIdx ? ' is-next' : '');
+
+                item.innerHTML = [
+                    '<div style="display:flex;align-items:center;min-width:0;">',
+                    '  <span class="mya-check-box">' + (step.completed ? ICONS.check : '') + '</span>',
+                    '  <span class="mya-check-text">' + esc(step.title) + '</span>',
+                    '</div>',
+                    step.duration
+                        ? '<span style="font-size:10.5px;color:' + COLORS.muted + ';flex-shrink:0;">' + esc(step.duration) + '</span>'
+                        : ''
+                ].join('');
+
+                item.setAttribute('role', 'checkbox');
+                item.setAttribute('aria-checked', step.completed ? 'true' : 'false');
+                item.setAttribute('tabindex', '0');
+
+                function toggle() {
+                    step.completed = !step.completed;
+                    persist();
+                    renderProgress();
+                    renderSteps();
+                }
+
+                item.addEventListener('click', toggle);
+                item.addEventListener('keydown', function (ev) {
+                    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); }
+                });
+
+                listContainer.appendChild(item);
+            });
+        }
+
+        renderProgress();
+        renderSteps();
+        persist();
+
+        if (!existing) {
+            state.els.stream.appendChild(card);
+            scrollToBottom(state.els.stream);
+        }
+    }
+
+    function renderHairProfileCard(block) {
+        var data = block.data || {};
+        var profile = data.profile || {};
         var card = document.createElement('div');
-        card.className = 'mya-card';
+        card.className = 'mya-card mya-profile-card';
+
+        var bannerImgHtml = '';
+        if (data.bannerImage) {
+            bannerImgHtml = '<div class="mya-profile-banner-wrap">' +
+                '<img class="mya-profile-banner-img" src="' + data.bannerImage + '" alt="Hair Profile Banner" onerror="this.parentElement.style.display=\'none\'" />' +
+                '<div class="mya-profile-banner-overlay"></div>' +
+                '<span class="mya-profile-banner-badge">' + ICONS.sparkles + ' ' + (data.source || 'HairAI') + ' Verified</span>' +
+                '</div>';
+        } else {
+            bannerImgHtml = '<div class="mya-profile-banner-wrap" style="height:48px;">' +
+                '<div class="mya-profile-banner-overlay"></div>' +
+                '<span class="mya-profile-banner-badge">' + ICONS.sparkles + ' ' + (data.source || 'HairAI') + ' Verified</span>' +
+                '</div>';
+        }
+
+        var greeting = data.greeting || ('Hey ' + (state.userName || 'there') + ' 👋');
+        var title = data.title || 'Your Hair Profile';
+
+        // 4. Compact metadata grid - only showing available non-null traits
+        var traits = [];
+        if (profile.hairType) traits.push({ label: 'Hair Type', value: profile.hairType });
+        if (profile.porosity) traits.push({ label: 'Porosity', value: profile.porosity });
+        if (profile.density) traits.push({ label: 'Density', value: profile.density });
+        if (profile.strandDiameter) traits.push({ label: 'Strand Diameter', value: profile.strandDiameter });
+        if (profile.elasticity) traits.push({ label: 'Elasticity', value: profile.elasticity });
+
+        var gridHtml = '';
+        if (traits.length > 0) {
+            gridHtml = '<div class="mya-profile-grid">';
+            traits.forEach(function (t) {
+                gridHtml += '<div class="mya-profile-trait">' +
+                    '<span class="mya-profile-trait-label">' + t.label + '</span>' +
+                    '<span class="mya-profile-trait-val">' + t.value + '</span>' +
+                    '</div>';
+            });
+            gridHtml += '</div>';
+        }
+
+        // 5. Goals section
+        var goals = Array.isArray(data.goals) ? data.goals : [];
+        var goalsHtml = '';
+        if (goals.length > 0) {
+            goalsHtml = '<div class="mya-profile-goals">' +
+                '<div class="mya-profile-goals-label">' + ICONS.goal + ' Active Goals (' + goals.length + ')</div>' +
+                '<div class="mya-profile-goals-chips">';
+            goals.slice(0, 4).forEach(function (g) {
+                var goalTitle = typeof g === 'string' ? g : (g.title || g.goal_title || 'Hair Goal');
+                goalsHtml += '<span class="mya-profile-goal-chip">' + ICONS.check + ' ' + goalTitle + '</span>';
+            });
+            goalsHtml += '</div></div>';
+        }
+
+        // 6. Short personalization statement
+        var regimenText = data.currentRegimen ? (' Current regimen: ' + data.currentRegimen + '.') : '';
+        var statement = data.statement || data.personalization ||
+            ('Your daily regimens and product recommendations are calibrated to your verified strand biology.' + regimenText);
+
+        var statementHtml = '<div class="mya-profile-statement">' + statement + '</div>';
+
+        // 7. Clear CTA
+        var cta = data.cta || { label: 'Explore My Hair Journey', action: 'open_hair_journey' };
+        var ctaHtml = '<div class="mya-card-actions">' +
+            '<button class="mya-action-btn primary mya-profile-cta-btn">' +
+            '<span>' + cta.label + '</span> ' + ICONS.chevronRight +
+            '</button>' +
+            '</div>';
 
         card.innerHTML = [
-            '<div class="mya-card-header">',
-            '  <div>',
-            '    <span class="mya-pill">' + (data.category || 'Daily Regimen') + '</span>',
-            '    <h4 class="mya-card-title">' + (data.title || 'Today\'s Routine Steps') + '</h4>',
-            '  </div>',
+            bannerImgHtml,
+            '<div class="mya-profile-content">',
+            '  <div class="mya-profile-subtitle">' + title + '</div>',
+            '  <h3 class="mya-profile-greeting">' + greeting + '</h3>',
+            gridHtml,
+            goalsHtml,
+            statementHtml,
+            ctaHtml,
             '</div>'
         ].join('');
 
-        var steps = data.steps || [
-            { id: 1, title: 'Cleanse with sulfate-free shampoo', duration: '15m', completed: true },
-            { id: 2, title: 'Deep conditioning treatment', duration: '30m', completed: false },
-            { id: 3, title: 'Moisturize & seal ends', duration: '10m', completed: false },
-            { id: 4, title: 'Protective styling', duration: '20m', completed: false }
-        ];
-
-        var listContainer = document.createElement('div');
-        var syncBadge = document.createElement('div');
-        syncBadge.className = 'mya-synced-badge';
-        syncBadge.style.display = 'none';
-        syncBadge.innerHTML = ICONS.check + '<span>Synced with Hair Journey</span>';
-
-        steps.forEach(function (step) {
-            var item = document.createElement('div');
-            item.className = 'mya-checklist-item' + (step.completed ? ' is-done' : '');
-
-            item.innerHTML = [
-                '<div style="display:flex;align-items:center;">',
-                '  <span class="mya-check-box">' + (step.completed ? ICONS.check : '') + '</span>',
-                '  <span class="mya-check-text">' + step.title + '</span>',
-                '</div>',
-                step.duration ? '<span style="font-size:10.5px;color:' + COLORS.muted + ';">' + step.duration + '</span>' : ''
-            ].join('');
-
-            item.addEventListener('click', function () {
-                if (!item.classList.contains('is-done')) {
-                    item.classList.add('is-done');
-                    item.querySelector('.mya-check-box').innerHTML = ICONS.check;
-                    syncBadge.style.display = 'inline-flex';
-                    sendMessage('I completed ' + step.title);
+        var ctaBtn = card.querySelector('.mya-profile-cta-btn');
+        if (ctaBtn) {
+            ctaBtn.addEventListener('click', function () {
+                if (cta.action === 'open_hair_journey' || cta.action === 'journey') {
+                    if (state.platformAdapter && typeof state.platformAdapter.navigate === 'function') {
+                        state.platformAdapter.navigate('journey');
+                    } else if (typeof switchView === 'function' && ROUTES['journey']) {
+                        switchView('journey');
+                    } else {
+                        window.location.hash = 'journey';
+                    }
+                } else if (cta.url) {
+                    window.open(cta.url, '_blank');
+                } else {
+                    sendMessage(cta.label || 'Tell me about my hair journey');
                 }
             });
+        }
 
-            listContainer.appendChild(item);
-        });
-
-        card.appendChild(listContainer);
-        card.appendChild(syncBadge);
         state.els.stream.appendChild(card);
         scrollToBottom(state.els.stream);
     }
@@ -3467,6 +4417,12 @@
         var card = document.createElement('div');
         card.className = 'mya-card';
 
+        var gridItems = [];
+        if (data.hairType) gridItems.push('<div style="background:' + COLORS.stone + ';padding:8px 12px;border-radius:10px;font-size:11.5px;">Hair Texture<strong>' + data.hairType + '</strong></div>');
+        if (data.porosity) gridItems.push('<div style="background:' + COLORS.stone + ';padding:8px 12px;border-radius:10px;font-size:11.5px;">Porosity<strong>' + data.porosity + '</strong></div>');
+        if (data.density) gridItems.push('<div style="background:' + COLORS.stone + ';padding:8px 12px;border-radius:10px;font-size:11.5px;">Density<strong>' + data.density + '</strong></div>');
+        if (data.elasticity) gridItems.push('<div style="background:' + COLORS.stone + ';padding:8px 12px;border-radius:10px;font-size:11.5px;">Elasticity<strong>' + data.elasticity + '</strong></div>');
+
         card.innerHTML = [
             '<div class="mya-card-header">',
             '  <div>',
@@ -3474,12 +4430,9 @@
             '    <h4 class="mya-card-title">Verified Strand DNA</h4>',
             '  </div>',
             '</div>',
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">',
-            '  <div style="background:' + COLORS.stone + ';padding:8px 12px;border-radius:10px;font-size:11.5px;">Hair Texture<strong>' + (data.hairType || 'Type 4C (Coily)') + '</strong></div>',
-            '  <div style="background:' + COLORS.stone + ';padding:8px 12px;border-radius:10px;font-size:11.5px;">Porosity<strong>' + (data.porosity || 'Normal Porosity') + '</strong></div>',
-            '  <div style="background:' + COLORS.stone + ';padding:8px 12px;border-radius:10px;font-size:11.5px;">Density<strong>' + (data.density || 'Medium Density') + '</strong></div>',
-            '  <div style="background:' + COLORS.stone + ';padding:8px 12px;border-radius:10px;font-size:11.5px;">Elasticity<strong>' + (data.elasticity || 'High Elasticity') + '</strong></div>',
-            '</div>'
+            gridItems.length > 0
+                ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">' + gridItems.join('') + '</div>'
+                : '<p style="font-size:12px;color:' + COLORS.muted + ';margin-top:8px;">Hair profile details are connected.</p>'
         ].join('');
 
         state.els.stream.appendChild(card);
@@ -3558,26 +4511,357 @@
         scrollToBottom(state.els.stream);
     }
 
+    /**
+     * Remove a card's image if it fails to load. A broken <img> renders its
+     * alt text - the card title - directly under the heading, so a dead image
+     * URL made every such card show its title twice.
+     */
+    /** Card copy as text: a list renders "a \u00b7 b \u00b7 c", not "a,b,c". */
+    function listText(value) {
+        if (Array.isArray(value)) {
+            return value.map(function (v) { return String(v == null ? '' : v).trim(); }).filter(Boolean).join(' \u00b7 ');
+        }
+        return typeof value === 'string' ? value : '';
+    }
+
+    function hideOnImageError(card) {
+        var imgs = card.querySelectorAll('img');
+        for (var i = 0; i < imgs.length; i++) {
+            imgs[i].addEventListener('error', function () {
+                if (this.parentNode) this.parentNode.removeChild(this);
+            });
+        }
+    }
+
+    function renderProductCard(block) {
+        var data = block.data || {};
+        var card = document.createElement('div');
+        card.className = 'mya-card mya-product-card';
+        var heading = esc(data.name || data.title || 'Recommended Hair Product');
+        // Messages go through sendMessage as plain text, so they need the RAW
+        // name. Using the escaped heading sent "Moisture &amp; Repair" to Mya.
+        var rawHeading = String(data.name || data.title || 'this product');
+        var brand = esc(data.brand || 'MYAVANA Recommended');
+        var category = esc(data.category || 'Targeted Hair Care');
+        var reason = esc(listText(data.reason) || listText(data.benefits) || listText(data.description));
+        var price = data.price ? esc(typeof data.price === 'number' ? '$' + data.price.toFixed(2) : data.price) : '';
+        var imgUrl = esc(data.image || data.imageUrl || '');
+
+        var html = [
+            '<div class="mya-card-header">',
+            '  <div>',
+            '    <span class="mya-pill" style="background:' + COLORS.sand + ';color:' + COLORS.onyx + ';">' + category + '</span>',
+            '    <div style="font-size:11.5px;color:' + COLORS.muted + ';margin-top:4px;font-weight:600;">' + brand + '</div>',
+            '    <h4 class="mya-card-title">' + heading + '</h4>',
+            '  </div>',
+            price ? '  <span style="font-size:14px;font-weight:700;color:' + COLORS.coralDark + ';">' + price + '</span>' : '',
+            '</div>',
+            imgUrl ? '<img src="' + imgUrl + '" style="width:100%;height:150px;object-fit:cover;border-radius:12px;margin:8px 0;" alt="' + heading + '"/>' : '',
+            reason ? '<p style="font-size:12.5px;color:' + COLORS.onyxSoft + ';line-height:1.45;margin:8px 0;">' + reason + '</p>' : '',
+            '<div class="mya-card-actions">',
+            '  <button class="mya-action-btn primary view-prod-btn">' + ICONS.shoppingBag + ' <span>View Product</span></button>',
+            '  <button class="mya-action-btn add-routine-btn">' + ICONS.plus + ' <span>Fit Into My Routine</span></button>',
+            '</div>'
+        ].join('');
+
+        card.innerHTML = html;
+
+        hideOnImageError(card);
+
+        card.querySelector('.view-prod-btn').addEventListener('click', function () {
+            if (data.url || data.link) {
+                window.open(data.url || data.link, '_blank');
+            } else {
+                sendMessage('Tell me more about ' + rawHeading);
+            }
+        });
+
+        // There is no tool that saves a product into a routine, so "Add to
+        // Routine" made Mya claim "I've added it to your routine cabinet" when
+        // nothing was saved. Ask how it fits instead - an honest request Mya
+        // can actually fulfil.
+        card.querySelector('.add-routine-btn').addEventListener('click', function () {
+            sendMessage('How would ' + rawHeading + ' fit into my hair routine?');
+        });
+
+        state.els.stream.appendChild(card);
+        scrollToBottom(state.els.stream);
+    }
+
+    function renderJournalCard(block) {
+        var data = block.data || {};
+        var card = document.createElement('div');
+        card.className = 'mya-card mya-journal-card';
+        var title = esc(data.title || 'Hair Diary Entry');
+        var notes = esc(data.notes || data.summary || data.text || '');
+        var date = esc(data.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+        var photos = Array.isArray(data.photos) ? data.photos : (data.photo ? [data.photo] : []);
+
+        var html = [
+            '<div class="mya-card-header">',
+            '  <div>',
+            '    <span class="mya-pill">' + date + '</span>',
+            '    <h4 class="mya-card-title">' + title + '</h4>',
+            '  </div>',
+            '</div>',
+            notes ? '<p style="font-size:12.5px;color:' + COLORS.onyxSoft + ';line-height:1.45;margin:8px 0;">' + notes + '</p>' : ''
+        ];
+
+        if (photos.length > 0) {
+            html.push('<div style="display:flex;gap:8px;overflow-x:auto;margin:8px 0;padding-bottom:4px;">');
+            photos.forEach(function (p) {
+                html.push('<img src="' + esc(p) + '" style="width:76px;height:76px;border-radius:10px;object-fit:cover;border:1px solid ' + COLORS.border + ';" />');
+            });
+            html.push('</div>');
+        }
+
+        html.push([
+            '<div class="mya-card-actions">',
+            '  <button class="mya-action-btn primary view-diary-btn">' + ICONS.journal + ' <span>View in Hair Diary</span></button>',
+            '</div>'
+        ].join(''));
+
+        card.innerHTML = html.join('');
+
+        card.querySelector('.view-diary-btn').addEventListener('click', function () {
+            switchView('stories');
+        });
+
+        state.els.stream.appendChild(card);
+        scrollToBottom(state.els.stream);
+    }
+
+    function renderMediaCard(block) {
+        var data = block.data || {};
+        var card = document.createElement('div');
+        card.className = 'mya-card mya-media-card';
+        var title = esc(data.title || data.heading || 'Hairstyle & Strand Inspiration');
+        var rawTitle = String(data.title || data.heading || 'this style');
+        var sub = esc(data.category || data.subcategory || (data.hairType ? 'Curated for ' + data.hairType : 'Style Inspiration'));
+        var imgUrl = esc(data.imageUrl || data.image || '');
+        var caption = esc(data.caption || data.description || data.text || '');
+        var steps = Array.isArray(data.steps) ? data.steps : (Array.isArray(data.styling_steps) ? data.styling_steps : []);
+
+        var html = [
+            '<div class="mya-card-header">',
+            '  <div>',
+            '    <span class="mya-pill" style="background:' + COLORS.lightCoral + ';color:' + COLORS.onyx + ';">' + sub + '</span>',
+            '    <h4 class="mya-card-title">' + title + '</h4>',
+            '  </div>',
+            '</div>',
+            imgUrl ? '<img src="' + imgUrl + '" style="width:100%;height:180px;object-fit:cover;border-radius:12px;margin:8px 0;" alt="' + title + '" />' : '',
+            caption ? '<p style="font-size:12.5px;color:' + COLORS.onyxSoft + ';line-height:1.45;margin:8px 0;">' + caption + '</p>' : ''
+        ];
+
+        if (steps.length > 0) {
+            html.push('<div style="background:' + COLORS.stone + ';padding:10px 12px;border-radius:10px;margin-top:8px;">');
+            html.push('<div style="font-size:11.5px;font-weight:700;margin-bottom:6px;color:' + COLORS.onyx + ';">Styling Guide:</div>');
+            steps.slice(0, 4).forEach(function (s, i) {
+                var stepText = esc(typeof s === 'string' ? s : (s.title || s.name || ''));
+                html.push('<div style="font-size:12px;color:' + COLORS.onyxSoft + ';margin-bottom:4px;display:flex;gap:6px;"><strong>' + (i + 1) + '.</strong><span>' + stepText + '</span></div>');
+            });
+            html.push('</div>');
+        }
+
+        html.push([
+            '<div class="mya-card-actions">',
+            '  <button class="mya-action-btn primary try-style-btn">' + ICONS.scissors + ' <span>Try This Style</span></button>',
+            '  <button class="mya-action-btn ask-tips-btn">' + ICONS.chat + ' <span>Ask Maintenance Tips</span></button>',
+            '</div>'
+        ].join(''));
+
+        card.innerHTML = html.join('');
+
+        hideOnImageError(card);
+
+        // Each button now sends what its label says. They were crossed: "Try
+        // This Style" asked about maintenance and "Ask Maintenance Tips" asked
+        // for products, which is how a style question drifted into a product
+        // pitch. Raw title, not the HTML-escaped one.
+        card.querySelector('.try-style-btn').addEventListener('click', function () {
+            sendMessage('I want to try ' + rawTitle + '. What should I know before getting it done?');
+        });
+
+        card.querySelector('.ask-tips-btn').addEventListener('click', function () {
+            sendMessage('How do I maintain and protect ' + rawTitle + '?');
+        });
+
+        state.els.stream.appendChild(card);
+        scrollToBottom(state.els.stream);
+    }
+
+    function renderCommunityPostCard(block) {
+        var data = block.data || {};
+        var card = document.createElement('div');
+        card.className = 'mya-card mya-community-card';
+        // author/content are other members' real user-generated content, not
+        // model output - these MUST be escaped, this is a real stored-XSS
+        // vector (any member's post text or handle would otherwise execute
+        // in every other viewer's session when Mya surfaces it).
+        var authorRaw = data.author || data.userName || 'Community Member';
+        var author = esc(authorRaw);
+        var channel = esc(data.channel || 'NaturalHairJourney');
+        var content = esc(data.content || data.text || '');
+        var likesCount = data.likesCount || data.likes || 12;
+        var commentsCount = data.commentsCount || data.comments || 3;
+        var initialLiked = false;
+
+        var html = [
+            '<div class="mya-card-header">',
+            '  <div style="display:flex;align-items:center;gap:8px;">',
+            '    <div style="width:28px;height:28px;border-radius:50%;background:' + COLORS.coral + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;">' + esc(authorRaw.slice(0, 1).toUpperCase()) + '</div>',
+            '    <div>',
+            '      <div style="font-size:12.5px;font-weight:700;color:' + COLORS.onyx + ';">@' + author + '</div>',
+            '      <span style="font-size:11px;color:' + COLORS.muted + ';">#' + channel + '</span>',
+            '    </div>',
+            '  </div>',
+            '</div>',
+            '<p style="font-size:12.5px;color:' + COLORS.onyxSoft + ';line-height:1.45;margin:10px 0;">' + content + '</p>',
+            '<div style="display:flex;gap:12px;border-top:1px solid ' + COLORS.border + ';padding-top:10px;margin-top:8px;">',
+            '  <button class="mya-action-btn like-post-btn" style="padding:4px 10px;font-size:12px;">' + ICONS.heartOutline + ' <span class="like-cnt">' + likesCount + '</span></button>',
+            '  <button class="mya-action-btn comment-post-btn" style="padding:4px 10px;font-size:12px;">' + ICONS.chat + ' <span>' + commentsCount + ' comments</span></button>',
+            '</div>'
+        ].join('');
+
+        card.innerHTML = html;
+
+        var likeBtn = card.querySelector('.like-post-btn');
+        var likeCnt = card.querySelector('.like-cnt');
+        likeBtn.addEventListener('click', function () {
+            initialLiked = !initialLiked;
+            var cnt = initialLiked ? (likesCount + 1) : likesCount;
+            likeCnt.textContent = cnt;
+            likeBtn.style.color = initialLiked ? COLORS.coralDark : '';
+        });
+
+        card.querySelector('.comment-post-btn').addEventListener('click', function () {
+            sendMessage('Join discussion on ' + author + '\'s post');
+        });
+
+        state.els.stream.appendChild(card);
+        scrollToBottom(state.els.stream);
+    }
+
+    function renderNavigationCard(block) {
+        var data = block.data || {};
+        var card = document.createElement('div');
+        card.className = 'mya-card mya-nav-card';
+        var title = esc(data.title || data.label || 'Continue Hair Journey');
+        var desc = esc(data.description || 'Explore this dedicated section in your hair journey.');
+        var target = data.screen || data.route || data.target || 'today';
+
+        var html = [
+            '<div class="mya-card-header">',
+            '  <div>',
+            '    <span class="mya-pill">' + ICONS.compass + ' Navigation</span>',
+            '    <h4 class="mya-card-title">' + title + '</h4>',
+            '  </div>',
+            '</div>',
+            '<p style="font-size:12.5px;color:' + COLORS.onyxSoft + ';margin:8px 0;">' + desc + '</p>',
+            '<div class="mya-card-actions">',
+            '  <button class="mya-action-btn primary nav-open-btn">' + ICONS.chevronRight + ' <span>Open ' + title + '</span></button>',
+            '</div>'
+        ].join('');
+
+        card.innerHTML = html;
+
+        card.querySelector('.nav-open-btn').addEventListener('click', function () {
+            // `target` falls back to 'today' when the block names no screen,
+            // and ROUTES.today always exists - so a "Shop MYAVANA" card with
+            // only a url opened the Today tab instead of the store. A url with
+            // no explicit screen is an external link.
+            var explicitScreen = data.screen || data.route || data.target;
+            if (data.url && !explicitScreen) {
+                window.open(data.url, '_blank');
+            } else if (ROUTES[target]) {
+                switchView(target);
+            } else if (data.url) {
+                window.open(data.url, '_blank');
+            } else {
+                window.location.hash = target;
+            }
+        });
+
+        state.els.stream.appendChild(card);
+        scrollToBottom(state.els.stream);
+    }
+
+    function renderGenericCard(block) {
+        var data = block.data || {};
+        var title = esc(data.title || data.heading || data.label || '');
+        var body = esc(data.body || data.text || data.description || data.summary || '');
+        if (!title && !body) return;
+
+        var card = document.createElement('div');
+        card.className = 'mya-card mya-generic-card';
+
+        var html = [
+            '<div class="mya-card-header">',
+            '  <div>',
+            '    <span class="mya-pill">' + ICONS.sparkles + ' Mya Insights</span>',
+            title ? '    <h4 class="mya-card-title">' + title + '</h4>' : '',
+            '  </div>',
+            '</div>',
+            body ? '<p style="font-size:12.5px;color:' + COLORS.onyxSoft + ';line-height:1.45;margin:8px 0;">' + body + '</p>' : ''
+        ].join('');
+
+        card.innerHTML = html;
+        state.els.stream.appendChild(card);
+        scrollToBottom(state.els.stream);
+    }
+
     function renderBlock(block) {
         if (!block || !block.type) return;
         switch (block.type) {
             case 'goal_card':
+            case 'goal_progress':
+            case 'goal_list':
                 renderGoalCard(block);
                 break;
             case 'today_checklist':
             case 'routine_checklist':
+            case 'routine_card':
+            case 'routine':
                 renderChecklist(block);
                 break;
+            case 'hair_profile_card':
+            case 'profile_card':
+                renderHairProfileCard(block);
+                break;
             case 'hair_profile_summary':
+            case 'strand_dna':
                 renderHairProfile(block);
                 break;
             case 'consultation_card':
+            case 'service_card':
                 renderConsultationCard(block);
                 break;
+            case 'product':
+            case 'product_list':
+            case 'product_card':
+                renderProductCard(block);
+                break;
+            case 'journal_entry':
+            case 'journey_progress':
+                renderJournalCard(block);
+                break;
+            case 'media_card':
+            case 'hairstyle_card':
+                renderMediaCard(block);
+                break;
+            case 'community_post':
+            case 'community':
+                renderCommunityPostCard(block);
+                break;
+            case 'navigation':
+                renderNavigationCard(block);
+                break;
             case 'quick_replies':
-                renderQuickReplies(block.data?.replies || block.actions || []);
+            case 'confirmation':
+                renderQuickReplies(block.data?.replies || block.data?.options || block.actions || []);
                 break;
             default:
+                renderGenericCard(block);
                 break;
         }
     }
@@ -3593,44 +4877,165 @@
     }
 
     var COMPOSER_MIN_H = 24;
-    var COMPOSER_MAX_H = 132;
+    var COMPOSER_MAX_H = 144; // six lines, then the draft scrolls inside
+    var COMPOSER_PLACEHOLDER = 'Ask Mya anything about your hair\u2026';
+
+    function isCoarsePointer() {
+        return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    }
+
+    function prefersReducedMotion() {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    function canDictate() {
+        return !!((navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) ||
+            window.SpeechRecognition || window.webkitSpeechRecognition);
+    }
+
+    var placeholderMeasure = null;
+
+    /** The long placeholder if it fits the draft's current width, else the short one. */
+    function placeholderThatFits(longText, shortText) {
+        var ta = state.els.textarea;
+        if (!ta || !ta.clientWidth) return longText;
+        try {
+            if (!placeholderMeasure) placeholderMeasure = document.createElement('canvas').getContext('2d');
+            var cs = window.getComputedStyle(ta);
+            placeholderMeasure.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+            return placeholderMeasure.measureText(longText).width <= ta.clientWidth ? longText : shortText;
+        } catch (e) {
+            return longText;
+        }
+    }
+
+    function announce(text) {
+        var region = state.els.liveRegion;
+        if (!region) return;
+        region.textContent = '';
+        setTimeout(function () { region.textContent = text; }, 40);
+    }
+
+    function hideComposerNote() {
+        clearTimeout(state.composerNoteTimer);
+        if (state.els.composerNote) state.els.composerNote.hidden = true;
+    }
+
+    function showComposerNote(message) {
+        var note = state.els.composerNote;
+        if (!note) return;
+        note.textContent = message;
+        note.hidden = false;
+        clearTimeout(state.composerNoteTimer);
+        state.composerNoteTimer = setTimeout(function () { note.hidden = true; }, 5000);
+    }
 
     /**
-     * Size the composer to its content, both directions.
+     * Size the draft to its content, both directions, animating from the
+     * current height rather than snapping.
      *
-     * Measuring requires collapsing to 0 first — reading scrollHeight at the
-     * current height only ever reports the same or more, which is why a
-     * composer that grows never shrinks back on its own.
+     * Measuring requires collapsing to 0 first - scrollHeight at the current
+     * height only ever reports the same or more. Transitions are suspended for
+     * the measurement and the old height is committed before the new one is
+     * set, so the change animates from where it was.
      */
     function autosizeComposer() {
         var ta = state.els.textarea;
         if (!ta) return;
 
+        var previous = ta.style.height || (COMPOSER_MIN_H + 'px');
+        var caretAtEnd = ta.selectionEnd === ta.value.length;
+
+        ta.style.transition = 'none';
         ta.style.height = '0px';
-        var needed = ta.scrollHeight;
+        // An empty draft is always one line. Chrome's scrollHeight counts a
+        // wrapped placeholder, which grew the idle composer to two lines on
+        // narrow phones.
+        var needed = ta.value ? ta.scrollHeight : COMPOSER_MIN_H;
         var height = Math.max(COMPOSER_MIN_H, Math.min(needed, COMPOSER_MAX_H));
+        ta.style.height = previous;
+        void ta.offsetHeight;
+        ta.style.transition = prefersReducedMotion() ? 'none' : '';
         ta.style.height = height + 'px';
 
-        // Only scroll once it has actually hit the ceiling, so there's no
-        // stray scrollbar on a one-line draft.
-        ta.classList.toggle('is-scrolling', needed > COMPOSER_MAX_H);
+        var scrolling = needed > COMPOSER_MAX_H;
+        ta.classList.toggle('is-scrolling', scrolling);
+        if (scrolling && caretAtEnd) ta.scrollTop = ta.scrollHeight;
+
+        // The composer grew into the thread: keep the latest message in view
+        // for a reader who was already at the bottom.
+        if (state.els.atBottom && state.els.stream) scrollToBottom(state.els.stream);
+    }
+
+    var PRIMARY_LABELS = {
+        empty: 'Dictate a message',
+        idle: 'Send message',
+        ready: 'Send message',
+        processing: 'Preparing photos',
+        streaming: 'Stop Mya\'s reply',
+        recording: 'Stop dictating',
+        transcribing: 'Transcribing your voice'
+    };
+
+    function computeComposerMode() {
+        if (state.isStreaming) return 'streaming';
+        if (state.dictationPhase === 'recording') return 'recording';
+        if (state.dictationPhase === 'transcribing') return 'transcribing';
+        if (state.attachments.some(function (a) { return a.status === 'processing'; })) return 'processing';
+        var hasText = !!(state.els.textarea && state.els.textarea.value.trim());
+        if (hasText || readyAttachments().length) return 'ready';
+        return canDictate() ? 'empty' : 'idle';
     }
 
     /**
-     * While a reply streams, the send button reads as busy rather than
-     * inviting another message that would be dropped by the isStreaming guard.
+     * The single place the composer's controls are derived from state. Every
+     * event that could change what the member can do next calls this.
      */
-    function setComposerStreaming(on) {
-        var btn = state.els.sendBtn;
-        if (!btn) return;
-        btn.disabled = !!on;
-        btn.setAttribute('aria-label', on ? 'Mya is replying' : 'Send message');
-        btn.innerHTML = on
-            ? '<span class="mya-status-dots" style="--d:#fff"><i></i><i></i><i></i></span>'
-            : ICONS.send;
-        if (state.els.textarea) {
-            state.els.textarea.setAttribute('placeholder', on ? 'Mya is replying…' : 'Ask Mya about your hair journey...');
+    function updateComposerState() {
+        var els = state.els;
+        if (!els.composer) return;
+        var mode = computeComposerMode();
+        state.composerMode = mode;
+        els.composer.setAttribute('data-mode', mode);
+
+        var btn = els.primaryBtn;
+        btn.setAttribute('aria-label', PRIMARY_LABELS[mode] || 'Send message');
+        btn.disabled = mode === 'processing' || mode === 'transcribing' || mode === 'idle';
+        btn.setAttribute('aria-busy', mode === 'processing' || mode === 'transcribing' ? 'true' : 'false');
+
+        var photos = readyAttachments().length;
+        // Long form when it fits, short form when it doesn't. Chrome ignores
+        // text-overflow on textarea placeholders, so a long one was cut off
+        // mid-word on 320-360px phones.
+        els.textarea.placeholder = state.isStreaming
+            ? 'Mya is replying…'
+            : photos > 1 ? placeholderThatFits('Ask Mya about these photos…', 'Ask about these…')
+            : photos === 1 ? placeholderThatFits('Ask Mya about this photo…', 'Ask about this photo…')
+            : placeholderThatFits(COMPOSER_PLACEHOLDER, 'Ask Mya anything…');
+
+        els.plusBtn.disabled = mode === 'recording' || mode === 'transcribing';
+    }
+
+    function handlePrimaryAction() {
+        switch (state.composerMode) {
+            case 'streaming': stopStreaming(); break;
+            case 'recording': stopDictation(); break;
+            case 'ready': submitComposer(); break;
+            case 'empty': startDictation(); break;
+            default: break;
         }
+    }
+
+    function stopStreaming() {
+        if (state.activeRequest && typeof state.activeRequest.stop === 'function') {
+            state.activeRequest.stop();
+        }
+    }
+
+    /** Kept for existing callers; the composer derives everything from state. */
+    function setComposerStreaming(on) {
+        updateComposerState();
+        if (on) announce('Mya is replying');
     }
 
     function getContextPayload() {
@@ -3646,36 +5051,81 @@
         });
     }
 
-    function sendMessage(text) {
+    function sendMessage(text, options) {
+        options = options || {};
         if (!text || state.isStreaming) return;
 
         if (state.activeView !== 'chat') {
             switchView('chat');
         }
+        if (state.addSheetOpen) toggleAddSheet(false);
 
         var empty = state.els.stream.querySelector('.mya-empty-state');
         if (empty) empty.remove();
 
-        appendUserMessage(text);
-        var statusEl = appendStatusIndicator('Checking your Hair Journey…');
+        var photos = options.attachments || [];
+        var userRow = photos.length
+            ? appendUserPhotosMessage(photos, options.displayText)
+            : appendUserMessage(text).parentNode;
+        var statusEl = appendStatusIndicator(photos.length
+            ? (photos.length > 1 ? 'Looking at your photos…' : 'Looking at your photo…')
+            : 'Checking your Hair Journey…');
         var assistantBubble = null;
         var accumulatedRaw = '';
+        var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var request = { stopped: false };
+
+        function finishStream() {
+            state.isStreaming = false;
+            if (state.activeRequest === request) state.activeRequest = null;
+            setStreamingCaret(assistantBubble, false);
+            if (statusEl) { statusEl.remove(); statusEl = null; }
+            setComposerStreaming(false);
+        }
+
+        // Stop: abort the request and keep whatever Mya had already said.
+        request.stop = function () {
+            if (request.stopped || !state.isStreaming) return;
+            request.stopped = true;
+            if (controller) {
+                try { controller.abort(); } catch (e) { /* already settled */ }
+            }
+            finishStream();
+            var note = el('div', 'mya-msg-stopped');
+            note.textContent = assistantBubble ? 'Reply stopped' : 'Stopped before Mya replied';
+            state.els.stream.appendChild(note);
+            scrollToBottom(state.els.stream);
+            announce('Reply stopped');
+        };
 
         state.isStreaming = true;
+        state.activeRequest = request;
         setComposerStreaming(true);
 
-        fetch(state.apiBase + '/chat/stream', {
+        var body = {
+            message: text,
+            from: state.userId,
+            groupId: state.conversationId,
+            experienceContext: getContextPayload()
+        };
+        if (photos.length) {
+            body.attachments = photos.map(function (p) { return { url: p.dataUrl, mimeType: p.mimeType }; });
+        }
+
+        // Wait (briefly, bounded) for a pending wpUserId upgrade so the
+        // request reads the member's real identity, not the throwaway guest
+        // id init() started with - see waitForIdentity() above.
+        waitForIdentity().then(function () {
+        if (request.stopped) return;
+        body.from = state.userId;
+        return fetch(state.apiBase + '/chat/stream', {
             method: 'POST',
+            signal: controller ? controller.signal : undefined,
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/x-ndjson, text/plain;q=0.9'
             },
-            body: JSON.stringify({
-                message: text,
-                from: state.userId,
-                groupId: state.conversationId,
-                experienceContext: getContextPayload()
-            })
+            body: JSON.stringify(body)
         })
             .then(function (res) {
                 if (!res.ok || !res.body) throw new Error('Stream failed: ' + res.status);
@@ -3685,11 +5135,9 @@
 
                 function pump() {
                     return reader.read().then(function (result) {
+                        if (request.stopped) return;
                         if (result.done) {
-                            state.isStreaming = false;
-                            setStreamingCaret(assistantBubble, false);
-                            setComposerStreaming(false);
-                            if (statusEl) statusEl.remove();
+                            finishStream();
                             return;
                         }
 
@@ -3733,15 +5181,22 @@
                 return pump();
             })
             .catch(function (err) {
+                if (request.stopped || (err && err.name === 'AbortError')) return;
                 console.error('[Mya Widget] Stream error:', err);
-                state.isStreaming = false;
-                setStreamingCaret(assistantBubble, false);
-                setComposerStreaming(false);
-                if (statusEl) statusEl.remove();
-                if (!assistantBubble) {
+                finishStream();
+                if (assistantBubble) return; // partial reply stays as it is
+
+                // Nothing reached Mya. Take the unsent message back out of the
+                // thread and return it to the composer, so trying again is one
+                // tap instead of retyping (or re-picking photos).
+                if (userRow && userRow.parentNode) userRow.parentNode.removeChild(userRow);
+                if (restoreDraft(options.draft || { text: text, attachments: photos })) {
+                    showComposerNote("Couldn't reach Mya. Your message is back in the box — send it again when you're ready.");
+                } else {
                     appendAssistantMessage("I'm having a little trouble connecting to your Hair Journey right now. Please try again in a moment.");
                 }
             });
+        });
     }
 
     function logEvent(eventType, metadata) {
@@ -3762,7 +5217,12 @@
     function setContext(context) {
         if (!context || typeof context !== 'object') return;
 
-        if (context.wpUserId) state.userId = String(context.wpUserId);
+        if (context.wpUserId) {
+            state.userId = String(context.wpUserId);
+            safeStorageSet(USER_ID_KEY, state.userId);
+            resolveIdentity();
+        }
+        if (context.welcomeBanner) state.welcomeBanner = String(context.welcomeBanner);
         if (context.firstName) state.userName = context.firstName;
         else if (context.userName) state.userName = context.userName;
         if (context.streak) state.streak = context.streak;
@@ -3792,6 +5252,10 @@
         if (!options.apiBase) throw new Error('MyavanaWidget.init requires { apiBase }');
         state.apiBase = options.apiBase.replace(/\/$/, '');
         state.position = options.position === 'bottom-right' ? 'bottom-right' : 'bottom-left';
+        // The host page sets this when it's about to attempt an async
+        // upgrade to the member's real WP user id (see waitForIdentity above).
+        state.identityResolved = !options.awaitIdentity;
+        if (options.welcomeBanner) state.welcomeBanner = String(options.welcomeBanner);
 
         // Auto-detect platform or use provided option
         var detectedPlatform = 'web';
@@ -3825,6 +5289,14 @@
         injectStyles();
         buildWidget();
 
+        if (typeof window !== 'undefined') {
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', updateMobileViewport);
+                window.visualViewport.addEventListener('scroll', updateMobileViewport);
+            }
+            window.addEventListener('resize', updateMobileViewport);
+        }
+
         console.log('%c Mya ' + BUILD + ' ', 'background:#222323;color:#e7a690;border-radius:3px;');
     }
 
@@ -3832,6 +5304,10 @@
         build: BUILD,
         init: init,
         setContext: setContext,
+        // Host calls this if the wpUserId upgrade attempt fails outright
+        // (all retries exhausted) so the widget stops waiting immediately
+        // instead of idling out the full timeout on every message.
+        cancelIdentityWait: function () { resolveIdentity(); },
         registerLocalPlatform: registerLocalPlatform,
         registerPlatformAdapter: registerLocalPlatform, // SDK standard alias
         setCapabilities: function (caps) {

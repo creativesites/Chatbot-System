@@ -4,9 +4,10 @@ FROM node:18-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy package.json and pnpm-lock.yaml (if available)
+# Copy package.json, lockfile, and local vendor packages
 COPY package*.json ./
 COPY pnpm-lock.yaml* ./
+COPY vendor ./vendor
 
 # Install pnpm globally
 RUN npm install -g pnpm

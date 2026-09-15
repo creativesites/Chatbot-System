@@ -71,6 +71,38 @@ function normalizeModelName(model) {
     return 'gemini-3.7-flash';
 }
 
+
+const MAX_MESSAGE_IMAGES = 4;
+
+/**
+ * Inline image parts for a message. Accepts `opts.images` (a list, from the
+ * widget's multi-photo composer) or the older single `opts.image`. The URL is
+ * never logged: widget photos are data: URLs, megabytes each.
+ */
+async function imagePartsFor(opts) {
+    const images = Array.isArray(opts.images) && opts.images.length
+        ? opts.images
+        : (opts.image ? [opts.image] : []);
+    const parts = [];
+    for (const image of images.slice(0, MAX_MESSAGE_IMAGES)) {
+        if (!image || !image.url) continue;
+        try {
+            const res = await fetch(image.url);
+            if (!res.ok) {
+                console.warn(`   ⚠️ Image fetch returned ${res.status}; skipping it`);
+                continue;
+            }
+            const data = Buffer.from(await res.arrayBuffer()).toString('base64');
+            const mimeType = res.headers.get('content-type') || image.mimeType || 'image/jpeg';
+            parts.push({ inlineData: { mimeType, data } });
+        } catch (e) {
+            console.warn('   ⚠️ Failed to load an image for Gemini:', e.message);
+        }
+    }
+    if (parts.length) console.log(`📸 [MyaOS Vision] ${parts.length} image(s) attached to this message`);
+    return parts;
+}
+
 class AiCore {
     constructor(opts = {}) {
         this.opts = opts;
@@ -293,29 +325,8 @@ class AiCore {
             send: async (message) => {
                 let parts = [];
                 
-                // Real vision pipeline: Download image URL and append as base64 inlineData (TASK_MSDK_011)
-                if (opts.image && opts.image.url) {
-                    try {
-                        console.log(`📸 [MyaOS Vision] Fetching attachment image pixels: ${opts.image.url}`);
-                        const imgRes = await fetch(opts.image.url);
-                        if (imgRes.ok) {
-                            const buffer = await imgRes.arrayBuffer();
-                            const b64 = Buffer.from(buffer).toString('base64');
-                            const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
-                            
-                            parts.push({
-                                inlineData: {
-                                    mimeType: contentType,
-                                    data: b64
-                                }
-                            });
-                            console.log('   ✅ Attachment image successfully converted to inlineData.');
-                        }
-                    } catch (e) {
-                        console.warn('   ⚠️ Failed to fetch multimodal image for Gemini:', e.message);
-                    }
-                }
-                
+                // Real vision pipeline: every attached image goes in as inlineData (TASK_MSDK_011)
+                parts.push(...(await imagePartsFor(opts)));
                 parts.push({ text: message });
                 const messagePayload = parts.length > 1 ? parts : message;
 
@@ -385,29 +396,8 @@ class AiCore {
                     try {
                         let parts = [];
                         
-                        // Real vision pipeline: Download image URL and append as base64 inlineData (TASK_MSDK_011)
-                        if (opts.image && opts.image.url) {
-                            try {
-                                console.log(`📸 [MyaOS Vision Stream] Fetching attachment image pixels: ${opts.image.url}`);
-                                const imgRes = await fetch(opts.image.url);
-                                if (imgRes.ok) {
-                                    const buffer = await imgRes.arrayBuffer();
-                                    const b64 = Buffer.from(buffer).toString('base64');
-                                    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
-                                    
-                                    parts.push({
-                                        inlineData: {
-                                            mimeType: contentType,
-                                            data: b64
-                                        }
-                                    });
-                                    console.log('   ✅ Attachment image successfully converted to inlineData for stream.');
-                                }
-                            } catch (e) {
-                                console.warn('   ⚠️ Failed to fetch streaming image for Gemini:', e.message);
-                            }
-                        }
-                        
+                        // Real vision pipeline: every attached image goes in as inlineData (TASK_MSDK_011)
+                        parts.push(...(await imagePartsFor(opts)));
                         parts.push({ text: message });
                         let currentMessage = parts.length > 1 ? parts : message;
                         let loopCount = 0;

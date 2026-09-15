@@ -116,7 +116,7 @@ function extractJsonString(raw) {
   }
 
   // Look for markdown code fence
-  const codeBlockMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/i);
+  const codeBlockMatch = trimmed.match(/```(?:json|mya-blocks|mya|blocks)?\s*\n?([\s\S]*?)\n?```/i);
   if (codeBlockMatch && codeBlockMatch[1]) {
     const candidate = codeBlockMatch[1].trim();
     if (candidate.startsWith('{') && candidate.endsWith('}')) {
@@ -170,6 +170,9 @@ function normalizeBlockType(rawType) {
     case 'journey_progress':
     case 'progress':
       return BlockType.JOURNEY_PROGRESS;
+    case 'hair_profile_card':
+    case 'profile_card':
+      return BlockType.HAIR_PROFILE_CARD;
     case 'hair_profile':
     case 'hair_profile_summary':
     case 'strand_dna':
@@ -181,6 +184,22 @@ function normalizeBlockType(rawType) {
     case 'service':
     case 'service_card':
       return BlockType.SERVICE_CARD;
+    case 'product':
+    case 'product_card':
+      return BlockType.PRODUCT;
+    case 'product_list':
+    case 'products':
+      return BlockType.PRODUCT_LIST;
+    case 'media':
+    case 'media_card':
+      return BlockType.MEDIA_CARD;
+    case 'hairstyle':
+    case 'hairstyle_card':
+      return BlockType.HAIRSTYLE_CARD;
+    case 'community':
+    case 'community_post':
+    case 'community_card':
+      return BlockType.COMMUNITY_POST;
     case 'quick_reply':
     case 'quick_replies':
     case 'suggestions':
@@ -345,10 +364,26 @@ function parseModelOutput(rawOutput) {
         }
       }
 
+      let prosePreamble = '';
+      const fenceMatch = rawOutput.match(/```(?:json|mya-blocks|mya|blocks)?/i);
+      if (fenceMatch && fenceMatch.index > 0) {
+        prosePreamble = rawOutput.slice(0, fenceMatch.index).trim();
+      }
+
+      const effectiveText = fullText || (parsed.text ? String(parsed.text) : '') || prosePreamble;
+
+      if (effectiveText && !blocks.some(b => b.type === BlockType.TEXT || b.type === BlockType.MARKDOWN)) {
+        blocks.unshift({
+          id: createBlockId('text'),
+          type: BlockType.TEXT,
+          data: { text: effectiveText }
+        });
+      }
+
       if (blocks.length > 0) {
         return {
           blocks,
-          text: fullText || (parsed.text ? String(parsed.text) : ''),
+          text: effectiveText,
           quickReplies: extractedQuickReplies
         };
       }

@@ -39,7 +39,7 @@ describe('searchServices', () => {
             .mockRejectedValueOnce(new Error('relation "partner_products" does not exist'));
 
         const result = await mockCapturedHandlers['searchServices']({ query: 'analysis', limit: 5 });
-        expect(result).toEqual([{ product_id: 1, product_name: 'Hair Analysis' }]);
+        expect(result.results).toEqual([{ product_id: 1, product_name: 'Hair Analysis' }]);
     });
 
     test('includes partner products when table exists', async () => {
@@ -48,8 +48,8 @@ describe('searchServices', () => {
             .mockResolvedValueOnce({ rows: [{ product_name: 'Partner Cream', source: 'partner' }] });
 
         const result = await mockCapturedHandlers['searchServices']({ query: 'moisture', limit: 5 });
-        expect(result).toHaveLength(2);
-        expect(result[1].source).toBe('partner');
+        expect(result.results).toHaveLength(2);
+        expect(result.results[1].source).toBe('partner');
     });
 
     test('returns not-found message when no rows match', async () => {
@@ -58,13 +58,14 @@ describe('searchServices', () => {
             .mockRejectedValueOnce(new Error('table missing'));
 
         const result = await mockCapturedHandlers['searchServices']({ query: 'xyz123' });
-        expect(result[0].message).toMatch(/No services or products found/);
+        expect(result.results).toEqual([]);
+        expect(result.message).toMatch(/No services or products found/);
     });
 
     test('returns error object without throwing when DB fails', async () => {
         mockQuery.mockRejectedValue(new Error('DB down'));
         const result = await mockCapturedHandlers['searchServices']({ query: 'anything' });
-        expect(result[0].error).toBeDefined();
+        expect(result.message).toBeDefined();
     });
 
     test('trims combined results to limit', async () => {
@@ -75,7 +76,7 @@ describe('searchServices', () => {
             .mockResolvedValueOnce({ rows: partners });
 
         const result = await mockCapturedHandlers['searchServices']({ query: 'hair', limit: 5 });
-        expect(result.length).toBeLessThanOrEqual(5);
+        expect(result.results.length).toBeLessThanOrEqual(5);
     });
 });
 
@@ -89,19 +90,20 @@ describe('lookupFAQ', () => {
         mockQuery.mockResolvedValueOnce({ rows: faqs });
 
         const result = await mockCapturedHandlers['lookupFAQ']({ query: 'cancel', limit: 3 });
-        expect(result).toEqual(faqs);
+        expect(result.faqs).toEqual(faqs);
     });
 
     test('returns fallback instruction when no rows match', async () => {
         mockQuery.mockResolvedValueOnce({ rows: [] });
         const result = await mockCapturedHandlers['lookupFAQ']({ query: 'unknown topic' });
-        expect(result[0].answer).toMatch(/Answer based on your knowledge/);
+        expect(result.faqs).toEqual([]);
+        expect(result.message).toMatch(/Answer based on your knowledge/);
     });
 
     test('returns error object without throwing when DB fails', async () => {
         mockQuery.mockRejectedValue(new Error('DB down'));
         const result = await mockCapturedHandlers['lookupFAQ']({ query: 'anything' });
-        expect(result[0].error).toBeDefined();
+        expect(result.message).toBeDefined();
     });
 });
 
@@ -230,3 +232,96 @@ describe('getCommunityPost tool (TASK_MSDK_008)', () => {
         expect(typeof result.commentsCount).toBe('number');
     });
 });
+
+describe('findStylistOrSalon tool', () => {
+    it('executes cleanly and returns matching salons or stylists', async () => {
+        const handler = mockCapturedHandlers['findStylistOrSalon'];
+        expect(handler).toBeDefined();
+
+        const result = await handler({ query: 'Atlanta' });
+        expect(result).toBeDefined();
+        expect(Array.isArray(result.partners)).toBe(true);
+        expect(result.partners.length).toBeGreaterThan(0);
+        expect(result.partners[0]).toHaveProperty('name');
+        expect(result.partners[0].address).toHaveProperty('city');
+    });
+
+    it('filters by category salon_or_stylist correctly', async () => {
+        const handler = mockCapturedHandlers['findStylistOrSalon'];
+        // A location is required (see the no-location test below), so this
+        // exercises category filtering with one supplied.
+        const result = await handler({ locationQuery: 'GA', category: 'salon_or_stylist', limit: 10 });
+        expect(Array.isArray(result.partners)).toBe(true);
+        expect(result.partners.length).toBeGreaterThan(0);
+        result.partners.forEach(item => {
+            expect(item.category).toBe('salon');
+        });
+    });
+
+    it('asks for a location instead of returning an arbitrary partner when none is given', async () => {
+        // MYAVANA's 26 partners span Atlanta, Dayton, Brooklyn, Kampala and
+        // more - a "top salons" fallback with no location handed a member in
+        // Seattle a result 2,000+ miles away with no indication of that.
+        const handler = mockCapturedHandlers['findStylistOrSalon'];
+        const result = await handler({});
+        expect(result.partners).toEqual([]);
+        expect(result.needsLocation).toBe(true);
+        expect(result.message).toMatch(/ask the member/i);
+    });
+
+    it('tells the model where to send the member when a location has no nearby partners', async () => {
+        const handler = mockCapturedHandlers['findStylistOrSalon'];
+        const result = await handler({ locationQuery: 'a location with no partners nearby zzz' });
+        expect(result.partners).toEqual([]);
+        expect(result.message).toMatch(/myavana-ecosystem/);
+    });
+
+    it('handles proximity lookups with latitude and longitude', async () => {
+        const handler = mockCapturedHandlers['findStylistOrSalon'];
+        // Atlanta coordinates
+        const result = await handler({ latitude: 33.7490, longitude: -84.3880, limit: 5 });
+        expect(Array.isArray(result.partners)).toBe(true);
+        expect(result.partners.length).toBeGreaterThan(0);
+        expect(result.partners[0]).toHaveProperty('distance_miles');
+        expect(result.partners[0].distance_miles).toBeLessThanOrEqual(50);
+    });
+});
+
+describe('searchHairMedia tool', () => {
+    it('executes cleanly and retrieves visual assets for hairstyles', async () => {
+        const handler = mockCapturedHandlers['searchHairMedia'];
+        expect(handler).toBeDefined();
+
+        const result = await handler({ query: 'box braids' });
+        expect(Array.isArray(result.assets)).toBe(true);
+        expect(result.assets.length).toBeGreaterThan(0);
+        expect(result.assets[0]).toHaveProperty('title');
+        expect(result.assets[0]).toHaveProperty('source_url');
+        expect(result.assets[0].title).toContain('Box Braids');
+    });
+
+    it('retrieves visual assets for newly added styles like crochet braids or silk press', async () => {
+        const handler = mockCapturedHandlers['searchHairMedia'];
+
+        const crochetResult = await handler({ query: 'crochet braids' });
+        expect(Array.isArray(crochetResult.assets)).toBe(true);
+        expect(crochetResult.assets[0].title).toContain('Crochet Braids');
+
+        const silkPressResult = await handler({ query: 'silk press' });
+        expect(Array.isArray(silkPressResult.assets)).toBe(true);
+        expect(silkPressResult.assets[0].title).toContain('Silk Press');
+    });
+
+    it('filters by category accurately', async () => {
+        const handler = mockCapturedHandlers['searchHairMedia'];
+
+        const diagnosticResult = await handler({ query: 'cuticle', category: 'microscopic_anatomy' });
+        expect(Array.isArray(diagnosticResult.assets)).toBe(true);
+        expect(diagnosticResult.assets.length).toBeGreaterThan(0);
+        expect(diagnosticResult.assets[0].category).toBe('microscopic_anatomy');
+    });
+});
+
+
+
+

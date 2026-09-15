@@ -156,7 +156,12 @@ describe('HairJourneyService', () => {
     expect(result.hairType).toBe('4A');
     expect(result.porosity).toBe('Medium');
     expect(blocks.length).toBe(1);
-    expect(blocks[0].data.hairType).toBe('4A');
-    expect(blocks[0].data.porosity).toBe('Medium');
+    // getProfileWithBlocks prefers the richer hair_profile_card, which nests
+    // the traits under data.profile rather than putting them at data root.
+    expect(blocks[0].type).toBe('hair_profile_card');
+    expect(blocks[0].data.profile.hairType).toBe('4A');
+    expect(blocks[0].data.profile.porosity).toBe('Medium');
+    // The traits must come from the provider, never be invented.
+    expect(blocks[0].data.concerns).toEqual(['Moisture Retention']);
   });
 });

@@ -12,7 +12,16 @@ class CacheManager {
         
         // In-memory fallback (last resort)
         this.memoryCache = new Map();
-        
+
+        // Set once a cache-creation call fails with a quota/permission error that
+        // is not going to change turn-to-turn (e.g. the Gemini Developer API key
+        // is on the free tier, which caps cached-content storage at 0 tokens -
+        // every single request was retrying and failing this, burning ~400-500ms
+        // and a real API call before falling back to sending the full prompt
+        // anyway). Reset on process restart, which is fine - it degrades to one
+        // extra failed attempt after a redeploy, not a permanent wrong guess.
+        this.cacheDisabledReason = null;
+
         console.log('🔧 Cache Manager initialized with multi-layer storage');
     }
 
@@ -114,6 +123,10 @@ class CacheManager {
      *   cacheName is null if cache creation failed — caller should fall back to sending full prompt
      */
     async getOrCreateCache(userId, systemPrompt) {
+        if (this.cacheDisabledReason) {
+            return { cacheName: null, isNewCache: false, error: this.cacheDisabledReason, skipped: true };
+        }
+
         console.log('🔍 ===== CACHE MANAGER: GET OR CREATE =====');
         console.log('📊 Cache Request:', {
             userId: userId,
@@ -125,7 +138,7 @@ class CacheManager {
         try {
             // Quick check across all layers
             const existingCache = await this.getUserCacheFromAnyLayer(userId);
-            
+
             if (existingCache && !this.isCacheExpired(existingCache)) {
                 console.log('✅ Using existing cache:', existingCache.cache_name);
                 return {
@@ -173,7 +186,17 @@ class CacheManager {
                 userId: userId,
                 timestamp: new Date().toISOString()
             });
-            
+
+            // A quota/permission failure (e.g. free-tier cached-content storage
+            // capped at 0 tokens) will fail identically on every future request
+            // too - stop retrying it every turn and go straight to the fallback
+            // path. A transient failure (network blip) would show a different
+            // error shape and is not matched here, so it still retries normally.
+            if (/RESOURCE_EXHAUSTED|PERMISSION_DENIED|quota/i.test(error.message || '')) {
+                this.cacheDisabledReason = error.message;
+                console.warn('🧊 Gemini context caching disabled for this process (quota/permission error) - falling back to sending the full prompt on every request until the next deploy.');
+            }
+
             return {
                 cacheName: null,
                 isNewCache: false,
@@ -504,6 +527,37 @@ class CacheManager {
         }
         
         return stats;
+    }
+
+    /**
+     * Invalidate all user caches across PostgreSQL, Redis, and Memory
+     * Used by the Dashboard when master directives or instructions are updated.
+     */
+    async invalidateAllCaches() {
+        console.log('🧹 Invalidation triggered: clearing all Gemini caches...');
+        this.memoryCache.clear();
+
+        try {
+            if (pgClient) {
+                await pgClient.query('UPDATE user_gemini_caches SET expires_at = NOW() - INTERVAL \'1 minute\'');
+            }
+        } catch (pgErr) {
+            console.warn('PostgreSQL cache purge warning:', pgErr.message);
+        }
+
+        try {
+            if (redisClient && redisClient.isOpen) {
+                const keys = await redisClient.keys('gemini_cache:*');
+                if (keys.length > 0) {
+                    await redisClient.del(keys);
+                }
+            }
+        } catch (redisErr) {
+            console.warn('Redis cache purge warning:', redisErr.message);
+        }
+
+        console.log('✅ All Gemini caches invalidated. Next request will rebuild context with active master directives.');
+        return true;
     }
 }
 

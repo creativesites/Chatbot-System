@@ -145,6 +145,44 @@ class HairJourneyService {
   }
 
   /**
+   * Formats verified strand profile into canonical hair_profile_card block
+   * @param {object} profile
+   * @param {string} [userName]
+   * @returns {object|null} ChatBlock
+   */
+  buildHairProfileCardBlock(profile, userName) {
+    if (!profile || profile.available === false) {
+      return null;
+    }
+    const name = userName || profile.displayName || 'Member';
+    const profileTraits = {};
+    if (profile.hairType) profileTraits.hairType = profile.hairType;
+    if (profile.porosity) profileTraits.porosity = profile.porosity;
+    if (profile.density) profileTraits.density = profile.density;
+    if (profile.strandDiameter) profileTraits.strandDiameter = profile.strandDiameter;
+    if (profile.elasticity) profileTraits.elasticity = profile.elasticity;
+
+    return {
+      id: createBlockId('profile_card'),
+      type: BlockType.HAIR_PROFILE_CARD,
+      data: {
+        greeting: `Hey ${name} 👋`,
+        title: 'Your Hair Profile',
+        bannerImage: profile.bannerImage || 'https://chat.myavana.com/assets/images/hair-profile-banner.jpg',
+        profile: profileTraits,
+        goals: Array.isArray(profile.hairGoals) ? profile.hairGoals : [],
+        concerns: Array.isArray(profile.hairConcerns) ? profile.hairConcerns : [],
+        currentRegimen: profile.currentRegimen || null,
+        source: 'HairAI',
+        cta: {
+          label: 'Explore My Hair Journey',
+          action: 'open_hair_journey'
+        }
+      }
+    };
+  }
+
+  /**
    * Formats verified strand profile into hair_profile_summary block
    * @param {object} profile
    * @returns {object|null} ChatBlock
@@ -232,8 +270,12 @@ class HairJourneyService {
   async getProfileWithBlocks(myavanaUserId) {
     const wpUserId = await this.resolveWordPressUserId(myavanaUserId);
     const result = await this.provider.getProfile(wpUserId);
-    const block = result.available !== false ? this.buildHairProfileBlock(result) : null;
-    return { result, blocks: block ? [block] : [] };
+    const cardBlock = result.available !== false ? this.buildHairProfileCardBlock(result, result.displayName) : null;
+    const summaryBlock = result.available !== false ? this.buildHairProfileBlock(result) : null;
+    const blocks = [];
+    if (cardBlock) blocks.push(cardBlock);
+    else if (summaryBlock) blocks.push(summaryBlock);
+    return { result, blocks };
   }
 
   /**

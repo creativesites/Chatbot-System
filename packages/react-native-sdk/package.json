@@ -1,6 +1,6 @@
 {
   "name": "@myavana/react-native-sdk",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Standalone React Native SDK for MYAVANA AI Hair Care platform. Zero DOM assumptions, streaming NDJSON support, headless client hooks, and native UI primitives.",
   "main": "src/index.js",
   "module": "src/index.js",

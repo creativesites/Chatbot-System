@@ -6,6 +6,8 @@ const { createId } = require('../types');
 const { createDefaultStorage } = require('../storage/StorageAdapter');
 const { getDeviceTelemetry, enrichExperienceContext } = require('../telemetry/deviceTelemetry');
 const streamAdapter = require('./StreamAdapter');
+const { normalizeAttachments } = require('./attachments');
+const { makeError, toMyaError } = require('./errors');
 
 const STORAGE_KEYS = {
   USER_ID: 'myavana_mobile_user_id',
@@ -18,6 +20,9 @@ class MyaMobileClient {
       throw new Error('MyaMobileClient requires apiBase');
     }
     this.apiBase = options.apiBase.replace(/\/+$/, '');
+    // A userId passed by the host app always wins over whatever is in storage.
+    this.userIdExplicit = Boolean(options.userId);
+    this.conversationIdExplicit = Boolean(options.conversationId);
     this.userId = options.userId || createId('usr');
     this.conversationId = options.conversationId || createId('conv');
     this.authToken = options.authToken;
@@ -25,26 +30,61 @@ class MyaMobileClient {
     this.storage = createDefaultStorage(options.storage);
     this.customHeaders = options.headers || {};
     this.activeAbortController = null;
+    this.timeoutMs = options.timeoutMs || 45000; // max silence on a chat stream
+    this.fetchTimeoutMs = options.fetchTimeoutMs || 15000; // history / journal calls
   }
 
   async init() {
     try {
       const storedUserId = await this.storage.getItem(STORAGE_KEYS.USER_ID);
-      if (storedUserId) {
-        this.userId = storedUserId;
-      } else {
-        await this.storage.setItem(STORAGE_KEYS.USER_ID, this.userId);
-      }
-
       const storedConvId = await this.storage.getItem(STORAGE_KEYS.CONVERSATION_ID);
-      if (storedConvId) {
-        this.conversationId = storedConvId;
+
+      if (this.userIdExplicit) {
+        // Host identity wins. If storage held a different user, that user's
+        // conversation must not carry over to this one.
+        const switched = Boolean(storedUserId) && storedUserId !== this.userId;
+        await this.storage.setItem(STORAGE_KEYS.USER_ID, this.userId);
+        if (switched && !this.conversationIdExplicit) {
+          this.conversationId = createId('conv');
+          await this.storage.setItem(STORAGE_KEYS.CONVERSATION_ID, this.conversationId);
+        } else if (!this.conversationIdExplicit && storedConvId) {
+          this.conversationId = storedConvId;
+        } else {
+          await this.storage.setItem(STORAGE_KEYS.CONVERSATION_ID, this.conversationId);
+        }
       } else {
-        await this.storage.setItem(STORAGE_KEYS.CONVERSATION_ID, this.conversationId);
+        if (storedUserId) {
+          this.userId = storedUserId;
+        } else {
+          await this.storage.setItem(STORAGE_KEYS.USER_ID, this.userId);
+        }
+        if (storedConvId && !this.conversationIdExplicit) {
+          this.conversationId = storedConvId;
+        } else {
+          await this.storage.setItem(STORAGE_KEYS.CONVERSATION_ID, this.conversationId);
+        }
       }
     } catch (err) {
       console.warn('[MyaMobileClient] Storage init warning:', err.message);
     }
+  }
+
+  /**
+   * Logout: forget the stored user and conversation so the next login starts
+   * clean. The host calls this (via the hook) before signing another user in.
+   */
+  async clearSession() {
+    this.abort();
+    try {
+      await this.storage.removeItem(STORAGE_KEYS.USER_ID);
+      await this.storage.removeItem(STORAGE_KEYS.CONVERSATION_ID);
+    } catch (err) {
+      console.warn('[MyaMobileClient] clearSession warning:', err.message);
+    }
+    this.userIdExplicit = false;
+    this.conversationIdExplicit = false;
+    this.userId = createId('usr');
+    this.conversationId = createId('conv');
   }
 
   getUserId() {
@@ -112,7 +152,30 @@ class MyaMobileClient {
 
   async sendMessage(options = {}) {
     this.abort();
+
+    // Never forward a photo the server would silently drop. Fail before any
+    // request so the UI cannot claim a photo was sent.
+    let attachments;
+    if (Array.isArray(options.attachments) && options.attachments.length) {
+      const { ready, rejected } = normalizeAttachments(options.attachments);
+      if (rejected.length) {
+        throw makeError('attachment', undefined, { rejected });
+      }
+      attachments = ready.map((a) => ({ url: a.url, mimeType: a.mimeType }));
+    }
+
     this.activeAbortController = new AbortController();
+    const controller = this.activeAbortController;
+    let timedOut = false;
+    let timer = null;
+    const armTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, this.timeoutMs);
+    };
+    armTimer();
 
     const targetConvId = options.conversationId || this.conversationId;
     const streamUrl = `${this.apiBase}/chat/stream`;
@@ -139,9 +202,7 @@ class MyaMobileClient {
       conversationId: targetConvId,
       format: 'ndjson',
       experienceContext,
-      ...(Array.isArray(options.attachments) && options.attachments.length
-        ? { attachments: options.attachments }
-        : {})
+      ...(attachments ? { attachments } : {})
     };
 
     const headers = {
@@ -163,10 +224,13 @@ class MyaMobileClient {
           method: 'POST',
           headers,
           body: requestPayload,
-          signal: options.signal || this.activeAbortController.signal
+          signal: options.signal || controller.signal
         },
         {
-          onFrame: options.onFrame,
+          onFrame: (frame) => {
+            armTimer(); // the stream is alive; restart the silence timer
+            options.onFrame && options.onFrame(frame);
+          },
           onDelta: options.onDelta,
           onBlock: options.onBlock,
           onAction: (action) => {
@@ -184,13 +248,37 @@ class MyaMobileClient {
         }
       );
 
+      if (timedOut) throw makeError('timeout');
+
       return {
         content: result.accumulatedText,
         blocks: result.blocks,
         actions: result.actions
       };
+    } catch (err) {
+      if (timedOut) throw makeError('timeout');
+      throw toMyaError(err);
     } finally {
-      this.activeAbortController = null;
+      if (timer) clearTimeout(timer);
+      if (this.activeAbortController === controller) this.activeAbortController = null;
+    }
+  }
+
+  /** fetch with an abort timer, so history/journal calls cannot hang forever. */
+  async _fetchWithTimeout(url, init = {}) {
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.fetchTimeoutMs);
+    try {
+      return await fetch(url, Object.assign({}, init, { signal: controller.signal }));
+    } catch (err) {
+      if (timedOut) throw makeError('timeout');
+      throw toMyaError(err);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -207,7 +295,7 @@ class MyaMobileClient {
       headers['Authorization'] = `Bearer ${this.authToken}`;
     }
 
-    const res = await fetch(url, { headers });
+    const res = await this._fetchWithTimeout(url, { headers });
     if (!res.ok) {
       throw new Error(`Failed to fetch history: HTTP ${res.status}`);
     }
@@ -240,7 +328,7 @@ class MyaMobileClient {
     }
 
     try {
-      const res = await fetch(url, { headers });
+      const res = await this._fetchWithTimeout(url, { headers });
       if (!res.ok) {
         return [];
       }
@@ -277,7 +365,7 @@ class MyaMobileClient {
     const headers = { 'X-User-Id': this.userId, ...this.customHeaders };
     if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
 
-    const res = await fetch(url.toString(), { headers });
+    const res = await this._fetchWithTimeout(url.toString(), { headers });
     if (!res.ok) {
       throw new Error(`Failed to fetch journal entries: HTTP ${res.status}`);
     }
@@ -299,7 +387,7 @@ class MyaMobileClient {
     };
     if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
 
-    const res = await fetch(url, {
+    const res = await this._fetchWithTimeout(url, {
       method: 'POST',
       headers,
       body: JSON.stringify({ userId: this.userId, ...entryData })

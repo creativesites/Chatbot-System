@@ -36,7 +36,7 @@ describe('MyaMobileClient & Mobile Telemetry', () => {
       });
 
       expect(telemetry.platform).toBe('react-native-ios');
-      expect(telemetry.sdkVersion).toBe('1.2.0');
+      expect(telemetry.sdkVersion).toBe('1.3.0');
       expect(telemetry.appVersion).toBe('2.4.0');
       expect(telemetry.deviceModel).toBe('iPhone 15 Pro');
       expect(telemetry.osVersion).toBe('17.4');
@@ -57,7 +57,7 @@ describe('MyaMobileClient & Mobile Telemetry', () => {
       expect(enriched.channel).toBe('mobile-sdk');
       expect(enriched.wpUserId).toBe(42);
       expect(enriched.currentView).toBe('hair-routine');
-      expect(enriched.sdkVersion).toBe('1.2.0');
+      expect(enriched.sdkVersion).toBe('1.3.0');
       expect(enriched.telemetryTimestamp).toBeDefined();
     });
   });

@@ -87,6 +87,8 @@ describe('Mobile Native Parity: Platform Adapter, Route Sync, and Floating Trigg
       expect(syncResult.currentScreen).toBe('Analysis');
       expect(syncResult.screenContext).toEqual({
         surface: 'myavana-mobile-app',
+        page: 'app://analysis',
+        route: 'Analysis',
         screen: 'Analysis',
         title: 'Analysis Screen',
         params: undefined

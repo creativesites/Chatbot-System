@@ -101,6 +101,11 @@ export interface ChatMessage {
   timestamp?: string;
   isStreaming?: boolean;
   error?: boolean;
+  /** Reply was cut short; the text that arrived is kept. */
+  interrupted?: boolean;
+  errorKind?: MyaErrorKind;
+  /** The member stopped this reply. */
+  stopped?: boolean;
   blocks?: any[];
   actions?: any[];
   attachments?: any[];
@@ -159,6 +164,32 @@ export class MyaMobileClient {
   createJournalEntry(entryData: any): Promise<{ result: any; blocks: any[] }>;
 }
 
+export type MyaErrorKind = 'offline' | 'timeout' | 'server' | 'auth' | 'aborted' | 'attachment' | 'config' | 'unknown';
+
+export interface MyaError extends Error {
+  kind: MyaErrorKind;
+  status?: number;
+  /** Safe, human copy for this kind of failure. */
+  userMessage: string;
+  rejected?: Array<{ name: string; reason: 'not_readable' | 'too_large' | 'too_many' }>;
+}
+
+export interface UnsentDraft {
+  text: string;
+  attachments: any[];
+  reason: MyaErrorKind;
+}
+
+export interface NormalizedAttachments {
+  ready: Array<{ url: string; mimeType: string; name: string }>;
+  rejected: Array<{ name: string; reason: 'not_readable' | 'too_large' | 'too_many' }>;
+}
+
+export const MAX_ATTACHMENTS: number;
+export function normalizeAttachments(list: any[]): NormalizedAttachments;
+export function classifyError(err: unknown): { kind: MyaErrorKind; status: number | null; message: string };
+export function errorCopy(kind: MyaErrorKind): string;
+
 export interface UseMyaChatOptions {
   apiBase?: string;
   client?: MyaMobileClient;
@@ -178,7 +209,7 @@ export interface UseMyaChatReturn {
   messages: ChatMessage[];
   isStreaming: boolean;
   isThinking: boolean;
-  error: Error | null;
+  error: MyaError | null;
   activeBlocks: any[];
   activeActions: any[];
   conversationId: string;
@@ -191,6 +222,11 @@ export interface UseMyaChatReturn {
   fetchConversations: () => Promise<any[]>;
   setMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
   clearCachedMessages: () => Promise<void>;
+  /** Logout: forget stored user, conversation and cached messages. */
+  clearSession: () => Promise<void>;
+  /** Set when a turn failed before Mya replied; put it back in the composer. */
+  unsentDraft: UnsentDraft | null;
+  clearUnsentDraft: () => void;
   updateAuthToken: (token?: string) => void;
   updateUserId: (newUserId: string) => Promise<void>;
 }

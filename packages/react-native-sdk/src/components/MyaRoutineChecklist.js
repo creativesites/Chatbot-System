@@ -31,8 +31,8 @@ function renderStepItem(step, idx, theme, isChecked, onToggle) {
         style: [
           styles.checkbox,
           {
-            borderColor: isChecked ? theme.colors.accentGold : theme.colors.border,
-            backgroundColor: isChecked ? theme.colors.accentGold : 'transparent'
+            borderColor: isChecked ? (theme.colors.accent || theme.colors.accentGold) : theme.colors.border,
+            backgroundColor: isChecked ? (theme.colors.accent || theme.colors.accentGold) : 'transparent'
           }
         ]
       },
@@ -56,7 +56,8 @@ function renderStepItem(step, idx, theme, isChecked, onToggle) {
               styles.stepTitle,
               {
                 color: isChecked ? theme.colors.textMuted : theme.colors.textPrimary,
-                textDecorationLine: isChecked ? 'line-through' : 'none'
+                textDecorationLine: isChecked ? 'line-through' : 'none',
+                fontFamily: theme.typography.fontFamilyMedium || 'Archivo-Medium'
               }
             ]
           },
@@ -65,20 +66,44 @@ function renderStepItem(step, idx, theme, isChecked, onToggle) {
         stepObj.durationMinutes &&
           React.createElement(
             Text,
-            { style: [styles.duration, { color: theme.colors.textMuted }] },
+            {
+              style: [
+                styles.duration,
+                {
+                  color: theme.colors.textMuted,
+                  fontFamily: theme.typography.fontFamilyRegular || 'Archivo-Regular'
+                }
+              ]
+            },
             `${stepObj.durationMinutes}m`
           )
       ),
       stepObj.description &&
         React.createElement(
           Text,
-          { style: [styles.stepDesc, { color: theme.colors.textSecondary }] },
+          {
+            style: [
+              styles.stepDesc,
+              {
+                color: theme.colors.textSecondary,
+                fontFamily: theme.typography.fontFamilyRegular || 'Archivo-Regular'
+              }
+            ]
+          },
           stepObj.description
         ),
       stepObj.productRecommendation &&
         React.createElement(
           Text,
-          { style: [styles.productTag, { color: theme.colors.accentGold }] },
+          {
+            style: [
+              styles.productTag,
+              {
+                color: theme.colors.accent || theme.colors.accentGold,
+                fontFamily: theme.typography.fontFamilyMedium || 'Archivo-Medium'
+              }
+            ]
+          },
           `✨ ${stepObj.productRecommendation}`
         )
     )
@@ -137,7 +162,15 @@ function MyaRoutineChecklist(props) {
         null,
         React.createElement(
           Text,
-          { style: [styles.frequency, { color: activeTheme.colors.accentGold }] },
+          {
+            style: [
+              styles.frequency,
+              {
+                color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+              }
+            ]
+          },
           (routine.frequency || 'Daily Hair Regimen').toUpperCase()
         ),
         React.createElement(
@@ -147,7 +180,9 @@ function MyaRoutineChecklist(props) {
               styles.title,
               {
                 color: activeTheme.colors.textPrimary,
-                fontSize: activeTheme.typography.fontSizeTitle
+                fontSize: activeTheme.typography.fontSizeTitle,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold',
+                letterSpacing: activeTheme.typography.letterSpacingHeading ?? -0.3
               }
             ]
           },
@@ -156,7 +191,15 @@ function MyaRoutineChecklist(props) {
       ),
       React.createElement(
         Text,
-        { style: [styles.counter, { color: activeTheme.colors.textSecondary }] },
+        {
+          style: [
+            styles.counter,
+            {
+              color: activeTheme.colors.textSecondary,
+              fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+            }
+          ]
+        },
         `${completedCount}/${rawSteps.length}`
       )
     ),
@@ -173,7 +216,7 @@ function MyaRoutineChecklist(props) {
           styles.progressBarFill,
           {
             width: `${progressPercent}%`,
-            backgroundColor: activeTheme.colors.accentGold
+            backgroundColor: activeTheme.colors.accent || activeTheme.colors.accentGold
           }
         ]
       })
@@ -181,10 +224,9 @@ function MyaRoutineChecklist(props) {
     React.createElement(
       View,
       { style: styles.stepsList },
-      ...rawSteps.map((step, idx) => {
+      rawSteps.map((step, idx) => {
         const id = (typeof step === 'object' && step.id) || `step-${idx}`;
-        const isChecked = Boolean(completedMap[id]);
-        return renderStepItem(step, idx, activeTheme, isChecked, handleToggle);
+        return renderStepItem(step, idx, activeTheme, Boolean(completedMap[id]), handleToggle);
       })
     )
   );
@@ -210,15 +252,18 @@ const styles = StyleSheet.create({
   },
   frequency: {
     fontSize: 10,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 2
   },
   title: {
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700'
   },
   counter: {
     fontSize: 14,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700'
   },
   progressBarBackground: {
@@ -253,6 +298,7 @@ const styles = StyleSheet.create({
   checkmark: {
     color: '#FFFFFF',
     fontSize: 12,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800'
   },
   stepDetails: {
@@ -265,21 +311,25 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     fontSize: 14,
+    fontFamily: 'Archivo-Medium',
     fontWeight: '600',
     flex: 1
   },
   duration: {
     fontSize: 11,
+    fontFamily: 'Archivo-Medium',
     fontWeight: '600',
     marginLeft: 6
   },
   stepDesc: {
     fontSize: 12,
+    fontFamily: 'Archivo-Regular',
     marginTop: 2,
     lineHeight: 16
   },
   productTag: {
     fontSize: 11,
+    fontFamily: 'Archivo-Medium',
     fontWeight: '600',
     marginTop: 4
   }

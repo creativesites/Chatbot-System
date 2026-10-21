@@ -40,7 +40,7 @@ function MyaQuickReplies({
             styles.chip,
             {
               backgroundColor: activeTheme.colors.surface,
-              borderColor: activeTheme.colors.accentGold,
+              borderColor: activeTheme.colors.accent || activeTheme.colors.accentGold,
               opacity: disabled ? 0.5 : 1
             }
           ],
@@ -55,7 +55,9 @@ function MyaQuickReplies({
               styles.chipText,
               {
                 color: activeTheme.colors.textPrimary,
-                fontSize: activeTheme.typography.fontSizeSmall
+                fontSize: activeTheme.typography.fontSizeSmall,
+                fontFamily: activeTheme.typography.fontFamilyMedium || 'Archivo-Medium',
+                letterSpacing: activeTheme.typography.letterSpacingBody ?? -0.2
               }
             ]
           },
@@ -89,6 +91,7 @@ const styles = StyleSheet.create({
     elevation: 1
   },
   chipText: {
+    fontFamily: 'Archivo-Medium',
     fontWeight: '600'
   }
 });

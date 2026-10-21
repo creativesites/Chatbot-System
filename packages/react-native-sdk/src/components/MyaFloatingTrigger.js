@@ -23,7 +23,7 @@ function MyaFloatingTrigger({
         position === 'bottom-left' ? styles.bottomLeft : styles.bottomRight,
         {
           backgroundColor: activeTheme.colors.primary,
-          borderColor: activeTheme.colors.accentGold
+          borderColor: activeTheme.colors.accent || 'rgba(231, 166, 144, 0.4)'
         }
       ],
       onPress: onPress,
@@ -34,7 +34,10 @@ function MyaFloatingTrigger({
       {
         style: [
           styles.triggerText,
-          { color: activeTheme.colors.accentGold }
+          {
+            color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+            fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+          }
         ]
       },
       label
@@ -45,7 +48,7 @@ function MyaFloatingTrigger({
           {
             style: [
               styles.badgeContainer,
-              { backgroundColor: activeTheme.colors.error }
+              { backgroundColor: activeTheme.colors.accent || activeTheme.colors.error }
             ]
           },
           React.createElement(
@@ -67,11 +70,11 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
     elevation: 8,
     zIndex: 999
   },
@@ -83,6 +86,7 @@ const styles = StyleSheet.create({
   },
   triggerText: {
     fontSize: 22,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800'
   },
   badgeContainer: {
@@ -98,6 +102,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: 10,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800'
   }
 });

@@ -7,7 +7,8 @@ const { defaultMyaTheme } = require('./theme');
 const { View, Text, TouchableOpacity, StyleSheet } = require('./nativePrimitives');
 
 function MyaGoalCard(props) {
-  const { goal = {}, theme = {}, onUpdateGoal } = props;
+  const { goal = {}, theme = {}, onUpdateGoal, onPressUpdate } = props;
+  const handleUpdate = onUpdateGoal || onPressUpdate;
   const activeTheme = { ...defaultMyaTheme, ...theme };
   const progress = Math.min(100, Math.max(0, goal.progressPercent ?? 45));
 
@@ -30,7 +31,15 @@ function MyaGoalCard(props) {
         null,
         React.createElement(
           Text,
-          { style: [styles.categoryBadge, { color: activeTheme.colors.accentGold }] },
+          {
+            style: [
+              styles.categoryBadge,
+              {
+                color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+              }
+            ]
+          },
           (goal.category || 'HAIR GOAL').toUpperCase()
         ),
         React.createElement(
@@ -40,7 +49,9 @@ function MyaGoalCard(props) {
               styles.title,
               {
                 color: activeTheme.colors.textPrimary,
-                fontSize: activeTheme.typography.fontSizeTitle
+                fontSize: activeTheme.typography.fontSizeTitle,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold',
+                letterSpacing: activeTheme.typography.letterSpacingHeading ?? -0.3
               }
             ]
           },
@@ -57,7 +68,15 @@ function MyaGoalCard(props) {
         },
         React.createElement(
           Text,
-          { style: [styles.percentText, { color: activeTheme.colors.accentGold }] },
+          {
+            style: [
+              styles.percentText,
+              {
+                color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+              }
+            ]
+          },
           `${progress}%`
         )
       )
@@ -77,7 +96,7 @@ function MyaGoalCard(props) {
             width: `${progress}%`,
             backgroundColor: goal.isCompleted
               ? activeTheme.colors.success
-              : activeTheme.colors.accentGold
+              : (activeTheme.colors.accent || activeTheme.colors.accentGold)
           }
         ]
       })
@@ -88,17 +107,33 @@ function MyaGoalCard(props) {
       goal.currentMilestone &&
         React.createElement(
           Text,
-          { style: [styles.milestoneText, { color: activeTheme.colors.textSecondary }] },
+          {
+            style: [
+              styles.milestoneText,
+              {
+                color: activeTheme.colors.textSecondary,
+                fontFamily: activeTheme.typography.fontFamilyMedium || 'Archivo-Medium'
+              }
+            ]
+          },
           `🎯 ${goal.currentMilestone}`
         ),
       goal.targetDate &&
         React.createElement(
           Text,
-          { style: [styles.dateText, { color: activeTheme.colors.textMuted }] },
+          {
+            style: [
+              styles.dateText,
+              {
+                color: activeTheme.colors.textMuted,
+                fontFamily: activeTheme.typography.fontFamilyRegular || 'Archivo-Regular'
+              }
+            ]
+          },
           `Target: ${goal.targetDate}`
         )
     ),
-    onUpdateGoal &&
+    handleUpdate &&
       React.createElement(
         TouchableOpacity,
         {
@@ -109,12 +144,20 @@ function MyaGoalCard(props) {
               borderColor: activeTheme.colors.border
             }
           ],
-          onPress: () => onUpdateGoal(goal.id),
+          onPress: () => handleUpdate(goal.id || goal),
           activeOpacity: 0.7
         },
         React.createElement(
           Text,
-          { style: [styles.actionButtonText, { color: activeTheme.colors.textPrimary }] },
+          {
+            style: [
+              styles.actionButtonText,
+              {
+                color: activeTheme.colors.textPrimary,
+                fontFamily: activeTheme.typography.fontFamilyMedium || 'Archivo-Medium'
+              }
+            ]
+          },
           'Update Goal Progress'
         )
       )
@@ -141,11 +184,13 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     fontSize: 10,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 4
   },
   title: {
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700'
   },
   percentTag: {
@@ -155,6 +200,7 @@ const styles = StyleSheet.create({
   },
   percentText: {
     fontSize: 13,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800'
   },
   progressBarBackground: {
@@ -174,10 +220,12 @@ const styles = StyleSheet.create({
   },
   milestoneText: {
     fontSize: 12,
+    fontFamily: 'Archivo-Medium',
     fontWeight: '500'
   },
   dateText: {
-    fontSize: 11
+    fontSize: 11,
+    fontFamily: 'Archivo-Regular'
   },
   actionButton: {
     marginTop: 12,
@@ -188,6 +236,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 12,
+    fontFamily: 'Archivo-Medium',
     fontWeight: '600'
   }
 });

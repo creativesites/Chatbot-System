@@ -35,8 +35,9 @@ function MyaConsultationCard({
           style: [
             styles.badge,
             {
-              backgroundColor: activeTheme.colors.accentGoldLight,
-              color: activeTheme.colors.primary
+              backgroundColor: activeTheme.colors.accentLight || activeTheme.colors.accentGoldLight,
+              color: activeTheme.colors.primary,
+              fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
             }
           ]
         },
@@ -45,7 +46,15 @@ function MyaConsultationCard({
       specialist.rating
         ? React.createElement(
             Text,
-            { style: [styles.ratingText, { color: activeTheme.colors.accentGold }] },
+            {
+              style: [
+                styles.ratingText,
+                {
+                  color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+                  fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+                }
+              ]
+            },
             `★ ${Number(specialist.rating).toFixed(1)}`
           )
         : null
@@ -61,7 +70,9 @@ function MyaConsultationCard({
             styles.nameText,
             {
               color: activeTheme.colors.textPrimary,
-              fontSize: activeTheme.typography.fontSizeLarge
+              fontSize: activeTheme.typography.fontSizeLarge,
+              fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold',
+              letterSpacing: activeTheme.typography.letterSpacingHeading ?? -0.3
             }
           ]
         },
@@ -74,7 +85,8 @@ function MyaConsultationCard({
             styles.titleText,
             {
               color: activeTheme.colors.textSecondary,
-              fontSize: activeTheme.typography.fontSizeSmall
+              fontSize: activeTheme.typography.fontSizeSmall,
+              fontFamily: activeTheme.typography.fontFamilyRegular || 'Archivo-Regular'
             }
           ]
         },
@@ -101,7 +113,10 @@ function MyaConsultationCard({
                 {
                   style: [
                     styles.specialtyText,
-                    { color: activeTheme.colors.textSecondary }
+                    {
+                      color: activeTheme.colors.textSecondary,
+                      fontFamily: activeTheme.typography.fontFamilyMedium || 'Archivo-Medium'
+                    }
                   ]
                 },
                 item
@@ -117,7 +132,10 @@ function MyaConsultationCard({
           {
             style: [
               styles.slotText,
-              { color: activeTheme.colors.textMuted }
+              {
+                color: activeTheme.colors.textMuted,
+                fontFamily: activeTheme.typography.fontFamilyRegular || 'Archivo-Regular'
+              }
             ]
           },
           `Next available: ${specialist.availableSlot}`
@@ -139,7 +157,10 @@ function MyaConsultationCard({
         {
           style: [
             styles.actionButtonText,
-            { color: activeTheme.colors.accentGold }
+            {
+              color: '#FFFFFF',
+              fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+            }
           ]
         },
         'Book 1:1 Hair Consultation'
@@ -168,6 +189,7 @@ const styles = StyleSheet.create({
   },
   badge: {
     fontSize: 10,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800',
     letterSpacing: 0.8,
     paddingHorizontal: 8,
@@ -175,6 +197,7 @@ const styles = StyleSheet.create({
     borderRadius: 6
   },
   ratingText: {
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700',
     fontSize: 12
   },
@@ -182,9 +205,11 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   nameText: {
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700'
   },
   titleText: {
+    fontFamily: 'Archivo-Regular',
     marginTop: 2
   },
   specialtiesWrap: {
@@ -201,10 +226,12 @@ const styles = StyleSheet.create({
   },
   specialtyText: {
     fontSize: 11,
+    fontFamily: 'Archivo-Medium',
     fontWeight: '600'
   },
   slotText: {
     fontSize: 12,
+    fontFamily: 'Archivo-Regular',
     marginBottom: 12,
     fontStyle: 'italic'
   },
@@ -215,6 +242,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   actionButtonText: {
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700',
     fontSize: 13,
     letterSpacing: 0.3

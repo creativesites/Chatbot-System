@@ -8,6 +8,7 @@ const { defaultMyaTheme } = require('./theme');
 const {
   ActivityIndicator,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   StyleSheet,
   Text,
@@ -59,7 +60,10 @@ function MyaChatView({
   onPressAction,
   onToggleRoutineStep,
   onPressVoice,
-  onClearSession
+  onClearSession,
+  onPressAttach,
+  attachments = [],
+  onRemoveAttachment
 }) {
   const activeTheme = Object.assign({}, defaultMyaTheme, theme);
   const [inputText, setInputText] = useState('');
@@ -68,7 +72,7 @@ function MyaChatView({
   const handleSend = () => {
     const trimmed = (inputText || '').trim();
     if (!trimmed || isStreaming) return;
-    if (onSendMessage) onSendMessage(trimmed);
+    if (onSendMessage) onSendMessage(trimmed, attachments);
     setInputText('');
   };
 
@@ -99,6 +103,8 @@ function MyaChatView({
           role: item.role,
           content: item.content,
           timestamp: item.timestamp,
+          attachments: item.attachments,
+          message: item,
           theme: activeTheme
         }),
         !isUser && messageQuickReplies.length > 0 &&
@@ -184,7 +190,15 @@ function MyaChatView({
           },
           React.createElement(
             Text,
-            { style: [styles.avatarText, { color: activeTheme.colors.accentGold }] },
+            {
+              style: [
+                styles.avatarText,
+                {
+                  color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+                  fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+                }
+              ]
+            },
             'M'
           )
         ),
@@ -196,7 +210,11 @@ function MyaChatView({
             {
               style: [
                 styles.headerTitle,
-                { color: activeTheme.colors.textPrimary }
+                {
+                  color: activeTheme.colors.textPrimary,
+                  fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold',
+                  letterSpacing: activeTheme.typography.letterSpacingHeading ?? -0.3
+                }
               ]
             },
             title
@@ -206,7 +224,11 @@ function MyaChatView({
             {
               style: [
                 styles.headerSubtitle,
-                { color: activeTheme.colors.textSecondary }
+                {
+                  color: activeTheme.colors.textSecondary,
+                  fontFamily: activeTheme.typography.fontFamilyRegular || 'Archivo-Regular',
+                  letterSpacing: activeTheme.typography.letterSpacingBody ?? -0.2
+                }
               ]
             },
             subtitle
@@ -226,7 +248,10 @@ function MyaChatView({
               {
                 style: [
                   styles.resetButtonText,
-                  { color: activeTheme.colors.textMuted }
+                  {
+                    color: activeTheme.colors.textMuted,
+                    fontFamily: activeTheme.typography.fontFamilyMedium || 'Archivo-Medium'
+                  }
                 ]
               },
               'Reset'
@@ -290,6 +315,51 @@ function MyaChatView({
         })
       : null,
 
+    // Attachment Preview Tray
+    attachments && attachments.length > 0
+      ? React.createElement(
+          View,
+          {
+            style: [
+              styles.attachmentPreviewTray,
+              {
+                backgroundColor: activeTheme.colors.surface,
+                borderTopColor: activeTheme.colors.border
+              }
+            ]
+          },
+          attachments.map((att, idx) => {
+            const uri = att && (att.url || att.uri || (att.payload && att.payload.url));
+            return React.createElement(
+              View,
+              { key: `prev-${idx}`, style: styles.attachmentPreviewItem },
+              uri
+                ? React.createElement(Image, {
+                    source: { uri },
+                    style: styles.attachmentThumb,
+                    resizeMode: 'cover'
+                  })
+                : null,
+              onRemoveAttachment
+                ? React.createElement(
+                    TouchableOpacity,
+                    {
+                      style: styles.attachmentRemoveBtn,
+                      onPress: () => onRemoveAttachment(idx),
+                      accessibilityLabel: 'Remove attachment'
+                    },
+                    React.createElement(
+                      Text,
+                      { style: styles.attachmentRemoveText },
+                      '×'
+                    )
+                  )
+                : null
+            );
+          })
+        )
+      : null,
+
     // Input Composer Bar
     React.createElement(
       View,
@@ -302,6 +372,26 @@ function MyaChatView({
           }
         ]
       },
+      onPressAttach
+        ? React.createElement(
+            TouchableOpacity,
+            {
+              style: [
+                styles.attachButton,
+                { backgroundColor: activeTheme.colors.surfaceElevated }
+              ],
+              onPress: onPressAttach,
+              activeOpacity: 0.7,
+              accessibilityLabel: 'Attach photo',
+              accessibilityRole: 'button'
+            },
+            React.createElement(
+              Text,
+              { style: { fontSize: 18 } },
+              '📷'
+            )
+          )
+        : null,
       onPressVoice
         ? React.createElement(
             TouchableOpacity,
@@ -311,7 +401,9 @@ function MyaChatView({
                 { backgroundColor: activeTheme.colors.surfaceElevated }
               ],
               onPress: onPressVoice,
-              activeOpacity: 0.7
+              activeOpacity: 0.7,
+              accessibilityLabel: 'Voice input',
+              accessibilityRole: 'button'
             },
             React.createElement(
               Text,
@@ -326,7 +418,8 @@ function MyaChatView({
           {
             backgroundColor: activeTheme.colors.surfaceElevated,
             color: activeTheme.colors.textPrimary,
-            borderColor: activeTheme.colors.border
+            borderColor: activeTheme.colors.border,
+            fontFamily: activeTheme.typography.fontFamilyRegular || 'Archivo-Regular'
           }
         ],
         placeholder: placeholder,
@@ -336,7 +429,8 @@ function MyaChatView({
         multiline: false,
         editable: !isStreaming,
         returnKeyType: 'send',
-        onSubmitEditing: handleSend
+        onSubmitEditing: handleSend,
+        accessibilityLabel: 'Chat message draft'
       }),
       React.createElement(
         TouchableOpacity,
@@ -346,18 +440,20 @@ function MyaChatView({
             {
               backgroundColor:
                 (inputText || '').trim() && !isStreaming
-                  ? activeTheme.colors.primary
+                  ? activeTheme.colors.accent || activeTheme.colors.primary
                   : activeTheme.colors.surfaceElevated
             }
           ],
           onPress: handleSend,
           disabled: !(inputText || '').trim() || isStreaming,
-          activeOpacity: 0.8
+          activeOpacity: 0.8,
+          accessibilityLabel: 'Send message',
+          accessibilityRole: 'button'
         },
         isStreaming
           ? React.createElement(ActivityIndicator, {
               size: 'small',
-              color: activeTheme.colors.accentGold
+              color: activeTheme.colors.accent || activeTheme.colors.accentGold
             })
           : React.createElement(
               Text,
@@ -366,8 +462,9 @@ function MyaChatView({
                   styles.sendButtonText,
                   {
                     color: (inputText || '').trim()
-                      ? activeTheme.colors.accentGold
-                      : activeTheme.colors.textMuted
+                      ? '#FFFFFF'
+                      : activeTheme.colors.textMuted,
+                    fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
                   }
                 ]
               },
@@ -403,14 +500,17 @@ const styles = StyleSheet.create({
     marginRight: 10
   },
   avatarText: {
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800',
     fontSize: 16
   },
   headerTitle: {
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700',
     fontSize: 15
   },
   headerSubtitle: {
+    fontFamily: 'Archivo-Regular',
     fontSize: 11
   },
   resetButton: {
@@ -418,6 +518,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4
   },
   resetButtonText: {
+    fontFamily: 'Archivo-Medium',
     fontSize: 12,
     fontWeight: '600'
   },
@@ -459,7 +560,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     borderWidth: 1,
-    fontSize: 14
+    fontSize: 14,
+    fontFamily: 'Archivo-Regular'
   },
   sendButton: {
     width: 38,
@@ -471,7 +573,51 @@ const styles = StyleSheet.create({
   },
   sendButtonText: {
     fontSize: 18,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800'
+  },
+  attachButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8
+  },
+  attachmentPreviewTray: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    gap: 10
+  },
+  attachmentPreviewItem: {
+    position: 'relative',
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    overflow: 'hidden'
+  },
+  attachmentThumb: {
+    width: '100%',
+    height: '100%'
+  },
+  attachmentRemoveBtn: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  attachmentRemoveText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    lineHeight: 14
   }
 });
 

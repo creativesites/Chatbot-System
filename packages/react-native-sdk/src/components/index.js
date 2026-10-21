@@ -10,6 +10,7 @@ const blockRenderer = require('./MyaBlockRenderer');
 const chatView = require('./MyaChatView');
 const floatingTrigger = require('./MyaFloatingTrigger');
 const mediaCard = require('./MyaMediaCard');
+const productCard = require('./MyaProductCard');
 
 // Note: `./nativePrimitives` is a headless-safe RN loader for internal use by
 // the components above (MyaChatBubble, MyaStrandCard, etc.). It is
@@ -27,6 +28,7 @@ module.exports = {
   ...journalCard,
   ...consultationCard,
   ...mediaCard,
+  ...productCard,
   ...quickReplies,
   ...blockRenderer,
   ...chatView,

@@ -4,6 +4,7 @@
   "description": "Standalone React Native SDK for MYAVANA AI Hair Care platform. Zero DOM assumptions, streaming NDJSON support, headless client hooks, and native UI primitives.",
   "main": "src/index.js",
   "module": "src/index.js",
+  "types": "index.d.ts",
   "publishConfig": {
     "access": "public"
   },

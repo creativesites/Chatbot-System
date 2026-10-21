@@ -15,9 +15,14 @@ const {
 describe('Mobile Starter UI Primitives (Zero DOM)', () => {
   describe('defaultMyaTheme Tokens', () => {
     test('contains canonical MYAVANA brand colors and tokens', () => {
-      expect(defaultMyaTheme.colors.accentGold).toBe('#D4AF37');
-      expect(defaultMyaTheme.colors.primary).toBe('#1F1B24');
+      expect(defaultMyaTheme.colors.accent).toBe('#E7A690');
+      expect(defaultMyaTheme.colors.accentGold).toBe('#E7A690');
+      expect(defaultMyaTheme.colors.primary).toBe('#222323');
       expect(defaultMyaTheme.colors.surface).toBe('#FFFFFF');
+      expect(defaultMyaTheme.colors.onyx).toBe('#222323');
+      expect(defaultMyaTheme.colors.coral).toBe('#E7A690');
+      expect(defaultMyaTheme.colors.stone).toBe('#F5F5F7');
+      expect(defaultMyaTheme.typography.fontFamilyBold).toBe('Archivo-Bold');
       expect(defaultMyaTheme.spacing.md).toBe(12);
       expect(defaultMyaTheme.borderRadius.lg).toBe(16);
     });

@@ -4,7 +4,7 @@
 
 const React = require('react');
 const { defaultMyaTheme } = require('./theme');
-const { View, Text, StyleSheet } = require('./nativePrimitives');
+const { View, Text, Image, StyleSheet } = require('./nativePrimitives');
 
 function formatTimestamp(isoString) {
   if (!isoString) return '';
@@ -40,7 +40,13 @@ function renderFormattedContent(rawText, baseStyle) {
         parts.push(
           React.createElement(
             Text,
-            { key: `b-${lineIdx}-${match.index}`, style: { fontWeight: '700' } },
+            {
+              key: `b-${lineIdx}-${match.index}`,
+              style: {
+                fontWeight: '700',
+                fontFamily: (baseStyle && baseStyle.fontFamilyBold) || 'Archivo-Bold'
+              }
+            },
             token.slice(2, -2)
           )
         );
@@ -48,7 +54,13 @@ function renderFormattedContent(rawText, baseStyle) {
         parts.push(
           React.createElement(
             Text,
-            { key: `i-${lineIdx}-${match.index}`, style: { fontStyle: 'italic' } },
+            {
+              key: `i-${lineIdx}-${match.index}`,
+              style: {
+                fontStyle: 'italic',
+                fontFamily: (baseStyle && baseStyle.fontFamilyItalic) || 'Archivo-Italic'
+              }
+            },
             token.slice(1, -1)
           )
         );
@@ -102,6 +114,9 @@ function MyaChatBubble(props) {
     ? activeTheme.colors.error
     : activeTheme.colors.assistantBubbleText;
 
+  const effectiveAttachments =
+    props.attachments || message.attachments || (message.metadata && message.metadata.attachments) || [];
+
   const displayText = effectiveContent || (effectiveIsStreaming ? 'Thinking...' : '');
 
   return React.createElement(
@@ -115,7 +130,15 @@ function MyaChatBubble(props) {
     !isUser &&
       React.createElement(
         Text,
-        { style: [styles.senderLabel, { color: activeTheme.colors.accentGold }] },
+        {
+          style: [
+            styles.senderLabel,
+            {
+              color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+              fontFamily: activeTheme.typography.fontFamilySemiBold || 'Archivo-SemiBold'
+            }
+          ]
+        },
         'MYAVANA Hair AI'
       ),
     React.createElement(
@@ -130,18 +153,45 @@ function MyaChatBubble(props) {
           }
         ]
       },
+      effectiveAttachments.length > 0 &&
+        React.createElement(
+          View,
+          { style: styles.attachmentsWrap },
+          effectiveAttachments.map((att, attIdx) => {
+            const uri = att && (att.url || att.uri || (att.payload && att.payload.url));
+            if (!uri) return null;
+            return React.createElement(Image, {
+              key: `att-${attIdx}`,
+              source: { uri },
+              style: styles.bubbleAttachmentImage,
+              resizeMode: 'cover'
+            });
+          })
+        ),
       renderFormattedContent(
         displayText,
         Object.assign({}, styles.messageText, {
           color: textColor,
-          fontSize: activeTheme.typography.fontSizeMedium
+          fontSize: activeTheme.typography.fontSizeMedium,
+          fontFamily: activeTheme.typography.fontFamilyRegular || 'Archivo-Regular',
+          fontFamilyBold: activeTheme.typography.fontFamilyBold || 'Archivo-Bold',
+          fontFamilyItalic: 'Archivo-Italic',
+          letterSpacing: activeTheme.typography.letterSpacingBody ?? -0.2
         })
       ),
       effectiveIsStreaming &&
         Boolean(effectiveContent) &&
         React.createElement(
           Text,
-          { style: [styles.streamingCursor, { color: activeTheme.colors.accentGold }] },
+          {
+            style: [
+              styles.streamingCursor,
+              {
+                color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+              }
+            ]
+          },
           ' ▍'
         )
     ),
@@ -153,6 +203,7 @@ function MyaChatBubble(props) {
           {
             color: activeTheme.colors.textMuted,
             fontSize: activeTheme.typography.fontSizeSmall,
+            fontFamily: activeTheme.typography.fontFamilyRegular || 'Archivo-Regular',
             textAlign: isUser ? 'right' : 'left'
           }
         ]
@@ -176,6 +227,7 @@ const styles = StyleSheet.create({
   },
   senderLabel: {
     fontSize: 11,
+    fontFamily: 'Archivo-SemiBold',
     fontWeight: '700',
     marginBottom: 4,
     textTransform: 'uppercase',
@@ -192,15 +244,30 @@ const styles = StyleSheet.create({
     elevation: 1
   },
   messageText: {
+    fontFamily: 'Archivo-Regular',
     lineHeight: 20
   },
   streamingCursor: {
     fontSize: 14,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700'
   },
   timestamp: {
     marginTop: 3,
-    paddingHorizontal: 2
+    paddingHorizontal: 2,
+    fontFamily: 'Archivo-Regular'
+  },
+  attachmentsWrap: {
+    marginBottom: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  bubbleAttachmentImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.05)'
   }
 });
 

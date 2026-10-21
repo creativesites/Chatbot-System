@@ -29,7 +29,16 @@ function MyaJournalCard({ entry, theme = {}, onPressEntry }) {
         null,
         React.createElement(
           Text,
-          { style: [styles.badge, { color: activeTheme.colors.accentGold }] },
+          {
+            style: [
+              styles.badge,
+              {
+                color: activeTheme.colors.accent,
+                fontFamily: activeTheme.typography.fontFamilyBold,
+                letterSpacing: 1.2
+              }
+            ]
+          },
           'HAIR JOURNAL LOG'
         ),
         React.createElement(
@@ -39,6 +48,7 @@ function MyaJournalCard({ entry, theme = {}, onPressEntry }) {
               styles.dateText,
               {
                 color: activeTheme.colors.textPrimary,
+                fontFamily: activeTheme.typography.fontFamilyBold,
                 fontSize: activeTheme.typography.fontSizeMedium
               }
             ]
@@ -57,7 +67,15 @@ function MyaJournalCard({ entry, theme = {}, onPressEntry }) {
             },
             React.createElement(
               Text,
-              { style: [styles.moodText, { color: activeTheme.colors.textSecondary }] },
+              {
+                style: [
+                  styles.moodText,
+                  {
+                    color: activeTheme.colors.textSecondary,
+                    fontFamily: activeTheme.typography.fontFamilyMedium
+                  }
+                ]
+              },
               `Mood: ${entry.mood}`
             )
           )
@@ -74,8 +92,9 @@ function MyaJournalCard({ entry, theme = {}, onPressEntry }) {
               style: [
                 styles.washDayTag,
                 {
-                  backgroundColor: activeTheme.colors.accentGoldLight,
-                  color: activeTheme.colors.primary
+                  backgroundColor: activeTheme.colors.accentLight,
+                  color: activeTheme.colors.primary,
+                  fontFamily: activeTheme.typography.fontFamilyBold
                 }
               ]
             },
@@ -91,6 +110,7 @@ function MyaJournalCard({ entry, theme = {}, onPressEntry }) {
           styles.notesText,
           {
             color: activeTheme.colors.textSecondary,
+            fontFamily: activeTheme.typography.fontFamilyRegular,
             fontSize: activeTheme.typography.fontSizeSmall
           }
         ],
@@ -105,7 +125,10 @@ function MyaJournalCard({ entry, theme = {}, onPressEntry }) {
           {
             style: [
               styles.productsText,
-              { color: activeTheme.colors.textMuted }
+              {
+                color: activeTheme.colors.textMuted,
+                fontFamily: activeTheme.typography.fontFamilyMedium
+              }
             ]
           },
           `Products: ${entry.productsUsed.join(', ')}`
@@ -125,7 +148,10 @@ function MyaJournalCard({ entry, theme = {}, onPressEntry }) {
             {
               style: [
                 styles.linkText,
-                { color: activeTheme.colors.accentGold }
+                {
+                  color: activeTheme.colors.accent,
+                  fontFamily: activeTheme.typography.fontFamilyBold
+                }
               ]
             },
             'View Full Entry →'
@@ -156,11 +182,13 @@ const styles = StyleSheet.create({
   badge: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
+    fontFamily: 'Archivo-Bold',
     marginBottom: 2
   },
   dateText: {
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: 'Archivo-Bold'
   },
   moodBadge: {
     paddingHorizontal: 8,
@@ -169,7 +197,8 @@ const styles = StyleSheet.create({
   },
   moodText: {
     fontSize: 11,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: 'Archivo-Medium'
   },
   tagRow: {
     marginVertical: 4
@@ -177,6 +206,7 @@ const styles = StyleSheet.create({
   washDayTag: {
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: 'Archivo-Bold',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -184,10 +214,12 @@ const styles = StyleSheet.create({
   },
   notesText: {
     marginTop: 6,
-    lineHeight: 18
+    lineHeight: 18,
+    fontFamily: 'Archivo-Regular'
   },
   productsText: {
     fontSize: 11,
+    fontFamily: 'Archivo-Medium',
     marginTop: 6
   },
   linkButton: {
@@ -196,7 +228,8 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 12,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: 'Archivo-Bold'
   }
 });
 

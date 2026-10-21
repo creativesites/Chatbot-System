@@ -15,7 +15,15 @@ function renderTraitItem(label, value, theme) {
     },
     React.createElement(
       Text,
-      { style: [styles.traitLabel, { color: theme.colors.textMuted }] },
+      {
+        style: [
+          styles.traitLabel,
+          {
+            color: theme.colors.textMuted,
+            fontFamily: theme.typography.fontFamilyBold || 'Archivo-Bold'
+          }
+        ]
+      },
       label.toUpperCase()
     ),
     React.createElement(
@@ -25,7 +33,8 @@ function renderTraitItem(label, value, theme) {
           styles.traitValue,
           {
             color: theme.colors.textPrimary,
-            fontSize: theme.typography.fontSizeMedium
+            fontSize: theme.typography.fontSizeMedium,
+            fontFamily: theme.typography.fontFamilyMedium || 'Archivo-Medium'
           }
         ]
       },
@@ -58,7 +67,15 @@ function MyaStrandCard(props) {
         null,
         React.createElement(
           Text,
-          { style: [styles.badge, { color: activeTheme.colors.accentGold }] },
+          {
+            style: [
+              styles.badge,
+              {
+                color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+              }
+            ]
+          },
           'HAIRID™ STRAND DNA'
         ),
         React.createElement(
@@ -68,7 +85,9 @@ function MyaStrandCard(props) {
               styles.title,
               {
                 color: activeTheme.colors.textPrimary,
-                fontSize: activeTheme.typography.fontSizeTitle
+                fontSize: activeTheme.typography.fontSizeTitle,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold',
+                letterSpacing: activeTheme.typography.letterSpacingHeading ?? -0.3
               }
             ]
           },
@@ -82,18 +101,34 @@ function MyaStrandCard(props) {
             styles.scoreCircle,
             {
               backgroundColor: activeTheme.colors.surfaceElevated,
-              borderColor: activeTheme.colors.accentGold
+              borderColor: activeTheme.colors.accent || activeTheme.colors.accentGold
             }
           ]
         },
         React.createElement(
           Text,
-          { style: [styles.scoreNumber, { color: activeTheme.colors.accentGold }] },
+          {
+            style: [
+              styles.scoreNumber,
+              {
+                color: activeTheme.colors.accent || activeTheme.colors.accentGold,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+              }
+            ]
+          },
           String(healthScore)
         ),
         React.createElement(
           Text,
-          { style: [styles.scoreLabel, { color: activeTheme.colors.textMuted }] },
+          {
+            style: [
+              styles.scoreLabel,
+              {
+                color: activeTheme.colors.textMuted,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+              }
+            ]
+          },
           'HEALTH'
         )
       )
@@ -118,7 +153,10 @@ function MyaStrandCard(props) {
           {
             style: [
               styles.sectionTitle,
-              { color: activeTheme.colors.textSecondary }
+              {
+                color: activeTheme.colors.textSecondary,
+                fontFamily: activeTheme.typography.fontFamilyBold || 'Archivo-Bold'
+              }
             ]
           },
           'MATCHED PRODUCT REGIMEN'
@@ -132,13 +170,29 @@ function MyaStrandCard(props) {
             },
             React.createElement(
               Text,
-              { style: [styles.productName, { color: activeTheme.colors.textPrimary }] },
+              {
+                style: [
+                  styles.productName,
+                  {
+                    color: activeTheme.colors.textPrimary,
+                    fontFamily: activeTheme.typography.fontFamilyMedium || 'Archivo-Medium'
+                  }
+                ]
+              },
               prod.name
             ),
             prod.brand &&
               React.createElement(
                 Text,
-                { style: [styles.productBrand, { color: activeTheme.colors.textMuted }] },
+                {
+                  style: [
+                    styles.productBrand,
+                    {
+                      color: activeTheme.colors.textMuted,
+                      fontFamily: activeTheme.typography.fontFamilyRegular || 'Archivo-Regular'
+                    }
+                  ]
+                },
                 prod.brand
               )
           )
@@ -166,11 +220,13 @@ const styles = StyleSheet.create({
   },
   badge: {
     fontSize: 10,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 4
   },
   title: {
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700'
   },
   scoreCircle: {
@@ -183,11 +239,13 @@ const styles = StyleSheet.create({
   },
   scoreNumber: {
     fontSize: 18,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '800',
     lineHeight: 20
   },
   scoreLabel: {
     fontSize: 8,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700',
     letterSpacing: 0.5
   },
@@ -208,11 +266,13 @@ const styles = StyleSheet.create({
   },
   traitLabel: {
     fontSize: 10,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700',
     marginBottom: 2,
     letterSpacing: 0.5
   },
   traitValue: {
+    fontFamily: 'Archivo-Medium',
     fontWeight: '600'
   },
   productsContainer: {
@@ -220,6 +280,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 11,
+    fontFamily: 'Archivo-Bold',
     fontWeight: '700',
     letterSpacing: 0.8,
     marginBottom: 6
@@ -232,11 +293,13 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 13,
+    fontFamily: 'Archivo-Medium',
     fontWeight: '500',
     flex: 1
   },
   productBrand: {
     fontSize: 12,
+    fontFamily: 'Archivo-Regular',
     marginLeft: 8
   }
 });

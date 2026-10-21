@@ -12,7 +12,6 @@ const client = require('./client/MyaMobileClient');
 const platform = require('./client/MyaPlatformAdapter');
 const chatHook = require('./hooks/useMyaChat');
 const routeHook = require('./hooks/useMyaRouteSync');
-const components = require('./components');
 const voice = require('./voice');
 
 module.exports = {
@@ -26,6 +25,5 @@ module.exports = {
   ...platform,
   ...chatHook,
   ...routeHook,
-  ...components,
   ...voice
 };

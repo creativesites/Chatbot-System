@@ -1,5 +1,5 @@
 /**
- * Unit Tests: MyaPlatformAdapter, useMyaRouteSync, and MyaFloatingTrigger
+ * Unit Tests: MyaPlatformAdapter, useMyaRouteSync
  * Native parity integration verification.
  */
 
@@ -22,7 +22,6 @@ const {
 } = require('../src/client/MyaPlatformAdapter');
 
 const { useMyaRouteSync, SCREEN_PROMPT_STARTERS } = require('../src/hooks/useMyaRouteSync');
-const { MyaFloatingTrigger } = require('../src/components/MyaFloatingTrigger');
 
 describe('Mobile Native Parity: Platform Adapter, Route Sync, and Floating Trigger', () => {
   beforeEach(() => {
@@ -105,23 +104,6 @@ describe('Mobile Native Parity: Platform Adapter, Route Sync, and Floating Trigg
     it('falls back to default prompt starters for unknown screens', () => {
       const syncResult = useMyaRouteSync('CustomSettingsScreen');
       expect(syncResult.suggestedQuickReplies).toContain('Hair Care Tips');
-    });
-  });
-
-  describe('MyaFloatingTrigger', () => {
-    it('renders floating action trigger with label and unread badge', () => {
-      let pressed = false;
-      const element = MyaFloatingTrigger({
-        onPress: () => {
-          pressed = true;
-        },
-        unreadCount: 3,
-        position: 'bottom-right',
-        label: 'M'
-      });
-
-      expect(element).toBeDefined();
-      expect(element.props.style).toBeDefined();
     });
   });
 });

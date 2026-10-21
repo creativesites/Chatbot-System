@@ -249,22 +249,7 @@ export class MyaVoiceClient {
   sendVoiceQuery(audio: any, context?: any): Promise<{ transcript: string }>;
 }
 
-export const defaultMyaTheme: MyaTheme;
 export const FrameType: FrameType;
 export const BlockType: BlockType;
 export const ActionType: ActionType;
 export function createId(prefix?: string): string;
-
-// Components
-export const MyaChatView: any;
-export const MyaChatBubble: any;
-export const MyaBlockRenderer: any;
-export const MyaProductCard: any;
-export const MyaStrandCard: any;
-export const MyaRoutineChecklist: any;
-export const MyaGoalCard: any;
-export const MyaJournalCard: any;
-export const MyaConsultationCard: any;
-export const MyaMediaCard: any;
-export const MyaQuickReplies: any;
-export const MyaFloatingTrigger: any;

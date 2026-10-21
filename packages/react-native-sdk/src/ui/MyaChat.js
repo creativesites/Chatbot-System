@@ -39,6 +39,9 @@ import useMyaKeyboard from './useMyaKeyboard';
 import { MyaColors, MyaFonts, MyaType, MYA_TOUCH } from './myaTheme';
 import { moderateScale } from './scale';
 import { MyaStorageProvider } from './checklistStore';
+import { MyaOffersProvider } from './offers/OffersContext';
+import { createFunnelTracker } from '../offers/funnel';
+import { buildPostPurchaseMessage } from '../offers/serviceOffer';
 
 import { useMyaChat } from '../hooks/useMyaChat';
 import { normalizeAttachments } from '../client/attachments';
@@ -85,6 +88,12 @@ function filterUserSalutations(text) {
  * @param {Array} [props.menuItems]             Host menu entries: {key,icon,title,subtitle,onPress(api)}
  * @param {string} [props.initialPrompt]
  * @param {Array} [props.initialAttachments]
+ * @param {() => Promise<string[]>} [props.getEntitlements]  Services the member already owns; sent every turn
+ * @param {(offer:object) => boolean} [props.canHandleOffer]  Can the host fulfil this offer's native route?
+ * @param {(offer:object) => Promise<{status:string}>} [props.onOpenPaywall]  Native purchase; resolve with purchase_completed | purchase_cancelled
+ * @param {(url:string, offer:object) => Promise<void>} [props.onOpenLink]  In-app browser for web and booking links
+ * @param {(name:string, params:object) => void} [props.analytics]  Mirror funnel events (e.g. Firebase)
+ * @param {(cb:Function) => (() => void)} [props.subscribePurchases]  Purchases the host completes outside a card
  * @param {string} [props.persistPrefix='mya']
  * @param {(api:object) => React.ReactNode} [props.children]  Host modals, rendered last
  */
@@ -107,6 +116,12 @@ export default function MyaChat({
   menuItems = [],
   initialPrompt,
   initialAttachments,
+  getEntitlements,
+  canHandleOffer,
+  onOpenPaywall,
+  onOpenLink,
+  analytics,
+  subscribePurchases,
   persistPrefix = 'mya',
   children,
 }) {
@@ -150,6 +165,80 @@ export default function MyaChat({
   // Draft persistence across navigation
   const draftKey = `${persistPrefix}_draft_${userId || 'guest'}`;
   const draftLoaded = useRef(false);
+
+  // ---- Offers: entitlements every turn, funnel events, purchase moment ----
+  const [entitlements, setEntitlements] = useState([]);
+  const purchasedRef = useRef(new Set()); // bought in this session, before the host reports it
+  const celebratedRef = useRef(new Set());
+
+  const refreshEntitlements = useCallback(async () => {
+    let list = [];
+    try {
+      const fromHost = getEntitlements ? await getEntitlements() : [];
+      list = Array.isArray(fromHost) ? fromHost : [];
+    } catch (e) {
+      list = [];
+    }
+    const merged = Array.from(new Set([...list, ...purchasedRef.current]));
+    setEntitlements(merged);
+    if (myaClient && myaClient.setEntitlements) myaClient.setEntitlements(merged);
+    return merged;
+  }, [getEntitlements, myaClient]);
+
+  useEffect(() => {
+    refreshEntitlements();
+  }, [refreshEntitlements]);
+
+  const tracker = useMemo(
+    () =>
+      createFunnelTracker({
+        send: (type, meta) => myaClient.trackEvent(type, meta),
+        mirror: analytics,
+        onError: (e) => {
+          if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[Mya] funnel event failed:', e && e.message);
+        },
+      }),
+    [myaClient, analytics]
+  );
+
+  // A confirmed purchase: remember it so the service is never re-offered, then
+  // open Mya's next turn with the celebration. Fires once per service.
+  const handlePurchaseCompleted = useCallback(
+    (offer) => {
+      const key = offer.service || offer.id;
+      if (celebratedRef.current.has(key)) return;
+      celebratedRef.current.add(key);
+      purchasedRef.current.add(offer.entitlementKey || offer.service);
+      purchasedRef.current.add(offer.service);
+      refreshEntitlements();
+      setMessages((prev) => [...prev, buildPostPurchaseMessage(offer)]);
+    },
+    [refreshEntitlements, setMessages]
+  );
+
+  // Purchases the host completes outside a card (e.g. the store listener firing late).
+  useEffect(() => {
+    if (!subscribePurchases) return undefined;
+    return subscribePurchases((evt) => {
+      if (!evt || evt.status !== 'purchase_completed') return;
+      const offer = evt.offer || { id: evt.service, service: evt.service, name: evt.name || evt.service, entitlementKey: evt.entitlementKey || null, priceDisplay: null, variant: null, cta: { route: 'native_iap' } };
+      if (!celebratedRef.current.has(offer.service || offer.id)) tracker.track('purchase_completed', offer);
+      handlePurchaseCompleted(offer);
+    });
+  }, [subscribePurchases, tracker, handlePurchaseCompleted]);
+
+  const offersApi = useMemo(
+    () => ({
+      storage,
+      entitlements,
+      tracker,
+      canHandle: (offer) => (canHandleOffer ? canHandleOffer(offer) : !!onOpenPaywall),
+      openPaywall: (offer) => (onOpenPaywall ? onOpenPaywall(offer) : Promise.resolve({ status: 'unavailable' })),
+      openLink: onOpenLink,
+      onPurchaseCompleted: handlePurchaseCompleted,
+    }),
+    [storage, entitlements, tracker, canHandleOffer, onOpenPaywall, onOpenLink, handlePurchaseCompleted]
+  );
 
   const [draft, setDraft] = useState('');
   const [attachments, setAttachments] = useState([]);
@@ -207,9 +296,10 @@ export default function MyaChat({
       setDraft('');
       setAttachments([]);
 
+      await refreshEntitlements();
       await sendMessage(wire, context, { attachments: sentAttachments });
     },
-    [attachments, activeScreen, sendMessage, getContext]
+    [attachments, activeScreen, sendMessage, getContext, refreshEntitlements]
   );
 
   // Handle initial prompt and initial attachments passed via route params
@@ -370,6 +460,7 @@ export default function MyaChat({
 
   return (
     <MyaStorageProvider value={storage}>
+    <MyaOffersProvider value={offersApi}>
     <View style={[styles.screen, { paddingTop: topInset }]}>
       <StatusBar barStyle="dark-content" />
 
@@ -675,6 +766,7 @@ export default function MyaChat({
         />
       </Animated.View>
     </View>
+    </MyaOffersProvider>
     </MyaStorageProvider>
   );
 }

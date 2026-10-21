@@ -44,6 +44,9 @@ export const BlockType = {
   PRODUCT: 'product',
   PRODUCT_LIST: 'product_list',
   COMMUNITY_POST: 'community_post',
+
+  // Proposed (not yet in the chat-protocol enum): see community/inboxes/atlas/20261021_1500_*
+  SERVICE_OFFER: 'service_offer',
 };
 
 export function registerComponent(type, Component) {

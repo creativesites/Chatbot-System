@@ -21,6 +21,7 @@ import {
   MyaMediaCard,
 } from './cards';
 import { Divider } from './primitives';
+import ServiceOfferCard from '../offers/ServiceOfferCard';
 
 registerComponents({
   // A visual break between ideas
@@ -57,4 +58,7 @@ registerComponents({
   [BlockType.NAVIGATION]: MyaNavigationCard,
   [BlockType.CONSULTATION_CARD]: MyaGenericCard,
   [BlockType.SERVICE_CARD]: MyaGenericCard,
+
+  // The server-chosen offer. Validated, owned/dismissed-aware, routed through the host.
+  [BlockType.SERVICE_OFFER]: ServiceOfferCard,
 });

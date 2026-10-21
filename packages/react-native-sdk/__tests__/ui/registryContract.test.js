@@ -73,8 +73,7 @@ describe('block registry contract', () => {
     expect(textOf(tree)).toMatch(/can't show yet/);
   });
 
-  test('service_offer (M3) is not yet registered and falls back to the generic card', () => {
-    const tree = renderBlock({ type: 'service_offer', data: { name: 'MYAVANA HairAI™ Instant Analysis + Recommendations' } });
-    expect(textOf(tree)).toContain('HairAI');
+  test('service_offer is registered (M3)', () => {
+    expect(registry.resolveComponent('service_offer')).toBeTruthy();
   });
 });

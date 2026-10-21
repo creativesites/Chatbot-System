@@ -30,6 +30,7 @@ class MyaMobileClient {
     this.storage = createDefaultStorage(options.storage);
     this.customHeaders = options.headers || {};
     this.activeAbortController = null;
+    this.entitlements = Array.isArray(options.entitlements) ? options.entitlements : [];
     this.timeoutMs = options.timeoutMs || 45000; // max silence on a chat stream
     this.fetchTimeoutMs = options.fetchTimeoutMs || 15000; // history / journal calls
   }
@@ -101,6 +102,28 @@ class MyaMobileClient {
 
   setCustomHeaders(headers) {
     this.customHeaders = Object.assign({}, this.customHeaders, headers);
+  }
+
+  /** Services the member already owns, sent every turn so Mya never re-offers them. */
+  setEntitlements(list) {
+    this.entitlements = Array.isArray(list) ? list.slice() : [];
+  }
+
+  /** Funnel event (offer_shown, purchase_completed, ...). Fire and report; never throws into the UI. */
+  async trackEvent(eventType, metadata = {}) {
+    const headers = { 'Content-Type': 'application/json', 'X-User-Id': this.userId, ...this.customHeaders };
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
+    const res = await this._fetchWithTimeout(`${this.apiBase}/events`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        userId: this.userId,
+        conversationId: this.conversationId,
+        eventType,
+        metadata,
+      }),
+    });
+    if (!res.ok) throw new Error(`Failed to log event: HTTP ${res.status}`);
   }
 
   async setUserId(newUserId) {
@@ -188,6 +211,9 @@ class MyaMobileClient {
       this.screenContext ? { screenContext: this.screenContext } : {},
       options.experienceContext
     );
+
+    // Entitlements ride on every turn so the server can stop re-offering owned services.
+    mergedExpContext.entitlements = this.entitlements;
 
     const experienceContext = enrichExperienceContext(
       mergedExpContext,

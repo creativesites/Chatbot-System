@@ -132,6 +132,9 @@ export interface MyaMobileClientOptions {
 }
 
 export class MyaMobileClient {
+  setEntitlements(list: string[]): void;
+  trackEvent(eventType: string, metadata?: Record<string, any>): Promise<void>;
+  clearSession(): Promise<void>;
   constructor(options: MyaMobileClientOptions);
   init(): Promise<void>;
   getUserId(): string;
@@ -253,3 +256,38 @@ export const FrameType: FrameType;
 export const BlockType: BlockType;
 export const ActionType: ActionType;
 export function createId(prefix?: string): string;
+
+export type ServiceRoute = 'native_iap' | 'native_subscription' | 'web' | 'calendly';
+
+/** A validated service_offer, shaped for display. Contract PROPOSED, not yet agreed with the backend. */
+export interface ServiceOffer {
+  id: string;
+  service: string;
+  name: string;
+  /** Only ever the server-formatted price; null when none was sent. */
+  priceDisplay: string | null;
+  includes: string[];
+  reason: string | null;
+  variant: string | null;
+  entitlementKey: string | null;
+  cta: { label: string; route: ServiceRoute; url: string | null; sku: string | null };
+}
+
+export const SERVICE_OFFER: 'service_offer';
+export function normalizeServiceOffer(block: any): { ok: true; offer: ServiceOffer } | { ok: false; reason: string };
+export function buildTaggedUrl(url: string, service: string): string;
+export function isOwned(offer: ServiceOffer, entitlements: string[]): boolean;
+export function buildPostPurchaseMessage(offer: ServiceOffer): ChatMessage & { local: true; celebrate: true };
+
+export type FunnelEvent =
+  | 'offer_shown' | 'offer_tapped' | 'offer_dismissed' | 'paywall_opened'
+  | 'purchase_completed' | 'purchase_cancelled' | 'link_opened' | 'consult_booking_opened';
+export const EVENTS: FunnelEvent[];
+export function createFunnelTracker(opts: {
+  send?: (eventType: string, metadata: Record<string, any>) => Promise<void>;
+  mirror?: (name: string, params: Record<string, any>) => void;
+  onError?: (e: unknown) => void;
+}): {
+  track: (eventType: FunnelEvent, offer: ServiceOffer | null, extra?: Record<string, any>) => Promise<void>;
+  offerShown: (offer: ServiceOffer) => Promise<void>;
+};

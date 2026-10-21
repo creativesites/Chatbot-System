@@ -13,6 +13,9 @@ const platform = require('./client/MyaPlatformAdapter');
 const chatHook = require('./hooks/useMyaChat');
 const routeHook = require('./hooks/useMyaRouteSync');
 const voice = require('./voice');
+const offers = require('./offers/serviceOffer');
+const funnel = require('./offers/funnel');
+const dismissals = require('./offers/dismissals');
 
 module.exports = {
   ...types,
@@ -25,5 +28,8 @@ module.exports = {
   ...platform,
   ...chatHook,
   ...routeHook,
-  ...voice
+  ...voice,
+  ...offers,
+  ...funnel,
+  offerDismissals: dismissals
 };

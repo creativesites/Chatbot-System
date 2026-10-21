@@ -2,7 +2,7 @@
  * Types for '@myavana/react-native-sdk/ui' (TASK-008 M2).
  */
 import * as React from 'react';
-import { MyaError } from './index';
+import { MyaError, ServiceOffer } from './index';
 
 export interface MyaChatMenuItem {
   key: string;
@@ -36,6 +36,18 @@ export interface MyaChatProps {
   menuItems?: MyaChatMenuItem[];
   initialPrompt?: string;
   initialAttachments?: any[];
+  /** Services the member already owns (entitlement keys). Sent every turn; owned services are never offered. */
+  getEntitlements?: () => Promise<string[]>;
+  /** Can the host fulfil this offer's native route? Offers it cannot fulfil are hidden. */
+  canHandleOffer?: (offer: ServiceOffer) => boolean;
+  /** Native purchase. Resolve with the outcome the server confirms. */
+  onOpenPaywall?: (offer: ServiceOffer) => Promise<{ status: 'purchase_completed' | 'purchase_cancelled' | 'unavailable' }>;
+  /** In-app browser for web and booking links (already tagged). */
+  onOpenLink?: (url: string, offer: ServiceOffer) => Promise<void>;
+  /** Mirror funnel events, e.g. to Firebase Analytics. */
+  analytics?: (name: string, params: Record<string, any>) => void;
+  /** Purchases the host completes outside a card. Return an unsubscribe function. */
+  subscribePurchases?: (cb: (evt: { status: string; service?: string; name?: string; entitlementKey?: string; offer?: ServiceOffer }) => void) => () => void;
   persistPrefix?: string;
   /** Host modals, rendered last. */
   children?: React.ReactNode | ((api: { send: (text: string) => void }) => React.ReactNode);

@@ -12,6 +12,14 @@
 - **Removed:** the old SDK UI (`MyaChatView`, `MyaChatBubble`, `MyaBlockRenderer`, `MyaStrandCard`, `MyaRoutineChecklist`, `MyaGoalCard`, `MyaJournalCard`, `MyaConsultationCard`, `MyaMediaCard`, `MyaProductCard`, `MyaQuickReplies`, `MyaFloatingTrigger`, `defaultMyaTheme`). `MyaStrandCard` invented values (`?? 88`); `MyaProductCard` showed products.
 - Package hygiene: `files`, `types`, `ui.d.ts`, declared peer dependencies, README, devDependencies, `npm test` runs headless and UI suites.
 
+### M3: service offers
+- `service_offer` card (`ServiceOfferCard`) built to the proposed contract against fixtures: store name, server price or none, up to 3 inclusions, a reason from the member's HairID, one primary action, a quiet "Not now". Renders nothing when malformed, owned, dismissed, or the host cannot fulfil its route.
+- Routing is the host's: `onOpenPaywall` (native purchase; outcome read back from the server) and `onOpenLink` (in-app browser, links tagged `utm_source=mya&utm_medium=chat&utm_campaign=app&utm_content=<service>`). Links must be https on myavana.com or calendly.com.
+- Funnel events through the existing `POST /events` (`offer_shown`, `offer_tapped`, `offer_dismissed`, `paywall_opened`, `purchase_completed`, `purchase_cancelled`, `link_opened`, `consult_booking_opened`), each with `surface:'app'`, `service`, `offer_id`, `price_shown`, `framing_variant`; mirrored through the `analytics` prop.
+- `experienceContext.entitlements` is sent on every turn (`client.setEntitlements`); owned services are never offered.
+- "Not now" is remembered per offer and never re-shown from the cached thread.
+- Post-purchase moment: a confirmed purchase opens Mya's next turn with a short, fixed celebration and an offer to walk through it.
+
 ### M1
 - **Fix:** photos now reach the model. Attachments are normalised to inline `data:image/…;base64,` or `https://`; `file://` and other unreadable assets are rejected before any request, so the UI can no longer claim a photo was sent. Max 4 per message.
 - **Fix:** the host's `userId` always wins over a stored one; a different stored user's conversation is not inherited. New `clearSession()` (client and hook) for logout.

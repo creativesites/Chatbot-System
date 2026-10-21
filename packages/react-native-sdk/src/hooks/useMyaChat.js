@@ -24,6 +24,8 @@ function useMyaChat(options = {}) {
         apiBase,
         userId: options.initialUserId,
         conversationId: options.initialConversationId,
+        authToken: options.authToken,
+        headers: options.headers,
         telemetry: options.telemetry,
         storage: options.storage
       });
@@ -31,6 +33,18 @@ function useMyaChat(options = {}) {
   }
 
   const client = clientRef.current;
+
+  // Keep client credentials synchronized when options change dynamically
+  useEffect(() => {
+    if (client) {
+      if (options.authToken !== undefined && typeof client.setAuthToken === 'function') {
+        client.setAuthToken(options.authToken);
+      }
+      if (options.headers && typeof client.setCustomHeaders === 'function') {
+        client.setCustomHeaders(options.headers);
+      }
+    }
+  }, [client, options.authToken, options.headers]);
 
   const [messages, setMessages] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -313,6 +327,19 @@ function useMyaChat(options = {}) {
     return client.fetchUserConversations();
   }, [client]);
 
+  const updateAuthToken = useCallback((token) => {
+    if (client && typeof client.setAuthToken === 'function') {
+      client.setAuthToken(token);
+    }
+  }, [client]);
+
+  const updateUserId = useCallback(async (newUserId) => {
+    if (client && typeof client.setUserId === 'function') {
+      await client.setUserId(newUserId);
+      setUserId(newUserId);
+    }
+  }, [client]);
+
   return {
     messages,
     isStreaming,
@@ -329,7 +356,9 @@ function useMyaChat(options = {}) {
     loadConversation,
     fetchConversations,
     setMessages,
-    clearCachedMessages
+    clearCachedMessages,
+    updateAuthToken,
+    updateUserId
   };
 }
 

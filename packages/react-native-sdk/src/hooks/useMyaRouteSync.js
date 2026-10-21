@@ -25,6 +25,8 @@ function useMyaRouteSync(initialScreen = 'Home', initialParams) {
   const screenContext = useMemo(() => {
     return {
       surface: 'myavana-mobile-app',
+      page: `app://${String(currentScreen || 'home').toLowerCase()}`,
+      route: currentScreen,
       screen: currentScreen,
       title: `${currentScreen} Screen`,
       params

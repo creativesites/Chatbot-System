@@ -2,7 +2,7 @@
  * Device Telemetry & Platform Attribution (JavaScript implementation)
  */
 
-const SDK_VERSION = '1.0.0';
+const SDK_VERSION = '1.2.0';
 
 function resolveMobilePlatform(customPlatform) {
   if (customPlatform === 'react-native-ios' || customPlatform === 'ios') {

@@ -51,6 +51,18 @@ class MyaMobileClient {
     return this.userId;
   }
 
+  setAuthToken(token) {
+    this.authToken = token;
+  }
+
+  getAuthToken() {
+    return this.authToken;
+  }
+
+  setCustomHeaders(headers) {
+    this.customHeaders = Object.assign({}, this.customHeaders, headers);
+  }
+
   async setUserId(newUserId) {
     this.userId = newUserId;
     await this.storage.setItem(STORAGE_KEYS.USER_ID, newUserId);
@@ -105,8 +117,11 @@ class MyaMobileClient {
     const targetConvId = options.conversationId || this.conversationId;
     const streamUrl = `${this.apiBase}/chat/stream`;
 
+    const baseScreen = this.screenContext || {};
     const mergedExpContext = Object.assign(
       {},
+      baseScreen.page ? { page: baseScreen.page } : {},
+      baseScreen.screen ? { screen: baseScreen.screen } : {},
       this.screenContext ? { screenContext: this.screenContext } : {},
       options.experienceContext
     );

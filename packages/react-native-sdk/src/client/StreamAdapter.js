@@ -37,7 +37,7 @@ class NDJSONStreamParser {
       const parsed = JSON.parse(line);
       this.onFrame(parsed);
     } catch (err) {
-      this.onError(new Error(`Failed to parse NDJSON frame "${line}": ${err.message}`));
+      this.onError(new Error(`Failed to parse NDJSON frame "${line}": ${err.message}`), line);
     }
   }
 }
@@ -57,9 +57,26 @@ function dispatchFrame(frame, callbacks, state) {
     callbacks.onDelta && callbacks.onDelta(delta, state.accumulatedText);
   } else if (frameType === FrameType.BLOCK || frame.block) {
     const block = frame.block || frame;
-    if (block && block.id) {
-      state.blocks.push(block);
-      callbacks.onBlock && callbacks.onBlock(block);
+    if (block) {
+      const isDup = state.blocks.some((b) => {
+        if (b.id && block.id && b.id === block.id) return true;
+        if (b.type && block.type && b.type === block.type) {
+          const bData = b.data || {};
+          const curData = block.data || {};
+          if (bData.id !== undefined && curData.id !== undefined && bData.id === curData.id) return true;
+          const bTitle = String(bData.title || bData.heading || bData.name || '').trim().toLowerCase();
+          const curTitle = String(curData.title || curData.heading || curData.name || '').trim().toLowerCase();
+          if (bTitle && curTitle && bTitle === curTitle) return true;
+          const bNotes = String(bData.notes || bData.summary || '').trim().toLowerCase().slice(0, 60);
+          const curNotes = String(curData.notes || curData.summary || '').trim().toLowerCase().slice(0, 60);
+          if (bNotes && curNotes && bNotes === curNotes) return true;
+        }
+        return false;
+      });
+      if (!isDup) {
+        state.blocks.push(block);
+        callbacks.onBlock && callbacks.onBlock(block);
+      }
     }
   } else if (frameType === FrameType.ACTION || frame.actions) {
     const actionList = Array.isArray(frame.actions)
@@ -72,6 +89,7 @@ function dispatchFrame(frame, callbacks, state) {
       callbacks.onAction && callbacks.onAction(act);
     }
   } else if (frameType === FrameType.DONE) {
+    state.doneDispatched = true;
     callbacks.onDone && callbacks.onDone(frame.meta || frame.metadata || {});
   } else if (frameType === FrameType.ERROR) {
     const errMsg = frame.message || frame.error || 'Chat streaming error';
@@ -103,12 +121,21 @@ async function streamFetch(url, options = {}, callbacks = {}) {
   const state = {
     accumulatedText: '',
     blocks: [],
-    actions: []
+    actions: [],
+    doneDispatched: false
   };
 
   const parser = new NDJSONStreamParser(
     (frame) => dispatchFrame(frame, callbacks, state),
-    callbacks.onError
+    (err, rawLine) => {
+      // If a line is raw text rather than NDJSON, treat as streaming delta text
+      // instead of killing the entire stream with an unhandled onError.
+      if (rawLine && typeof rawLine === 'string' && rawLine.trim()) {
+        dispatchFrame({ t: FrameType.DELTA, text: rawLine + '\n' }, callbacks, state);
+      } else {
+        callbacks.onError && callbacks.onError(err);
+      }
+    }
   );
 
   const fetchImplementation = options.fetchFn || globalThis.fetch;
@@ -120,7 +147,16 @@ async function streamFetch(url, options = {}, callbacks = {}) {
 
   const bodyString = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
 
-  if (fetchImplementation) {
+  const isReactNative =
+    (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') ||
+    (typeof globalThis !== 'undefined' && Boolean(globalThis.__fbBatchedBridge || globalThis.nativeCallSyncHook));
+
+  // In React Native, fetch polyfill does not support streaming ReadableStream bodies.
+  // When options.fetchFn is not explicitly provided, use XMLHttpRequest directly for on-device streaming
+  // to avoid sending a duplicate HTTP request.
+  const preferXHR = !options.fetchFn && typeof XMLHttpRequest !== 'undefined' && isReactNative;
+
+  if (!preferXHR && fetchImplementation) {
     try {
       const res = await fetchImplementation(url, {
         method: options.method || 'POST',
@@ -175,25 +211,18 @@ async function streamFetch(url, options = {}, callbacks = {}) {
         return state;
       }
 
-      // Neither a real ReadableStream reader nor an async-iterable body is
-      // available (the normal case on React Native's fetch polyfill, which
-      // resolves successfully but exposes no streamable res.body). Do NOT
-      // buffer via res.text() here — fall through to the XMLHttpRequest
-      // onprogress path below, which is what actually streams on-device.
-      if (typeof XMLHttpRequest === 'undefined') {
-        const fullText = await res.text();
-        parser.feed(fullText);
-        parser.flush();
-        return state;
-      }
+      // If res.body lacks a stream reader, consume the buffered response.
+      // Do NOT fall through to XMLHttpRequest here — the request has already been sent.
+      const fullText = await res.text();
+      parser.feed(fullText);
+      parser.flush();
+      return state;
     } catch (fetchErr) {
       if (fetchErr.name === 'AbortError' || (options.signal && options.signal.aborted)) {
         return state;
       }
-      if (typeof XMLHttpRequest === 'undefined') {
-        callbacks.onError && callbacks.onError(fetchErr);
-        throw fetchErr;
-      }
+      callbacks.onError && callbacks.onError(fetchErr);
+      throw fetchErr;
     }
   }
 
@@ -231,6 +260,10 @@ async function streamFetch(url, options = {}, callbacks = {}) {
             parser.feed(text.substring(processedIndex));
           }
           parser.flush();
+          if (!state.doneDispatched) {
+            state.doneDispatched = true;
+            callbacks.onDone && callbacks.onDone({ finished: true, text: state.accumulatedText });
+          }
           resolve(state);
         } else {
           const err = new Error(`XHR HTTP ${xhr.status}: ${xhr.statusText || 'Stream failed'}`);

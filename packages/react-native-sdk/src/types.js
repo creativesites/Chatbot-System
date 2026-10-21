@@ -35,9 +35,16 @@ const BlockType = {
   JOURNEY_PROGRESS: 'journey_progress',
 
   // Myavana Services Blocks
+  HAIR_PROFILE_CARD: 'hair_profile_card',
   HAIR_PROFILE_SUMMARY: 'hair_profile_summary',
   CONSULTATION_CARD: 'consultation_card',
-  SERVICE_CARD: 'service_card'
+  SERVICE_CARD: 'service_card',
+  PRODUCT: 'product',
+  PRODUCT_CARD: 'product_card',
+  PRODUCT_LIST: 'product_list',
+  MEDIA_CARD: 'media_card',
+  HAIRSTYLE_CARD: 'hairstyle_card',
+  COMMUNITY_POST: 'community_post'
 };
 
 const ActionType = {

@@ -2,7 +2,8 @@
  * service_offer fixtures. The contract is PROPOSED (community/inboxes/atlas/
  * 20261021_1500_mya_sdk_server_items.md) and not yet agreed with the backend, so
  * everything in M3 is built and tested against these. Names are the store names
- * from the growth plan (read 2026-10-20); prices here are fixtures only.
+ * from the growth plan and the live store (read 2026-10-22); prices here are fixtures only.
+ * URLs use real store handles (e.g. /products/myavana-hair-kit).
  */
 const block = (data, extra = {}) => ({ type: 'service_offer', id: `blk_${data.offer_id || 'x'}`, data, ...extra });
 
@@ -12,8 +13,8 @@ const hairAI = block({
   name: 'MYAVANA HairAI™ Instant Analysis + Recommendations',
   price: { display: '$9.00', amount: 9, currency: 'USD', interval: 'once' },
   includes: [
-    'A real HairID: porosity, density and curl pattern, measured from your photos',
-    'Care recommendations matched to your results',
+    'Hair type and texture analysis from your photos',
+    'Instant, ingredient-based recommendations',
     'Your results saved to your Hair Journey',
   ],
   reason: 'Your profile has no measured porosity yet, so every tip is a good guess. HairAI turns the guess into a measurement.',
@@ -27,7 +28,7 @@ const membership = block({
   service: 'membership',
   name: 'MYAVANA Hair Nirvana Membership Club',
   price: { display: '$25.00/month', amount: 25, currency: 'USD', interval: 'month' },
-  includes: ['Ongoing guidance as your hair changes', 'Your logs, goals and routines kept together'],
+  includes: ['Hair analysis and a care plan', 'A personal coach', 'Quarterly samples'],
   reason: "You've logged 11 weeks running. Membership keeps that momentum going.",
   cta: { label: 'See membership', route: 'native_subscription', sku: 'com.myavana.productid.hairnirvana_mtly' },
   framing_variant: 'B',
@@ -39,9 +40,9 @@ const fullScan = block({
   service: 'full_hair_scan',
   name: 'MYAVANA FULL HAIR SCAN + CARE EXPERIENCE',
   price: { display: '$99.00' },
-  includes: ['An at-home strand scan, analysed in the lab', 'A care plan written for your hair'],
-  reason: 'Breakage that keeps coming back after several fixes usually has a cause a full scan can show.',
-  cta: { label: 'View on myavana.com', route: 'web', url: 'https://www.myavana.com/products/full-hair-scan' },
+  includes: ['A one-hour salon hair and scalp analysis', 'Regimen samples', 'An assigned licensed cosmetologist'],
+  reason: 'Breakage that keeps coming back after several fixes is worth a closer look in person.',
+  cta: { label: 'View on myavana.com', route: 'web', url: 'https://www.myavana.com/products/myavana-hair-kit' },
   framing_variant: 'A',
 });
 

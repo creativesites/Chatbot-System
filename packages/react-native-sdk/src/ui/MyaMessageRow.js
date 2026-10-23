@@ -13,9 +13,12 @@
  */
 
 import React, { memo } from 'react';
-import { View, Text, TouchableOpacity, Image, Animated, Easing, StyleSheet, Share } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Share } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, cancelAnimation } from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import MyaAvatar from './MyaAvatar';
+import MyaPresence from './MyaPresence';
+import useInkPacing from './motion/useInkPacing';
+import { useMotion } from './motion/useMotion';
 import { errorCopy } from '../client/errors';
 import MyaThinkingDots from './MyaThinkingDots';
 import MyaLoadingDistraction from './MyaLoadingDistraction';
@@ -24,57 +27,18 @@ import MyaMarkdown from './MyaMarkdown';
 import { MyaColors, MyaFonts, MyaType, MyaRadii, MyaShadow } from './myaTheme';
 
 /**
- * MyaScannerCard (TASK_MSDK_011 & HJ_024)
- * High-tech "Scanning Strand DNA..." visual scanner overlay rendered end-to-end
- * while Gemini analyzes the multimodal image pixels on the wire.
+ * Shown while Mya reads a turn that came with a photo. She is looking at the
+ * picture, not analysing it: HairAI is the service that measures. So this says
+ * what is true, with no scan line and no "strand DNA".
  */
-export function MyaScannerCard() {
-  const scanAnim = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanAnim, {
-          toValue: 1,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scanAnim, {
-          toValue: 0,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [scanAnim]);
-
+export function MyaPhotoLookCard() {
   return (
     <View style={scannerStyles.card}>
       <View style={scannerStyles.header}>
-        <Ionicons name="sparkles" size={14} color={MyaColors.coral} />
-        <Text style={scannerStyles.title}>Scanning Strand DNA...</Text>
+        <Ionicons name="image-outline" size={14} color={MyaColors.coral} />
+        <Text style={scannerStyles.title}>Looking at your photo...</Text>
       </View>
-      <Text style={scannerStyles.sub}>Reading your strand.</Text>
-      <View style={scannerStyles.container}>
-        <Animated.View
-          style={[
-            scannerStyles.scannerLine,
-            {
-              transform: [
-                {
-                  translateY: scanAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 110],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-        <View style={scannerStyles.skeleton} />
-      </View>
+      <MyaThinkingDots />
     </View>
   );
 }
@@ -131,10 +95,10 @@ const scannerStyles = StyleSheet.create({
   },
 });
 
-function SenderLabel() {
+function SenderLabel({ mode }) {
   return (
     <View style={styles.labelRow}>
-      <MyaAvatar size={18} />
+      <MyaPresence size={18} mode={mode} />
       <Text style={styles.labelText}>Mya</Text>
     </View>
   );
@@ -242,6 +206,22 @@ function interleave(text, blocks) {
   return items;
 }
 
+/** A soft coral caret that breathes at the tail of streaming text. */
+function Caret() {
+  const { reduced } = useMotion();
+  const o = useSharedValue(1);
+  React.useEffect(() => {
+    if (reduced) {
+      o.value = 1;
+      return undefined;
+    }
+    o.value = withRepeat(withSequence(withTiming(0.25, { duration: 550 }), withTiming(1, { duration: 550 })), -1, false);
+    return () => cancelAnimation(o);
+  }, [reduced, o]);
+  const style = useAnimatedStyle(() => ({ opacity: o.value }));
+  return <Animated.View style={[styles.cursorBar, style]} />;
+}
+
 // Long-press a bubble to copy it: the system share sheet offers Copy without
 // adding a clipboard dependency.
 function shareText(text) {
@@ -260,11 +240,20 @@ function MyaMessageRow({
   onQuickReply,
   onBlockAction,
 }) {
+  // Hooks first (they cannot sit after an early return). Replies we watched arrive
+  // are released word by word; anything loaded from history shows at once.
+  const { shown: shownText, complete: inkComplete } = useInkPacing(
+    message ? message.content || '' : '',
+    !!(message && message.isStreaming)
+  );
+  const { cardEntering, inkEntering, sendEntering } = useMotion();
+
   if (!message) return null;
 
   const isUser = message.role === 'user';
   const text = message.content || '';
   const streaming = !!message.isStreaming;
+  const arriving = streaming || !inkComplete; // animate only what is arriving now, never rows mounting from history
   const failed = !!message.error;
   const attachments = message.attachments || [];
   const blocks = message.blocks || [];
@@ -279,8 +268,11 @@ function MyaMessageRow({
 
   if (isUser) {
     const { body, photos } = splitPhotoMarker(text);
+    // A message the member just sent lifts from the composer into place; rows
+    // mounting from history never animate.
+    const justSent = message.timestamp && Date.now() - new Date(message.timestamp).getTime() < 2500;
     return (
-      <View style={styles.userWrap}>
+      <Animated.View style={styles.userWrap} entering={justSent ? sendEntering() : undefined}>
         {attachments.map((a, i) => {
           const uri = typeof a === 'string' ? a : (a?.uri || a?.url || a?.imageUrl || a?.image_url);
           if (!uri) return null;
@@ -318,16 +310,16 @@ function MyaMessageRow({
             <Text style={styles.userText}>{body}</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </Animated.View>
     );
   }
 
   return (
     <View style={styles.assistantWrap}>
-      {showLabel && <SenderLabel />}
+      {showLabel && <SenderLabel mode={streaming ? (text ? 'streaming' : 'thinking') : 'idle'} />}
 
       {awaitingFirstToken && blocks.length === 0 && (
-        message.isImageAnalysis ? <MyaScannerCard /> : <MyaLoadingDistraction />
+        message.isPhotoTurn ? <MyaPhotoLookCard /> : <MyaLoadingDistraction />
       )}
 
       {/* Render assistant attachments if they exist (TASK_MSDK_003) */}
@@ -372,34 +364,33 @@ function MyaMessageRow({
         prose is split at those offsets and the two are woven back together in
         the order the model actually produced them.
       */}
-      {interleave(text, blocks).map((item, i) =>
+      {interleave(shownText, blocks.filter((b) => inkComplete || typeof b.position !== 'number' || b.position <= shownText.length)).map((item, i) =>
         item.kind === 'text' ? (
-          <TouchableOpacity
-            key={`t-${i}`}
-            activeOpacity={1}
-            onLongPress={() => shareText(item.text)}
-            style={styles.assistantBubble}
-            accessible={true}
-            accessibilityRole="text"
-            accessibilityLabel={`Mya said: ${item.text}`}
-            accessibilityHint="Long press to copy"
-          >
-            <MyaMarkdown
-              color={MyaColors.onyx}
-              trailing={
-                streaming && item.last ? <View style={styles.cursorBar} /> : null
-              }
+          <Animated.View key={`t-${i}`} entering={arriving ? inkEntering() : undefined}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onLongPress={() => shareText(item.text)}
+              style={styles.assistantBubble}
+              accessible={true}
+              accessibilityRole="text"
+              accessibilityLabel={`Mya said: ${item.text}`}
+              accessibilityHint="Long press to copy"
             >
-              {item.text}
-            </MyaMarkdown>
-          </TouchableOpacity>
+              <MyaMarkdown
+                color={MyaColors.onyx}
+                trailing={arriving && item.last ? <Caret /> : null}
+              >
+                {item.text}
+              </MyaMarkdown>
+            </TouchableOpacity>
+          </Animated.View>
         ) : (
-          <MyaRichBlock
+          <Animated.View
             key={item.block.id || `${message.id}-block-${i}`}
-            block={item.block}
-            message={message}
-            onAction={onBlockAction}
-          />
+            entering={arriving ? cardEntering(0) : undefined}
+          >
+            <MyaRichBlock block={item.block} message={message} onAction={onBlockAction} />
+          </Animated.View>
         )
       )}
 
@@ -426,6 +417,7 @@ export default memo(MyaMessageRow, (prev, next) => {
     a.id !== b.id ||
     a.content !== b.content ||
     a.isStreaming !== b.isStreaming ||
+    a.isPhotoTurn !== b.isPhotoTurn ||
     a.error !== b.error ||
     a.stopped !== b.stopped ||
     a.errorKind !== b.errorKind ||

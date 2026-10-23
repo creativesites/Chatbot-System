@@ -10,6 +10,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import MyaAnimatedCheck from '../MyaAnimatedCheck';
 import { moderateScale } from '../scale';
 import { MyaColors, MyaType, MyaRadii, MyaFonts } from '../myaTheme';
 
@@ -131,7 +132,7 @@ export function StepRow({
           ]}
         >
           {checked ? (
-            <Ionicons name="checkmark" size={12} color={MyaColors.ivory} />
+            <MyaAnimatedCheck size={12} color={MyaColors.ivory} />
           ) : (
             <Text style={styles.stepMarkerSmall}>{marker}</Text>
           )}

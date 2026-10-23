@@ -14,6 +14,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming } from 'react-native-reanimated';
+import MyaPressable from '../MyaPressable';
+import { useMotion } from '../motion/useMotion';
 import { MyaColors, MyaType, MyaFonts, MyaRadii } from '../myaTheme';
 import { moderateScale } from '../scale';
 import { useMyaOffers } from './OffersContext';
@@ -21,6 +24,23 @@ import { normalizeServiceOffer, buildTaggedUrl, isOwned } from '../../offers/ser
 import { isDismissed, dismiss } from '../../offers/dismissals';
 
 const NATIVE_ROUTES = ['native_iap', 'native_subscription'];
+
+// One slow sheen across a card the first time it appears, never repeated.
+const sheenPlayed = new Set();
+
+function Sheen({ offerId }) {
+  const { reduced } = useMotion();
+  const play = !reduced && !sheenPlayed.has(offerId);
+  const x = useSharedValue(-120);
+  React.useEffect(() => {
+    if (!play) return;
+    sheenPlayed.add(offerId);
+    x.value = withDelay(500, withTiming(420, { duration: 1700 }));
+  }, [play, offerId, x]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { skewX: '-14deg' }] }));
+  if (!play) return null;
+  return <Animated.View pointerEvents="none" style={[styles.sheen, style]} />;
+}
 
 export default function ServiceOfferCard({ block }) {
   const ctx = useMyaOffers();
@@ -104,6 +124,7 @@ export default function ServiceOfferCard({ block }) {
 
   return (
     <View style={styles.card} accessibilityRole="summary" accessibilityLabel={`MYAVANA service: ${offer.name}`}>
+      <Sheen offerId={offer.id} />
       <Text style={styles.eyebrow}>A MYAVANA service</Text>
       <Text style={styles.name}>{offer.name}</Text>
       {!!offer.priceDisplay && <Text style={styles.price}>{offer.priceDisplay}</Text>}
@@ -125,17 +146,17 @@ export default function ServiceOfferCard({ block }) {
         </View>
       )}
 
-      <TouchableOpacity
+      <MyaPressable
         style={[styles.cta, busy && styles.ctaBusy]}
         onPress={onPrimary}
+        haptic="medium"
         disabled={busy}
-        activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel={offer.cta.label}
         accessibilityState={{ disabled: busy }}
       >
         <Text style={styles.ctaText}>{offer.cta.label}</Text>
-      </TouchableOpacity>
+      </MyaPressable>
 
       <TouchableOpacity
         style={styles.notNow}
@@ -159,6 +180,14 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: MyaColors.coralLine,
     maxWidth: '92%',
+    overflow: 'hidden',
+  },
+  sheen: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 70,
+    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   eyebrow: {
     ...MyaType.senderLabel,

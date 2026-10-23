@@ -10,6 +10,7 @@ module.exports = {
   moduleNameMapper: {
     '^react-native$': '<rootDir>/__mocks__/ui/react-native.js',
     '^react-native-vector-icons/.*$': '<rootDir>/__mocks__/ui/icon.js',
+    '^react-native-reanimated$': '<rootDir>/__mocks__/ui/reanimated.js',
     '^react-native-safe-area-context$': '<rootDir>/__mocks__/ui/safe-area.js',
     '\\.(png|jpe?g|webp)$': '<rootDir>/__mocks__/ui/file.js',
   },

@@ -20,22 +20,25 @@ import {
   Image,
   TouchableOpacity,
   FlatList,
-  Animated,
-  Easing,
   StatusBar,
   StyleSheet,
   Alert,
   Platform,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import MyaComposer from './MyaComposer';
 import MyaMessageRow, { ErrorRow } from './MyaMessageRow';
 import MyaWelcome from './MyaWelcome';
+import MyaPresence from './MyaPresence';
+import MyaPetals from './MyaPetals';
+import { MyaCapabilitiesProvider, useHaptics } from './capabilities';
+import { useMotion } from './motion/useMotion';
 import MyaSheet from './MyaSheet';
 import MyaHistorySheet from './MyaHistorySheet';
-import useMyaKeyboard from './useMyaKeyboard';
+import useMyaKeyboard, { useKeyboardMarginStyle } from './useMyaKeyboard';
 import { MyaColors, MyaFonts, MyaType, MYA_TOUCH } from './myaTheme';
 import { moderateScale } from './scale';
 import { MyaStorageProvider } from './checklistStore';
@@ -94,6 +97,7 @@ function filterUserSalutations(text) {
  * @param {(url:string, offer:object) => Promise<void>} [props.onOpenLink]  In-app browser for web and booking links
  * @param {(name:string, params:object) => void} [props.analytics]  Mirror funnel events (e.g. Firebase)
  * @param {(cb:Function) => (() => void)} [props.subscribePurchases]  Purchases the host completes outside a card
+ * @param {{haptics?:object, LinearGradient?:any, BlurView?:any}} [props.capabilities]  Optional host-provided native niceties
  * @param {string} [props.persistPrefix='mya']
  * @param {(api:object) => React.ReactNode} [props.children]  Host modals, rendered last
  */
@@ -122,11 +126,20 @@ export default function MyaChat({
   onOpenLink,
   analytics,
   subscribePurchases,
+  capabilities,
   persistPrefix = 'mya',
   children,
 }) {
   const insets = useSafeAreaInsets();
   const { keyboardHeight, isKeyboardOpen } = useMyaKeyboard();
+  const keyboardLift = useKeyboardMarginStyle(keyboardHeight);
+  const { popEntering, timingTo } = useMotion();
+  const haptics = useHaptics();
+  const [celebrating, setCelebrating] = useState(false);
+
+  // The header's hairline fades in once content scrolls under it.
+  const scrolledSv = useSharedValue(0);
+  const navBorderStyle = useAnimatedStyle(() => ({ opacity: scrolledSv.value }));
 
   const topInset =
     Platform.OS === 'ios'
@@ -212,8 +225,10 @@ export default function MyaChat({
       purchasedRef.current.add(offer.service);
       refreshEntitlements();
       setMessages((prev) => [...prev, buildPostPurchaseMessage(offer)]);
+      haptics.success();
+      setCelebrating(true);
     },
-    [refreshEntitlements, setMessages]
+    [refreshEntitlements, setMessages, haptics]
   );
 
   // Purchases the host completes outside a card (e.g. the store listener firing late).
@@ -407,7 +422,7 @@ export default function MyaChat({
           m.isThinking)
     );
     const decorated = list.map((m, i) => {
-      const isImageAnalysis =
+      const isPhotoTurn =
         m.role !== 'user' &&
         i > 0 &&
         list[i - 1].role === 'user' &&
@@ -425,7 +440,7 @@ export default function MyaChat({
         ...m,
         content,
         blocks,
-        isImageAnalysis,
+        isPhotoTurn,
         _dayLabel: dayLabelFor(m, i > 0 ? list[i - 1] : null),
         _showLabel: m.role !== 'user' && (i === 0 || list[i - 1].role === 'user'),
         _key: m.id || `${m.role}-${m.timestamp || ''}-${i}`,
@@ -459,6 +474,7 @@ export default function MyaChat({
   const keyExtractor = useCallback((item) => item._key, []);
 
   return (
+    <MyaCapabilitiesProvider value={capabilities}>
     <MyaStorageProvider value={storage}>
     <MyaOffersProvider value={offersApi}>
     <View style={[styles.screen, { paddingTop: topInset }]}>
@@ -485,11 +501,7 @@ export default function MyaChat({
           accessibilityLabel="Mya Grounding Status"
         >
           <Text style={styles.navTitle}>Mya</Text>
-          <Image
-            source={require('./assets/myavana_small_logo.png')}
-            style={styles.headerMyaLogo}
-            resizeMode="contain"
-          />
+          <MyaPresence size={22} mode={isThinking ? 'thinking' : isStreaming ? 'streaming' : 'idle'} />
         </TouchableOpacity>
 
         <View style={styles.navActions}>
@@ -522,6 +534,8 @@ export default function MyaChat({
           </TouchableOpacity>
         </View>
       </View>
+
+      <Animated.View style={[styles.navHairline, navBorderStyle]} pointerEvents="none" />
 
       {/* Context Pill (Artboards 1a–1i) */}
       <View style={styles.pillRow}>
@@ -689,6 +703,8 @@ export default function MyaChat({
         onNewConversation={handleRestart}
       />
 
+      {celebrating ? <MyaPetals onDone={() => setCelebrating(false)} /> : null}
+
       {/* Host modals (e.g. the app's Hair Weather) */}
       {typeof children === 'function' ? children({ send }) : children}
 
@@ -717,23 +733,28 @@ export default function MyaChat({
           windowSize={11}
           scrollEventThrottle={64}
           onScroll={(e) => {
-            const near = (e.nativeEvent?.contentOffset?.y ?? 0) < 80;
+            const y = e.nativeEvent?.contentOffset?.y ?? 0;
+            const near = y < 80;
             if (near !== atLatest) setAtLatest(near);
+            const under = y > 8 ? 1 : 0;
+            if (scrolledSv.value !== under) scrolledSv.value = timingTo(under, 'base');
           }}
           maintainVisibleContentPosition={atLatest ? undefined : { minIndexForVisible: 1 }}
         />
       )}
 
       {!isEmpty && !atLatest ? (
-        <TouchableOpacity
-          style={styles.jumpPill}
-          onPress={() => listRef.current && listRef.current.scrollToOffset({ offset: 0, animated: true })}
-          accessibilityRole="button"
-          accessibilityLabel="Jump to latest message"
-        >
-          <Ionicons name="arrow-down" size={14} color={MyaColors.onyx} />
-          <Text style={styles.jumpPillText}>Latest</Text>
-        </TouchableOpacity>
+        <Animated.View style={styles.jumpWrap} entering={popEntering()}>
+          <TouchableOpacity
+            style={styles.jumpPill}
+            onPress={() => listRef.current && listRef.current.scrollToOffset({ offset: 0, animated: true })}
+            accessibilityRole="button"
+            accessibilityLabel="Jump to latest message"
+          >
+            <Ionicons name="arrow-down" size={14} color={MyaColors.onyx} />
+            <Text style={styles.jumpPillText}>Latest</Text>
+          </TouchableOpacity>
+        </Animated.View>
       ) : null}
 
       {/* Transport-level error (Artboard 1d / ErrorRow) */}
@@ -747,10 +768,8 @@ export default function MyaChat({
       <Animated.View
         style={[
           styles.composerWrap,
-          {
-            marginBottom: keyboardHeight,
-            paddingBottom: Platform.OS === 'ios' && isKeyboardOpen ? 0 : composerBottomPad,
-          },
+          keyboardLift,
+          { paddingBottom: Platform.OS === 'ios' && isKeyboardOpen ? 0 : composerBottomPad },
         ]}
       >
         <MyaComposer
@@ -768,10 +787,20 @@ export default function MyaChat({
     </View>
     </MyaOffersProvider>
     </MyaStorageProvider>
+    </MyaCapabilitiesProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  navHairline: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: MyaColors.ink13,
+  },
+  jumpWrap: {
+    position: 'absolute',
+    alignSelf: 'center',
+    bottom: 96,
+  },
   daySep: {
     alignSelf: 'center',
     marginTop: 14,
@@ -782,9 +811,6 @@ const styles = StyleSheet.create({
     color: MyaColors.ink45,
   },
   jumpPill: {
-    position: 'absolute',
-    alignSelf: 'center',
-    bottom: 96,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

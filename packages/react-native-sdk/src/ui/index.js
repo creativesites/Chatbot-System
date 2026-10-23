@@ -14,7 +14,13 @@ import MyaThinkingDots from './MyaThinkingDots';
 import MyaSheet from './MyaSheet';
 import MyaHistorySheet from './MyaHistorySheet';
 import MyaAvatar from './MyaAvatar';
-import useMyaKeyboard from './useMyaKeyboard';
+import useMyaKeyboard, { useKeyboardMarginStyle } from './useMyaKeyboard';
+import MyaPresence from './MyaPresence';
+import MyaPressable from './MyaPressable';
+import MyaPetals from './MyaPetals';
+import { MyaCapabilitiesProvider, useMyaCapabilities, useHaptics } from './capabilities';
+import { MyaSprings, MyaDurations } from './motion/tokens';
+import { useMotion } from './motion/useMotion';
 import MyaRichBlock from './rich/MyaRichBlock';
 import { MyaThemeProvider, useMyaTheme, MYAVANA_THEME } from './MyaThemeProvider';
 import { MyaColors, MyaFonts, MyaType, MyaRadii, MyaMotion, MyaShadow, MYA_TOUCH } from './myaTheme';
@@ -40,6 +46,16 @@ export {
   MyaHistorySheet,
   MyaAvatar,
   useMyaKeyboard,
+  useKeyboardMarginStyle,
+  MyaPresence,
+  MyaPressable,
+  MyaPetals,
+  MyaCapabilitiesProvider,
+  useMyaCapabilities,
+  useHaptics,
+  MyaSprings,
+  MyaDurations,
+  useMotion,
   MyaRichBlock,
   MyaThemeProvider,
   useMyaTheme,

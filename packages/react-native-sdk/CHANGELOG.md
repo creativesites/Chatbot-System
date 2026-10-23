@@ -12,6 +12,15 @@
 - **Removed:** the old SDK UI (`MyaChatView`, `MyaChatBubble`, `MyaBlockRenderer`, `MyaStrandCard`, `MyaRoutineChecklist`, `MyaGoalCard`, `MyaJournalCard`, `MyaConsultationCard`, `MyaMediaCard`, `MyaProductCard`, `MyaQuickReplies`, `MyaFloatingTrigger`, `defaultMyaTheme`). `MyaStrandCard` invented values (`?? 88`); `MyaProductCard` showed products.
 - Package hygiene: `files`, `types`, `ui.d.ts`, declared peer dependencies, README, devDependencies, `npm test` runs headless and UI suites.
 
+### M4 (part 1, no new native dependencies): motion
+- One motion token file (`ui/motion/tokens.js`): three springs (gentle 20/170, snappy 18/260, settle 26/140), three durations (120/220/360), and the named recipes. No ad-hoc spring numbers anywhere else (tested). Reduce-motion turns every animation into a crossfade of at most 120 ms with no movement.
+- All Mya animation moved to Reanimated 3: sheets and history sheet (UI-thread spring, `onClose` fires only when the close finishes), keyboard (`useAnimatedKeyboard`), welcome, thinking dots, loading card, composer wrapper. No `Animated.timing/spring/loop` remains in `src/ui` (tested).
+- Mya's presence: the avatar breathes while thinking (1 to 1.04, 1.6 s) and a coral arc traces while streaming.
+- Streamed text is released at a steady word cadence (`useInkPacing`) with a soft breathing caret, block-level ink arrival (fade and 4 px rise over 120 ms), and cards that wait for the text before them. History rows are never paced.
+- Cards unfold staggered 60 ms (opacity, scale .98, 8 px rise); the member's own message lifts from the composer; send and stop morph with a pop; press states settle to .97; checklist ticks spring in; the greeting's letter-spacing settles; starters cascade; header hairline fades in on scroll; "Latest" pill pops in; one sheen crosses an offer card the first time; coral petals settle on a confirmed purchase.
+- Host-injected capabilities (`MyaCapabilitiesProvider`): haptics, gradient and blur are optional and never imported by the SDK. Without them everything degrades to a plain fallback.
+- Honesty: the "Scanning Strand DNA" scanner is now "Looking at your photo..."; invented loading phases ("Cross-referencing...", "lab-backed...") are gone; the loading card shows only the status it is given; unsourced percentages removed from tips.
+
 ### M3: service offers
 - `service_offer` card (`ServiceOfferCard`) built to the proposed contract against fixtures: store name, server price or none, up to 3 inclusions, a reason from the member's HairID, one primary action, a quiet "Not now". Renders nothing when malformed, owned, dismissed, or the host cannot fulfil its route.
 - Routing is the host's: `onOpenPaywall` (native purchase; outcome read back from the server) and `onOpenLink` (in-app browser, links tagged `utm_source=mya&utm_medium=chat&utm_campaign=app&utm_content=<service>`). Links must be https on myavana.com or calendly.com.

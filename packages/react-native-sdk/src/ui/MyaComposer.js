@@ -28,7 +28,10 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import MyaPressable from './MyaPressable';
+import { useMotion } from './motion/useMotion';
 import { MyaColors, MyaType, MyaRadii, MyaShadow } from './myaTheme';
 
 const LINE_HEIGHT = 22;
@@ -70,6 +73,7 @@ export default function MyaComposer({
   placeholder = 'Ask Mya anything…',
   maxLength = 1000,
 }) {
+  const { popEntering } = useMotion();
   const [fieldHeight, setFieldHeight] = useState(MIN_FIELD_HEIGHT);
   const inputRef = useRef(null);
 
@@ -139,15 +143,18 @@ export default function MyaComposer({
         />
 
         {isStreaming ? (
-          <TouchableOpacity
-            onPress={onStop}
-            style={[styles.circleBtn, styles.stopBtn]}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            accessibilityRole="button"
-            accessibilityLabel="Stop generating"
-          >
-            <View style={styles.stopSquare} />
-          </TouchableOpacity>
+          <Animated.View key="stop" entering={popEntering()}>
+            <MyaPressable
+              onPress={onStop}
+              haptic="light"
+              style={[styles.circleBtn, styles.stopBtn]}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Stop generating"
+            >
+              <View style={styles.stopSquare} />
+            </MyaPressable>
+          </Animated.View>
         ) : showVoice ? (
           <TouchableOpacity
             onPress={onVoice}
@@ -159,17 +166,20 @@ export default function MyaComposer({
             <Ionicons name="mic-outline" size={20} color={MyaColors.ink55} />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            onPress={canSend ? onSend : undefined}
-            disabled={!canSend}
-            style={[styles.circleBtn, canSend ? styles.sendOn : styles.sendOff]}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            accessibilityRole="button"
-            accessibilityLabel="Send message"
-            accessibilityState={{ disabled: !canSend }}
-          >
-            <Ionicons name="arrow-up" size={20} color={MyaColors.ivory} />
-          </TouchableOpacity>
+          <Animated.View key="send" entering={popEntering()}>
+            <MyaPressable
+              onPress={canSend ? onSend : undefined}
+              haptic="light"
+              disabled={!canSend}
+              style={[styles.circleBtn, canSend ? styles.sendOn : styles.sendOff]}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              accessibilityState={{ disabled: !canSend }}
+            >
+              <Ionicons name="arrow-up" size={20} color={MyaColors.ivory} />
+            </MyaPressable>
+          </Animated.View>
         )}
       </View>
 

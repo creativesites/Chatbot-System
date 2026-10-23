@@ -7,12 +7,24 @@
  * - Typography: Archivo family (Bold preheaders, Semibold subheaders, Regular body)
  *
  * Distraction UX: Keeps the user entertained and engaged during multi-second LLM responses
- * by rotating through lab-grounded hair science facts and dynamic status phases.
+ * by rotating through general hair-care tips. The status line is only ever what
+ * the server reported (or a plain "Checking your Hair Journey"): no invented steps.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Animated, Easing, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  cancelAnimation,
+  Easing,
+  runOnJS,
+} from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useMotion } from './motion/useMotion';
 import { MyaColors, MyaFonts, MyaShadow } from './myaTheme';
 import { moderateScale } from './scale';
 
@@ -26,7 +38,7 @@ const HAIR_TIPS = [
   {
     tag: 'STRAND SCIENCE',
     title: 'Elasticity & Strength',
-    fact: 'Healthy hair strands can stretch up to 30% of their original length when wet and retract back without breaking. Elasticity is your best indicator of strand health.',
+    fact: 'Healthy wet hair stretches a little and springs back without breaking. Elasticity is a good indicator of strand health.',
     icon: 'fitness-outline',
   },
   {
@@ -50,7 +62,7 @@ const HAIR_TIPS = [
   {
     tag: 'HEAT DEFENSE',
     title: 'Preserve Curl Memory',
-    fact: 'Always apply a silicone- or poly-based heat protectant before blow drying or silk pressing. It reduces internal moisture evaporation by up to 50%.',
+    fact: 'Always apply a silicone- or poly-based heat protectant before blow drying or silk pressing. It helps your hair hold on to its moisture.',
     icon: 'flame-outline',
   },
   {
@@ -79,116 +91,69 @@ const HAIR_TIPS = [
   },
 ];
 
-const PHASES = [
-  'Consulting MYAVANA hair intelligence...',
-  'Cross-referencing strand porosity & curl dynamics...',
-  'Analyzing lab-backed formulations...',
-  'Personalizing your recommended regimen...',
-  'Composing tailored advice...',
-];
+const DEFAULT_STATUS = 'Checking your Hair Journey...';
 
-export default function MyaLoadingDistraction() {
+export default function MyaLoadingDistraction({ status }) {
+  const { reduced, timingTo } = useMotion();
   const [tipIndex, setTipIndex] = useState(0);
-  const [phaseIndex, setPhaseIndex] = useState(0);
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(0.4)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const fade = useSharedValue(1);
+  const pulse = useSharedValue(0.4);
+  const sweep = useSharedValue(0);
 
-  // Pulse animation for header indicator
   useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.35,
-          duration: 900,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [pulseAnim]);
+    if (reduced) {
+      pulse.value = 1;
+      sweep.value = 0.4;
+      return undefined;
+    }
+    pulse.value = withRepeat(withSequence(withTiming(1, { duration: 900 }), withTiming(0.35, { duration: 900 })), -1, false);
+    sweep.value = 0;
+    sweep.value = withRepeat(withTiming(1, { duration: 2400, easing: Easing.linear }), -1, false);
+    return () => {
+      cancelAnimation(pulse);
+      cancelAnimation(sweep);
+    };
+  }, [reduced, pulse, sweep]);
 
-  // Progress sweep
+  // Rotate the tip every 3.4 s with a cross-fade.
   useEffect(() => {
-    const progress = Animated.loop(
-      Animated.timing(progressAnim, {
-        toValue: 1,
-        duration: 2400,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    progress.start();
-    return () => progress.stop();
-  }, [progressAnim]);
-
-  // Cycle tips and phases every 3.4 seconds with smooth cross-fade
-  useEffect(() => {
+    const advance = () => setTipIndex((prev) => (prev + 1) % HAIR_TIPS.length);
     const interval = setInterval(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 250,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start(() => {
-        setTipIndex((prev) => (prev + 1) % HAIR_TIPS.length);
-        setPhaseIndex((prev) => (prev + 1) % PHASES.length);
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 350,
-          easing: Easing.in(Easing.ease),
-          useNativeDriver: true,
-        }).start();
+      fade.value = timingTo(0, 'fast', (finished) => {
+        'worklet';
+        if (finished) runOnJS(advance)();
       });
+      setTimeout(() => {
+        fade.value = timingTo(1, 'base');
+      }, 260);
     }, 3400);
-
     return () => clearInterval(interval);
-  }, [fadeAnim]);
+  }, [fade, timingTo]);
+
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  const sweepStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -80 + sweep.value * 340 }] }));
+  const tipStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
 
   const currentTip = HAIR_TIPS[tipIndex];
-  const currentPhase = PHASES[phaseIndex];
 
   return (
     <View style={styles.card}>
       {/* Header Row: Mya status & animated pulse */}
       <View style={styles.headerRow}>
-        <Animated.View style={[styles.pulseDotWrap, { opacity: pulseAnim }]}>
+        <Animated.View style={[styles.pulseDotWrap, pulseStyle]}>
           <Ionicons name="sparkles" size={13} color={MyaColors.coral || '#E7A690'} />
         </Animated.View>
-        <Text style={styles.statusText}>{currentPhase}</Text>
+        <Text style={styles.statusText}>{status || DEFAULT_STATUS}</Text>
       </View>
 
       {/* Progress Track */}
       <View style={styles.progressTrack}>
-        <Animated.View
-          style={[
-            styles.progressBar,
-            {
-              transform: [
-                {
-                  translateX: progressAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-80, 260],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
+        <Animated.View style={[styles.progressBar, sweepStyle]} />
       </View>
 
       {/* Rotating Hair Tip Box */}
-      <Animated.View style={[styles.tipContainer, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.tipContainer, tipStyle]}>
         <View style={styles.tipHeader}>
           <View style={styles.tagBadge}>
             <Text style={styles.tagText}>{currentTip.tag}</Text>
@@ -202,7 +167,7 @@ export default function MyaLoadingDistraction() {
 
       {/* Brand sign-off micro tag */}
       <View style={styles.footerRow}>
-        <Text style={styles.footerText}>MYAVANA HAIR LABS • EXPERTISE & SCIENCE</Text>
+        <Text style={styles.footerText}>MYAVANA • HAIR CARE TIPS</Text>
       </View>
     </View>
   );

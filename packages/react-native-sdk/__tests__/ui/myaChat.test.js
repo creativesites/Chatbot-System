@@ -7,6 +7,8 @@ const TestRenderer = require('react-test-renderer');
 const { MemoryStorageAdapter } = require('../../src/storage/StorageAdapter');
 const MyaChat = require('../../src/ui/MyaChat').default;
 
+beforeAll(() => { global.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({}), text: async () => '' })); });
+
 function mount(props = {}) {
   let tree;
   TestRenderer.act(() => {

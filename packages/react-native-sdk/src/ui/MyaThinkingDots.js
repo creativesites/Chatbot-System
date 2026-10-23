@@ -9,64 +9,50 @@
  * size while it animates and the row below it cannot shift.
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, Easing, StyleSheet, AccessibilityInfo } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withDelay,
+  withTiming,
+  cancelAnimation,
+} from 'react-native-reanimated';
 import { MyaColors, MyaRadii, MyaShadow } from './myaTheme';
+import { useMotion } from './motion/useMotion';
 
 const REST = [0.95, 0.55, 0.28];
 
-export default function MyaThinkingDots() {
-  const dots = useRef(REST.map((o) => new Animated.Value(o))).current;
-  const reduceMotion = useRef(false);
+function Dot({ index, gap, animate }) {
+  const opacity = useSharedValue(REST[index]);
 
   useEffect(() => {
-    let cancelled = false;
-    let loops = [];
+    if (!animate) {
+      // Reduce-motion: the dots hold their resting opacities. The state is still
+      // communicated by their presence.
+      cancelAnimation(opacity);
+      opacity.value = REST[index];
+      return undefined;
+    }
+    opacity.value = withDelay(
+      index * 160,
+      withRepeat(withSequence(withTiming(1, { duration: 420 }), withTiming(0.28, { duration: 420 })), -1, false)
+    );
+    return () => cancelAnimation(opacity);
+  }, [animate, index, opacity]);
 
-    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (cancelled) return;
-      reduceMotion.current = enabled;
-      // Respect the OS setting: the state is still communicated by the dots
-      // being present, so with reduce-motion on they simply hold their resting
-      // opacities rather than disappearing.
-      if (enabled) return;
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.View style={[styles.dot, gap && styles.gap, style]} />;
+}
 
-      loops = dots.map((v, i) =>
-        Animated.loop(
-          Animated.sequence([
-            Animated.delay(i * 160),
-            Animated.timing(v, {
-              toValue: 1,
-              duration: 420,
-              easing: Easing.inOut(Easing.quad),
-              useNativeDriver: true,
-            }),
-            Animated.timing(v, {
-              toValue: 0.28,
-              duration: 420,
-              easing: Easing.inOut(Easing.quad),
-              useNativeDriver: true,
-            }),
-          ])
-        )
-      );
-      loops.forEach((l) => l.start());
-    });
-
-    return () => {
-      cancelled = true;
-      loops.forEach((l) => l.stop && l.stop());
-    };
-  }, [dots]);
-
+export default function MyaThinkingDots() {
+  const { reduced } = useMotion();
   return (
-    <View
-      style={styles.bubble}
-      accessibilityRole="progressbar"
-      accessibilityLabel="Mya is thinking"
-    >
-      {dots.map((v, i) => (
-        <Animated.View key={i} style={[styles.dot, i > 0 && styles.gap, { opacity: v }]} />
+    <View style={styles.bubble} accessibilityRole="progressbar" accessibilityLabel="Mya is thinking">
+      {REST.map((_, i) => (
+        <Dot key={i} index={i} gap={i > 0} animate={!reduced} />
       ))}
     </View>
   );

@@ -9,19 +9,12 @@
  * - Clean, elegant starter prompt buttons with zero icon clutter
  */
 
-import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  Animated,
-  Easing,
-  StyleSheet,
-  AccessibilityInfo,
-} from 'react-native';
-import { MyaColors, MyaFonts, MyaShadow, MyaMotion } from './myaTheme';
+import React, { useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import { MyaColors, MyaFonts, MyaShadow, MyaType } from './myaTheme';
 import { moderateScale } from './scale';
+import { useMotion } from './motion/useMotion';
 
 function greetingFor(date = new Date()) {
   const h = date.getHours();
@@ -31,49 +24,21 @@ function greetingFor(date = new Date()) {
 }
 
 export default function MyaWelcome({ firstName, subtitle, starters = [], onSelect }) {
-  const enter = useRef(new Animated.Value(0.2)).current;
+  const { reduced, springTo, cardEntering } = useMotion();
 
+  // The greeting settles: its letter-spacing eases from +0.6 to its final value.
+  const finalSpacing = MyaType.greeting.letterSpacing;
+  const spacing = useSharedValue(reduced ? finalSpacing : 0.6);
   useEffect(() => {
-    let mounted = true;
-    Animated.timing(enter, {
-      toValue: 1,
-      duration: MyaMotion.base || 240,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-
-    try {
-      if (AccessibilityInfo?.isReduceMotionEnabled) {
-        AccessibilityInfo.isReduceMotionEnabled()
-          .then((reduced) => {
-            if (mounted && reduced) enter.setValue(1);
-          })
-          .catch(() => {});
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    return () => {
-      mounted = false;
-    };
-  }, [enter]);
+    spacing.value = springTo(finalSpacing, 'settle');
+  }, [spacing, springTo, finalSpacing]);
+  const greetingStyle = useAnimatedStyle(() => ({ letterSpacing: spacing.value }));
 
   const name = (firstName || '').trim();
   const greeting = name ? `${greetingFor()}, ${name}.` : `${greetingFor()}.`;
 
   return (
-    <Animated.View
-      style={[
-        styles.wrap,
-        {
-          opacity: enter,
-          transform: [
-            { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
-          ],
-        },
-      ]}
-    >
+    <Animated.View style={styles.wrap} entering={cardEntering(0)}>
       <View style={styles.card}>
         {/* Banner Image Container */}
         <View style={styles.bannerWrap}>
@@ -99,9 +64,9 @@ export default function MyaWelcome({ firstName, subtitle, starters = [], onSelec
         {/* Welcome Card Body */}
         <View style={styles.body}>
           {/* Greeting & Guidance */}
-          <Text style={styles.greeting} accessibilityRole="header">
+          <Animated.Text style={[styles.greeting, greetingStyle]} accessibilityRole="header">
             {greeting}
-          </Text>
+          </Animated.Text>
 
           <Text style={styles.subtitle}>
             {subtitle || 'Your AI Hair Care Scientist is ready to guide your hair journey today.'}
@@ -111,18 +76,19 @@ export default function MyaWelcome({ firstName, subtitle, starters = [], onSelec
           {starters && starters.length > 0 ? (
             <View style={styles.starters}>
               {starters.map((s, i) => (
-                <TouchableOpacity
-                  key={s.id || `starter-${i}`}
-                  style={styles.starter}
-                  onPress={() => onSelect && onSelect(s)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={s.label}
-                >
-                  <Text style={styles.starterText} numberOfLines={2}>
-                    {s.label}
-                  </Text>
-                </TouchableOpacity>
+                <Animated.View key={s.id || `starter-${i}`} entering={cardEntering(i + 1)}>
+                  <TouchableOpacity
+                    style={styles.starter}
+                    onPress={() => onSelect && onSelect(s)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.label}
+                  >
+                    <Text style={styles.starterText} numberOfLines={2}>
+                      {s.label}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
               ))}
             </View>
           ) : null}

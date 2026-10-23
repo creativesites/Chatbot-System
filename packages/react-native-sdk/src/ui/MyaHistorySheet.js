@@ -6,23 +6,23 @@
  * with topic-derived titles, a search filter, and a fixed "New conversation" CTA.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   FlatList,
-  Animated,
-  Easing,
   StyleSheet,
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { moderateScale } from './scale';
 import { MyaColors, MyaFonts, MyaType } from './myaTheme';
+import useSheetMotion from './motion/useSheetMotion';
 
 function formatGroupDate(dateStr) {
   if (!dateStr) return 'EARLIER';
@@ -109,20 +109,13 @@ export default function MyaHistorySheet({
   fetchConversations,
 }) {
   const insets = useSafeAreaInsets();
-  const anim = useRef(new Animated.Value(0)).current;
+  const { close: handleClose, sheetStyle, scrimStyle } = useSheetMotion(visible, 650, onClose);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversations, setConversations] = useState([]);
 
   useEffect(() => {
     if (visible) {
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 260,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
-
       if (typeof fetchConversations === 'function') {
         setLoading(true);
         fetchConversations()
@@ -137,21 +130,9 @@ export default function MyaHistorySheet({
           });
       }
     } else {
-      anim.setValue(0);
       setSearch('');
     }
-  }, [visible, anim, fetchConversations]);
-
-  const handleClose = () => {
-    Animated.timing(anim, {
-      toValue: 0,
-      duration: 200,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      if (onClose) onClose();
-    });
-  };
+  }, [visible, fetchConversations]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -184,6 +165,7 @@ export default function MyaHistorySheet({
 
   return (
     <View style={styles.backdrop}>
+      <Animated.View style={[styles.scrim, scrimStyle]} pointerEvents="none" />
       <TouchableOpacity
         style={styles.scrimTouch}
         onPress={handleClose}
@@ -192,21 +174,7 @@ export default function MyaHistorySheet({
         accessibilityLabel="Close conversation history"
       />
 
-      <Animated.View
-        style={[
-          styles.sheet,
-          {
-            transform: [
-              {
-                translateY: anim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [650, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.sheet, sheetStyle]}>
         <View style={styles.handle} />
 
         {/* Search Bar */}
@@ -309,9 +277,12 @@ export default function MyaHistorySheet({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: MyaColors.scrim,
     zIndex: 1200,
     justifyContent: 'flex-end',
+  },
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: MyaColors.scrim,
   },
   scrimTouch: {
     flex: 1,

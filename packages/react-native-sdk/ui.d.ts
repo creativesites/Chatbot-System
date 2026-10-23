@@ -48,6 +48,8 @@ export interface MyaChatProps {
   analytics?: (name: string, params: Record<string, any>) => void;
   /** Purchases the host completes outside a card. Return an unsubscribe function. */
   subscribePurchases?: (cb: (evt: { status: string; service?: string; name?: string; entitlementKey?: string; offer?: ServiceOffer }) => void) => () => void;
+  /** Optional native niceties the host may inject; each degrades gracefully when absent. */
+  capabilities?: MyaCapabilities;
   persistPrefix?: string;
   /** Host modals, rendered last. */
   children?: React.ReactNode | ((api: { send: (text: string) => void }) => React.ReactNode);
@@ -84,3 +86,22 @@ export function resolveComponent(type: string): React.ComponentType<any> | null;
 export function registeredTypes(): string[];
 export function isSuppressedType(type: string): boolean;
 export const SUPPRESSED_TYPES: string[];
+
+export interface MyaCapabilities {
+  /** Each is optional. Calls never throw into the UI. */
+  haptics?: { light?: () => void; medium?: () => void; success?: () => void };
+  /** e.g. react-native-linear-gradient's component. Not required. */
+  LinearGradient?: React.ComponentType<any>;
+  /** e.g. @react-native-community/blur's BlurView. Not required. */
+  BlurView?: React.ComponentType<any>;
+}
+export const MyaCapabilitiesProvider: React.ComponentType<{ value?: MyaCapabilities; children?: React.ReactNode }>;
+export function useMyaCapabilities(): MyaCapabilities;
+export function useHaptics(): { light: () => void; medium: () => void; success: () => void };
+export const MyaPresence: React.ComponentType<{ size?: number; mode?: 'idle' | 'thinking' | 'streaming' }>;
+export const MyaPressable: React.ComponentType<any>;
+export const MyaPetals: React.ComponentType<{ onDone?: () => void }>;
+export function useKeyboardMarginStyle(keyboardHeight: any): any;
+export const MyaSprings: Record<'gentle' | 'snappy' | 'settle', { damping: number; stiffness: number; mass: number }>;
+export const MyaDurations: { fast: 120; base: 220; slow: 360 };
+export function useMotion(): { reduced: boolean; springTo: (to: number, name?: string, cb?: any) => any; timingTo: (to: number, name?: string, cb?: any) => any };

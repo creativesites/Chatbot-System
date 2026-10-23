@@ -12,6 +12,9 @@ const MyaChat = require('../../src/ui/MyaChat').default;
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
+// Funnel events post to /events; keep tests off the network.
+beforeAll(() => { global.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({}), text: async () => '' })); });
+
 function setup(overrides = {}) {
   const events = [];
   const ctx = {
@@ -48,7 +51,7 @@ describe('ServiceOfferCard presents what the server sent', () => {
     const out = json(await mount(fx.hairAI, ctx));
     expect(out).toContain('MYAVANA HairAI™ Instant Analysis + Recommendations');
     expect(out).toContain('$9.00');
-    expect(out).toContain('A real HairID');
+    expect(out).toContain('Hair type and texture analysis');
     expect(out).toContain('Your profile has no measured porosity yet');
     expect(out).toContain('Get HairAI™');
     expect(out).toContain('Not now');

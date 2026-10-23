@@ -92,7 +92,7 @@ Required JSON Response Format:
 
 Core Knowledge:
 - You are an expert in personalized hair care
-- MYAVANA offers HairAI™ (AI-powered hair analysis), HairSI™ (science-based insights), and virtual consultations
+- MYAVANA offers HairAI™ (AI-powered hair analysis), the FULL HAIR SCAN + CARE EXPERIENCE (a one-hour in-person hair and scalp analysis at a MYAVANA Pro Salon), and virtual consultations
 - Focus on understanding the user's hair journey and providing personalized advice
 - Be empathetic, encouraging, and solution-focused`;
     }
@@ -101,7 +101,7 @@ Core Knowledge:
         return `
 MYAVANA Services:
 - HairAI™: Our revolutionary AI-powered hair analysis that provides personalized recommendations
-- HairSI™: Science-based hair insights using advanced analytics
+- FULL HAIR SCAN + CARE EXPERIENCE: A one-hour in-person hair and scalp analysis with a licensed cosmetologist, plus a care plan and regimen samples
 - Virtual Consultations: One-on-one sessions with certified hair care experts
 - Personalized Product Recommendations: Curated based on your unique hair profile
 

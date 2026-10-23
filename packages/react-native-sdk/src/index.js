@@ -16,6 +16,9 @@ const voice = require('./voice');
 const offers = require('./offers/serviceOffer');
 const funnel = require('./offers/funnel');
 const dismissals = require('./offers/dismissals');
+const reporter = require('./ops/reporter');
+const remoteFlags = require('./ops/remoteFlags');
+const perf = require('./ops/perf');
 
 module.exports = {
   ...types,
@@ -31,5 +34,8 @@ module.exports = {
   ...voice,
   ...offers,
   ...funnel,
-  offerDismissals: dismissals
+  offerDismissals: dismissals,
+  ...reporter,
+  ...remoteFlags,
+  ...perf
 };

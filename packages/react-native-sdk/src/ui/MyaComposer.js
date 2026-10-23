@@ -129,7 +129,7 @@ export default function MyaComposer({
           onChangeText={onChangeText}
           onContentSizeChange={handleContentSizeChange}
           placeholder={placeholder}
-          placeholderTextColor={MyaColors.ink40}
+          placeholderTextColor={MyaColors.inkText}
           multiline
           maxLength={maxLength}
           scrollEnabled={atCeiling}
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   counter: {
     ...MyaType.quickReply,
-    color: MyaColors.ink40,
+    color: MyaColors.inkText,
     alignSelf: 'flex-end',
     paddingRight: 12,
     paddingBottom: 4,

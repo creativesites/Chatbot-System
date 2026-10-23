@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   },
   unanalysedValue: {
     ...MyaType.quickReply,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
   },
   scienceNoteBox: {
     backgroundColor: MyaColors.berryTint,
@@ -578,13 +578,13 @@ const styles = StyleSheet.create({
   },
   mediaTagText: {
     ...MyaType.quickReply,
-    color: MyaColors.ink55,
+    color: MyaColors.inkText,
     fontFamily: MyaFonts.semibold,
   },
   attributionLine: {
     fontFamily: MyaFonts.regular,
     fontSize: moderateScale(10),
-    color: MyaColors.ink40,
+    color: MyaColors.inkText,
     marginVertical: 6,
   },
   authorRow: {
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
   },
   postDate: {
     ...MyaType.quickReply,
-    color: MyaColors.ink40,
+    color: MyaColors.inkText,
     fontSize: moderateScale(9),
   },
   socialActionRow: {
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   },
   socialActionText: {
     ...MyaType.quickReply,
-    color: MyaColors.ink55,
+    color: MyaColors.inkText,
     marginLeft: 4,
     fontFamily: MyaFonts.semibold,
   },
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
   },
   brand: {
     ...MyaType.quickReply,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
     marginBottom: 2,
   },
   price: {
@@ -662,7 +662,7 @@ const styles = StyleSheet.create({
   },
   more: {
     ...MyaType.quickReply,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
     marginTop: 8,
   },
   total: {
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   },
   subtle: {
     ...MyaType.quickReply,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
     marginTop: 6,
   },
   date: {
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   },
   choicePrompt: {
     ...MyaType.errorNote,
-    color: MyaColors.ink58,
+    color: MyaColors.inkText,
     marginBottom: 8,
   },
   choiceRow: {

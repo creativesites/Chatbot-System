@@ -24,6 +24,7 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  AccessibilityInfo,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -45,6 +46,11 @@ import { MyaStorageProvider } from './checklistStore';
 import { MyaOffersProvider } from './offers/OffersContext';
 import { createFunnelTracker } from '../offers/funnel';
 import { buildPostPurchaseMessage } from '../offers/serviceOffer';
+import { createReporter } from '../ops/reporter';
+import { createPerf } from '../ops/perf';
+import { loadFlags, DEFAULT_FLAGS } from '../ops/remoteFlags';
+import { MyaFlagsProvider, useMyaFlags } from './flags';
+import { SDK_VERSION } from '../telemetry/deviceTelemetry';
 
 import { useMyaChat } from '../hooks/useMyaChat';
 import { normalizeAttachments } from '../client/attachments';
@@ -103,7 +109,7 @@ function filterUserSalutations(text) {
  */
 export { dayLabelFor };
 
-export default function MyaChat({
+function MyaChatInner({
   apiBase,
   storage,
   userId,
@@ -127,9 +133,11 @@ export default function MyaChat({
   analytics,
   subscribePurchases,
   capabilities,
+  onReportError,
   persistPrefix = 'mya',
   children,
 }) {
+  const flags = useMyaFlags();
   const insets = useSafeAreaInsets();
   const { keyboardHeight, isKeyboardOpen } = useMyaKeyboard();
   const keyboardLift = useKeyboardMarginStyle(keyboardHeight);
@@ -176,7 +184,46 @@ export default function MyaChat({
     storage,
     persistMessages: true,
     persistKey: `${persistPrefix}_chat_mobile_${userId || 'guest'}`,
+    onReportError,
+    // First-token latency, mirrored like every other event so the p75 can be read from analytics.
+    onPerf: (name, ms, extra) => analytics && analytics(`mya_perf_${name}`, { ms, ...extra }),
   });
+
+  // Reports every quiet failure with its conversation; never throws.
+  const reporter = useMemo(
+    () =>
+      createReporter({
+        onReport: onReportError,
+        getContext: () => ({ conversationId: myaClient.getConversationId(), userId }),
+      }),
+    [onReportError, myaClient, userId]
+  );
+
+  // Chat interactive: mount to first layout. (From the member's tap needs the host's tap time.)
+  const perfRef = useRef(null);
+  if (!perfRef.current) {
+    perfRef.current = createPerf({ onMark: (name, ms) => analytics && analytics(`mya_perf_${name}`, { ms }) });
+    perfRef.current.start('chat_interactive');
+  }
+
+  // Screen readers: say Mya is working, then say once that she has replied.
+  // (Announcing every streamed chunk would drown the reader.)
+  const wasStreamingRef = useRef(false);
+  useEffect(() => {
+    const working = isThinking || isStreaming;
+    if (working && !wasStreamingRef.current) {
+      AccessibilityInfo.announceForAccessibility && AccessibilityInfo.announceForAccessibility('Mya is thinking');
+    }
+    if (!working && wasStreamingRef.current) {
+      const last = [...messages].reverse().find((m) => m.role === 'assistant' && m.content);
+      if (last) {
+        const t = String(last.content).replace(/\s+/g, ' ').trim();
+        AccessibilityInfo.announceForAccessibility &&
+          AccessibilityInfo.announceForAccessibility(`Mya replied. ${t.length > 140 ? `${t.slice(0, 140)}...` : t}`);
+      }
+    }
+    wasStreamingRef.current = working;
+  }, [isThinking, isStreaming, messages]);
 
   // Draft persistence across navigation
   const draftKey = `${persistPrefix}_draft_${userId || 'guest'}`;
@@ -193,13 +240,14 @@ export default function MyaChat({
       const fromHost = getEntitlements ? await getEntitlements() : [];
       list = Array.isArray(fromHost) ? fromHost : [];
     } catch (e) {
+      reporter.report(e, 'entitlements');
       list = [];
     }
     const merged = Array.from(new Set([...list, ...purchasedRef.current]));
     setEntitlements(merged);
     if (myaClient && myaClient.setEntitlements) myaClient.setEntitlements(merged);
     return merged;
-  }, [getEntitlements, myaClient]);
+  }, [getEntitlements, myaClient, reporter]);
 
   useEffect(() => {
     refreshEntitlements();
@@ -210,11 +258,9 @@ export default function MyaChat({
       createFunnelTracker({
         send: (type, meta) => myaClient.trackEvent(type, meta),
         mirror: analytics,
-        onError: (e) => {
-          if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[Mya] funnel event failed:', e && e.message);
-        },
+        onError: (e) => reporter.report(e, 'funnel_event'),
       }),
-    [myaClient, analytics]
+    [myaClient, analytics, reporter]
   );
 
   // A confirmed purchase: remember it so the service is never re-offered, then
@@ -254,8 +300,9 @@ export default function MyaChat({
       openPaywall: (offer) => (onOpenPaywall ? onOpenPaywall(offer) : Promise.resolve({ status: 'unavailable' })),
       openLink: onOpenLink,
       onPurchaseCompleted: handlePurchaseCompleted,
+      enabled: flags.serviceOffers !== false, // remote kill switch
     }),
-    [storage, entitlements, tracker, canHandleOffer, onOpenPaywall, onOpenLink, handlePurchaseCompleted]
+    [storage, entitlements, tracker, canHandleOffer, onOpenPaywall, onOpenLink, handlePurchaseCompleted, flags.serviceOffers]
   );
 
   const [draft, setDraft] = useState('');
@@ -273,19 +320,19 @@ export default function MyaChat({
       .then((saved) => {
         if (alive && saved) setDraft(saved);
       })
-      .catch(() => {})
+      .catch((e) => reporter.report(e, 'draft_load'))
       .finally(() => {
         draftLoaded.current = true;
       });
     return () => {
       alive = false;
     };
-  }, [draftKey, storage]);
+  }, [draftKey, storage, reporter]);
 
   useEffect(() => {
     if (!draftLoaded.current) return;
-    Promise.resolve(storage.setItem(draftKey, draft || '')).catch(() => {});
-  }, [draft, draftKey, storage]);
+    Promise.resolve(storage.setItem(draftKey, draft || '')).catch((e) => reporter.report(e, 'draft_save'));
+  }, [draft, draftKey, storage, reporter]);
 
   const send = useCallback(
     async (text, overrideAttachments = null) => {
@@ -367,11 +414,11 @@ export default function MyaChat({
       .then((token) => {
         if (alive && token && myaClient && myaClient.setAuthToken) myaClient.setAuthToken(token);
       })
-      .catch(() => {});
+      .catch((e) => reporter.report(e, 'auth_token'));
     return () => {
       alive = false;
     };
-  }, [myaClient, getAuthToken]);
+  }, [myaClient, getAuthToken, reporter]);
 
   // Retry logic (MYA-013): slice out failed turn and retry last user prompt cleanly
   const handleRetry = useCallback(() => {
@@ -480,7 +527,10 @@ export default function MyaChat({
     <MyaCapabilitiesProvider value={capabilities}>
     <MyaStorageProvider value={storage}>
     <MyaOffersProvider value={offersApi}>
-    <View style={[styles.screen, { paddingTop: BlurView ? 0 : topInset }]}>
+    <View
+      style={[styles.screen, { paddingTop: BlurView ? 0 : topInset }]}
+      onLayout={() => perfRef.current && perfRef.current.end('chat_interactive')}
+    >
       <StatusBar barStyle="dark-content" />
 
       {/* Header: nav, hairline and context pill. Floats over the thread when a blur is provided. */}
@@ -810,6 +860,38 @@ export default function MyaChat({
   );
 }
 
+/**
+ * MyaChat: loads the remote flags (kill switch) and renders the screen under them.
+ * Flags never block the chat: cached answer first, defaults if there is none.
+ */
+export default function MyaChat(props) {
+  const [flags, setFlags] = useState(DEFAULT_FLAGS);
+  const { apiBase, storage, onReportError, appVersion } = props;
+
+  useEffect(() => {
+    let alive = true;
+    loadFlags({
+      apiBase,
+      storage,
+      platform: Platform.OS === 'ios' ? 'react-native-ios' : 'react-native-android',
+      appVersion,
+      sdkVersion: SDK_VERSION,
+      onError: (e) => createReporter({ onReport: onReportError }).report(e, 'remote_flags'),
+    }).then((r) => {
+      if (alive) setFlags(r.flags);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [apiBase, storage, appVersion, onReportError]);
+
+  return (
+    <MyaFlagsProvider value={flags}>
+      <MyaChatInner {...props} />
+    </MyaFlagsProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   headerOverlay: {
     position: 'absolute',
@@ -838,7 +920,7 @@ const styles = StyleSheet.create({
   },
   daySepText: {
     ...MyaType.contextPill,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
   },
   jumpPill: {
     flexDirection: 'row',
@@ -940,7 +1022,7 @@ const styles = StyleSheet.create({
   },
   attachOptionSub: {
     ...MyaType.quickReply,
-    color: MyaColors.ink56,
+    color: MyaColors.inkText,
     fontSize: moderateScale(11),
     marginTop: 2,
   },
@@ -980,7 +1062,7 @@ const styles = StyleSheet.create({
   sheetCancelBtnText: {
     fontFamily: MyaFonts.semibold,
     fontSize: moderateScale(13),
-    color: MyaColors.ink56,
+    color: MyaColors.inkText,
   },
 
   // Menu Sheet Items
@@ -1004,7 +1086,7 @@ const styles = StyleSheet.create({
   },
   menuItemSub: {
     ...MyaType.quickReply,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
     fontSize: moderateScale(10.5),
     marginTop: 1,
   },

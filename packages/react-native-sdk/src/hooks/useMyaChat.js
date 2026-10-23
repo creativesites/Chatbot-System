@@ -7,6 +7,7 @@ const { MyaMobileClient } = require('../client/MyaMobileClient');
 const { createId } = require('../types');
 const { classifyError, toMyaError, makeError, errorCopy } = require('../client/errors');
 const { normalizeAttachments } = require('../client/attachments');
+const { createReporter } = require('../ops/reporter');
 
 // One request in flight per client. Module-level (keyed by client) so two
 // sendMessage calls in the same tick cannot both pass the check, whatever
@@ -68,6 +69,14 @@ function useMyaChat(options = {}) {
 
   const client = clientRef.current;
 
+  // Nothing is swallowed: every failure, including the quiet storage ones, is
+  // reported with the conversation it belongs to. (Plain function, not a hook.)
+  const reportError = (err, where) =>
+    createReporter({
+      onReport: options.onReportError,
+      getContext: () => ({ conversationId: client.getConversationId(), userId: client.getUserId() }),
+    }).report(err, where);
+
   // Keep client credentials synchronized when options change dynamically
   useEffect(() => {
     if (client) {
@@ -112,7 +121,7 @@ function useMyaChat(options = {}) {
               }
             }
           } catch (e) {
-            // Silently ignore cache parse failures
+            reportError(e, 'restore_cache');
           }
         }
       }
@@ -130,7 +139,7 @@ function useMyaChat(options = {}) {
         const key = options.persistKey || `mya_cached_messages_${conversationId}`;
         await client.getStorage().setItem(key, JSON.stringify(msgs));
       } catch (e) {
-        // Silently catch persistence errors
+        reportError(e, 'persist_messages');
       }
     },
     [client, conversationId, options.persistMessages, options.persistKey]
@@ -141,7 +150,7 @@ function useMyaChat(options = {}) {
       const key = options.persistKey || `mya_cached_messages_${conversationId}`;
       await client.getStorage().removeItem(key);
     } catch (e) {
-      // Silently catch storage errors
+      reportError(e, 'clear_cache');
     }
   }, [client, conversationId, options.persistKey]);
 
@@ -218,8 +227,9 @@ function useMyaChat(options = {}) {
         if (rawAttachments.length) {
           const { ready, rejected } = normalizeAttachments(rawAttachments);
           if (rejected.length) {
-            const attErr = makeError('attachment', undefined, { rejected });
+            const attErr = makeError('attachment', undefined, { rejected, conversationId: client.getConversationId() });
             setError(attErr);
+            reportError(attErr, 'attachments');
             setUnsentDraft({ text: trimmed, attachments: rawAttachments, reason: 'attachment' });
             options.onError && options.onError(attErr);
             return;
@@ -260,13 +270,14 @@ function useMyaChat(options = {}) {
         const handleFailure = (rawErr) => {
           if (failed) return; // onError and a thrown error can both fire for one failure
           failed = true;
-          const myaErr = toMyaError(rawErr);
+          const myaErr = toMyaError(rawErr, { conversationId: client.getConversationId() });
           const { kind } = classifyError(myaErr);
           setIsStreaming(false);
           setIsThinking(false);
           if (kind === 'aborted') return; // the user stopped it; abortStream owns the message state, and it is not an error
           setError(myaErr);
           options.onError && options.onError(myaErr);
+          reportError(myaErr, 'send');
 
           setMessages((prev) => {
             const target = prev.find((m) => m.id === assistantMessageId);
@@ -289,6 +300,19 @@ function useMyaChat(options = {}) {
           });
         };
 
+        // First-token latency: the span a member waits before Mya starts answering.
+        const sentAt = Date.now();
+        let firstTokenSeen = false;
+        const markFirstToken = () => {
+          if (firstTokenSeen) return;
+          firstTokenSeen = true;
+          try {
+            options.onPerf && options.onPerf('first_token', Date.now() - sentAt, { conversationId: client.getConversationId() });
+          } catch (e) {
+            reportError(e, 'perf');
+          }
+        };
+
         try {
           await client.sendMessage({
             message: trimmed,
@@ -296,6 +320,7 @@ function useMyaChat(options = {}) {
             experienceContext: customContext,
             attachments: sendAttachments,
             onDelta: (delta, accumulated) => {
+              markFirstToken();
               setIsThinking(false);
               setMessages((prev) =>
                 prev.map((msg) =>
@@ -306,6 +331,7 @@ function useMyaChat(options = {}) {
               );
             },
             onBlock: (block) => {
+              markFirstToken();
               setActiveBlocks((prev) => [...prev, block]);
               setMessages((prev) =>
                 prev.map((msg) => {

@@ -206,6 +206,10 @@ export interface UseMyaChatOptions {
   persistKey?: string;
   onStreamComplete?: (msg: ChatMessage) => void;
   onError?: (err: Error) => void;
+  /** Receives every failure, including quiet ones, with its conversation id. */
+  onReportError?: (err: Error, ctx: { where: string; conversationId?: string; userId?: string }) => void;
+  /** Called once per reply with the first-token latency in ms. */
+  onPerf?: (name: 'first_token', ms: number, extra: { conversationId?: string }) => void;
 }
 
 export interface UseMyaChatReturn {
@@ -291,3 +295,11 @@ export function createFunnelTracker(opts: {
   track: (eventType: FunnelEvent, offer: ServiceOffer | null, extra?: Record<string, any>) => Promise<void>;
   offerShown: (offer: ServiceOffer) => Promise<void>;
 };
+
+export const DEFAULT_FLAGS: { serviceOffers: boolean; motion: boolean };
+export function loadFlags(o: { apiBase: string; storage?: any; platform?: string; appVersion?: string; sdkVersion?: string; headers?: Record<string, string>; fetchFn?: any; now?: number; onError?: (e: unknown) => void }): Promise<{ flags: { serviceOffers: boolean; motion: boolean }; source: 'network' | 'cache' | 'default' }>;
+export function createReporter(o?: { onReport?: (err: Error, ctx: any) => void; getContext?: () => Record<string, any> }): { report: (err: unknown, where?: string, extra?: Record<string, any>) => void };
+export const BUDGETS: { chatInteractiveMs: 1000; firstTokenP75Ms: 2500 };
+export function createPerf(o?: { now?: () => number; onMark?: (name: string, ms: number, extra: any) => void }): { start(name: string): void; end(name: string, extra?: any): number | null };
+export function percentile(values: number[], p: number): number | null;
+export function withinBudget(name: 'chat_interactive' | 'first_token', samples: number[]): { ok: boolean; value: number | null; budget: number | null };

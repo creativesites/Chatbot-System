@@ -68,7 +68,7 @@ const scannerStyles = StyleSheet.create({
   },
   sub: {
     fontSize: 10,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
     marginBottom: 10,
   },
   container: {
@@ -445,7 +445,7 @@ export default memo(MyaMessageRow, (prev, next) => {
 const styles = StyleSheet.create({
   stoppedNote: {
     ...MyaType.errorNote,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
     marginTop: 6,
   },
   userWrap: {
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   },
   photoChipText: {
     ...MyaType.quickReply,
-    color: MyaColors.ink55,
+    color: MyaColors.inkText,
     marginLeft: 7,
     flexShrink: 1,
   },
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...MyaType.errorNote,
-    color: MyaColors.ink55,
+    color: MyaColors.inkText,
     marginLeft: 10,
     flexShrink: 1,
   },

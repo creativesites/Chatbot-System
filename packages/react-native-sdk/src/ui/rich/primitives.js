@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   body: {
     ...MyaType.errorNote,
-    color: MyaColors.ink58,
+    color: MyaColors.inkText,
     lineHeight: 20,
   },
   divider: {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   },
   meterLabel: {
     ...MyaType.errorNote,
-    color: MyaColors.ink58,
+    color: MyaColors.inkText,
   },
   meterValue: {
     fontFamily: MyaFonts.semibold,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   },
   stepMeta: {
     ...MyaType.quickReply,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
     marginLeft: 10,
   },
   stepMetaChecked: {

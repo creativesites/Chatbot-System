@@ -102,6 +102,6 @@ const styles = StyleSheet.create({
   },
   fallbackText: {
     ...MyaType.quickReply,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
   },
 });

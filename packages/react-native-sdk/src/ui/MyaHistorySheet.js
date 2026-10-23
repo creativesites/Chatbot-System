@@ -184,7 +184,7 @@ export default function MyaHistorySheet({
             value={search}
             onChangeText={setSearch}
             placeholder="Search conversations"
-            placeholderTextColor={MyaColors.ink42}
+            placeholderTextColor={MyaColors.inkText}
             style={styles.searchInput}
             clearButtonMode="while-editing"
             autoCorrect={false}
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...MyaType.quickReply,
-    color: MyaColors.ink45,
+    color: MyaColors.inkText,
     fontSize: moderateScale(13),
   },
   groupSection: {
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     fontFamily: MyaFonts.semibold,
     fontSize: moderateScale(10),
     letterSpacing: 1.6,
-    color: MyaColors.ink40,
+    color: MyaColors.inkText,
     paddingTop: 14,
     paddingBottom: 4,
   },
@@ -391,12 +391,12 @@ const styles = StyleSheet.create({
   convoTime: {
     fontFamily: MyaFonts.regular,
     fontSize: moderateScale(11),
-    color: MyaColors.ink40,
+    color: MyaColors.inkText,
   },
   convoSummary: {
     fontFamily: MyaFonts.regular,
     fontSize: moderateScale(12.5),
-    color: MyaColors.ink55,
+    color: MyaColors.inkText,
     lineHeight: 17,
   },
   convoArrow: {

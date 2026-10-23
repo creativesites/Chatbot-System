@@ -50,6 +50,10 @@ export interface MyaChatProps {
   subscribePurchases?: (cb: (evt: { status: string; service?: string; name?: string; entitlementKey?: string; offer?: ServiceOffer }) => void) => () => void;
   /** Optional native niceties the host may inject; each degrades gracefully when absent. */
   capabilities?: MyaCapabilities;
+  /** Every surfaced failure and every quiet one (storage, token, funnel) arrives here with its conversation id. */
+  onReportError?: (err: Error, ctx: { where: string; conversationId?: string; userId?: string }) => void;
+  /** Store-facing app version, sent to the remote config so features can be switched off per version. */
+  appVersion?: string;
   persistPrefix?: string;
   /** Host modals, rendered last. */
   children?: React.ReactNode | ((api: { send: (text: string) => void }) => React.ReactNode);

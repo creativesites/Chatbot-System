@@ -33,6 +33,9 @@ export const MyaColors = {
   berry: '#4A4D68',       // mapped to Blueberry to eliminate brown everywhere
 
   // Derived alphas (design uses these exact values)
+  // Muted TEXT colour: the lightest ink that still reaches 4.5:1 on white (WCAG AA). Use this for
+  // any text; the lighter ink tokens below are for borders, fills and non-text marks.
+  inkText: 'rgba(34,35,35,.64)',
   ink90: 'rgba(34,35,35,.9)',
   ink70: 'rgba(34,35,35,.7)',
   ink58: 'rgba(34,35,35,.58)',

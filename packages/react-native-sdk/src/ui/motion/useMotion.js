@@ -6,10 +6,13 @@
 
 import { useCallback } from 'react';
 import { useReducedMotion, withSpring, withTiming, Keyframe, FadeIn } from 'react-native-reanimated';
+import { useMyaFlags } from '../flags';
 import { adapt, springConfig, CARD_ENTER, STAGGER_MS, MyaDurations, CROSSFADE_MS, INK } from './tokens';
 
 export function useMotion() {
-  const reduced = !!useReducedMotion();
+  // The member's OS setting, or the server's kill switch for the newer motion features.
+  const flags = useMyaFlags();
+  const reduced = !!useReducedMotion() || flags.motion === false;
 
   /** Animation value for `to`, as a spring (or a short crossfade when reduced). Call from JS-thread effects/handlers. */
   const springTo = useCallback(

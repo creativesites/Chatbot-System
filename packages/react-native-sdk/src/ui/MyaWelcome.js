@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: MyaFonts.regular,
     fontSize: moderateScale(13.5),
-    color: MyaColors.ink58,
+    color: MyaColors.inkText,
     lineHeight: 19,
     marginBottom: 20,
   },

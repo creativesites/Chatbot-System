@@ -26,6 +26,14 @@ import { isDismissed, dismiss } from '../../offers/dismissals';
 
 const NATIVE_ROUTES = ['native_iap', 'native_subscription'];
 
+// What a screen-reader user should know before double-tapping.
+const HINTS = {
+  native_iap: 'Opens the purchase screen',
+  native_subscription: 'Opens the subscription screen',
+  web: 'Opens myavana.com in the app',
+  calendly: 'Opens the booking page in the app',
+};
+
 // One slow sheen across a card the first time it appears, never repeated.
 const sheenPlayed = new Set();
 
@@ -80,7 +88,7 @@ export default function ServiceOfferCard({ block }) {
   const owned = !!offer && isOwned(offer, ctx && ctx.entitlements);
   const native = !!offer && NATIVE_ROUTES.indexOf(offer.cta.route) !== -1;
   const fulfillable = !!ctx && (!native || (ctx.canHandle ? ctx.canHandle(offer) : !!ctx.openPaywall));
-  const visible = !!offer && !!ctx && dismissedChecked && !dismissed && !owned && fulfillable;
+  const visible = !!offer && !!ctx && ctx.enabled !== false && dismissedChecked && !dismissed && !owned && fulfillable;
 
   useEffect(() => {
     if (visible) ctx.tracker.offerShown(offer);
@@ -148,7 +156,7 @@ export default function ServiceOfferCard({ block }) {
     <>
       <Sheen offerId={offer.id} />
       <Text style={styles.eyebrow}>A MYAVANA service</Text>
-      <Text style={styles.name}>{offer.name}</Text>
+      <Text style={styles.name} accessibilityRole="header">{offer.name}</Text>
       {!!offer.priceDisplay && <Text style={styles.price}>{offer.priceDisplay}</Text>}
 
       {offer.includes.length > 0 && (
@@ -175,6 +183,7 @@ export default function ServiceOfferCard({ block }) {
         disabled={busy}
         accessibilityRole="button"
         accessibilityLabel={offer.cta.label}
+        accessibilityHint={HINTS[offer.cta.route]}
         accessibilityState={{ disabled: busy }}
       >
         <Text style={styles.ctaText}>{offer.cta.label}</Text>
@@ -225,7 +234,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...MyaType.senderLabel,
-    color: MyaColors.ink55,
+    color: MyaColors.inkText,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginBottom: 6,
@@ -239,7 +248,7 @@ const styles = StyleSheet.create({
   },
   price: {
     ...MyaType.errorNote,
-    color: MyaColors.ink55,
+    color: MyaColors.inkText,
     marginTop: 3,
   },
   list: { marginTop: 12 },

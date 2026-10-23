@@ -21,6 +21,12 @@
 - Host-injected capabilities (`MyaCapabilitiesProvider`): haptics, gradient and blur are optional and never imported by the SDK. Without them everything degrades to a plain fallback.
 - Honesty: the "Scanning Strand DNA" scanner is now "Looking at your photo..."; invented loading phases ("Cross-referencing...", "lab-backed...") are gone; the loading card shows only the status it is given; unsourced percentages removed from tips.
 
+### M5: production hardening (SDK side)
+- **Nothing swallowed:** `onReportError(err, {where, conversationId, userId})` receives every surfaced failure and each one that used to be silent (message cache, saving the thread, draft, auth token, entitlements, funnel events, remote config). Errors carry `conversationId`. A throwing reporter can never break the chat.
+- **Remote kill switch:** `GET {apiBase}/mobile/config?platform&appVersion&sdkVersion` returns `{flags:{serviceOffers, motion}}`. Offers off hides every offer card and sends no event; motion off behaves as reduce-motion. Cached for 6 h; a failed or malformed answer never blocks the chat (cache, else defaults: all on). Proposed contract, server side not built.
+- **Performance marks:** first-token latency per reply and chat-interactive time are mirrored as `mya_perf_*` events; `BUDGETS`, `percentile`, `withinBudget` for reading them. Frame rate and memory still need a profiler.
+- **Accessibility:** a screen reader hears "Mya is thinking" and, once, "Mya replied..." (never every chunk); offer card has a header, named buttons and route hints; every control is named (test-enforced); muted text raised to a 4.5:1 token (`inkText`); coral is never used for text (links are blueberry); contrast is test-enforced.
+
 ### M4 (part 2): host capabilities wired
 - With a gradient: the avatar sits in the berry-to-coral ring; the offer card gets a blush-to-coral hairline. Without: plain mark and plain coral hairline.
 - With a blur: the header floats over the thread on a BlurView and the thread scrolls under it. Without: the plain in-flow header.

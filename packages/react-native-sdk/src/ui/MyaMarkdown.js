@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   subheading: {
     fontSize: MyaType.message.fontSize + 0.5,
     fontFamily: MyaFonts.semibold,
-    color: MyaColors.coral || '#E7A690',
+    color: MyaColors.onyx,
   },
   hr: {
     height: 1,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     backgroundColor: MyaColors.sand,
   },
   link: {
-    color: MyaColors.coral || '#E7A690',
+    color: MyaColors.blueberry,
     textDecorationLine: 'underline',
   },
   imageBlockWrap: {

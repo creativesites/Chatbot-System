@@ -37,6 +37,7 @@ module.exports = {
   useSharedValue: (v) => React.useRef({ value: v }).current,
   useAnimatedStyle: (fn) => fn(),
   useAnimatedReaction: () => {},
+  useAnimatedProps: (fn) => fn(),
   useDerivedValue: (fn) => ({ value: fn() }),
   withTiming: (v, cfg, cb) => { done(cb); return v; },
   withSpring: (v, cfg, cb) => { done(cb); return v; },

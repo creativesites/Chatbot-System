@@ -94,6 +94,8 @@ export interface MyaCapabilities {
   LinearGradient?: React.ComponentType<any>;
   /** e.g. @react-native-community/blur's BlurView. Not required. */
   BlurView?: React.ComponentType<any>;
+  /** e.g. { Svg, Path } from react-native-svg: checkmarks then draw themselves. */
+  Svg?: { Svg: React.ComponentType<any>; Path: React.ComponentType<any> };
 }
 export const MyaCapabilitiesProvider: React.ComponentType<{ value?: MyaCapabilities; children?: React.ReactNode }>;
 export function useMyaCapabilities(): MyaCapabilities;

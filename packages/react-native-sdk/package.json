@@ -12,7 +12,8 @@
     "test": "jest && jest --config jest.ui.config.js",
     "test:headless": "jest",
     "test:ui": "jest --config jest.ui.config.js",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "check": "node scripts/check-undeclared.js $(find src -name \"*.js\")"
   },
   "keywords": [
     "myavana",

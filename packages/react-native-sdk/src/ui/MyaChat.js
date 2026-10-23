@@ -136,6 +136,9 @@ export default function MyaChat({
   const { popEntering, timingTo } = useMotion();
   const haptics = useHaptics();
   const [celebrating, setCelebrating] = useState(false);
+  // With a blur from the host, the header floats over the thread and the thread scrolls under it.
+  const BlurView = capabilities && capabilities.BlurView;
+  const [headerH, setHeaderH] = useState(0);
 
   // The header's hairline fades in once content scrolls under it.
   const scrolledSv = useSharedValue(0);
@@ -477,10 +480,25 @@ export default function MyaChat({
     <MyaCapabilitiesProvider value={capabilities}>
     <MyaStorageProvider value={storage}>
     <MyaOffersProvider value={offersApi}>
-    <View style={[styles.screen, { paddingTop: topInset }]}>
+    <View style={[styles.screen, { paddingTop: BlurView ? 0 : topInset }]}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header Nav Bar */}
+      {/* Header: nav, hairline and context pill. Floats over the thread when a blur is provided. */}
+      <View
+        style={BlurView ? [styles.headerOverlay, { paddingTop: topInset }] : null}
+        onLayout={BlurView ? (e) => setHeaderH(e.nativeEvent.layout.height) : undefined}
+      >
+      {BlurView ? (
+        <>
+          <BlurView
+            style={StyleSheet.absoluteFill}
+            blurType="light"
+            blurAmount={18}
+            reducedTransparencyFallbackColor={MyaColors.ivory}
+          />
+          <View style={[StyleSheet.absoluteFill, styles.headerTint]} pointerEvents="none" />
+        </>
+      ) : null}
       <View style={styles.nav}>
         <TouchableOpacity
           onPress={onBack}
@@ -547,6 +565,7 @@ export default function MyaChat({
               : 'Connected to your Hair Profile'}
           </Text>
         </View>
+      </View>
       </View>
 
       {/* Grounding Tooltip Overlay (Artboard 1a/1b) */}
@@ -710,7 +729,7 @@ export default function MyaChat({
 
       {/* Main Thread Content */}
       {isEmpty ? (
-        <View style={styles.emptyWrap}>
+        <View style={[styles.emptyWrap, BlurView && { paddingTop: headerH }]}>
           <MyaWelcome
             firstName={firstName}
             subtitle="I know your hair profile, your routine and everything you've logged. Ask me anything, or start here."
@@ -725,7 +744,7 @@ export default function MyaChat({
           inverted
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, BlurView && { paddingBottom: headerH }]}
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -792,6 +811,17 @@ export default function MyaChat({
 }
 
 const styles = StyleSheet.create({
+  headerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+    overflow: 'hidden',
+  },
+  headerTint: {
+    backgroundColor: 'rgba(252, 229, 215, 0.18)',
+  },
   navHairline: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: MyaColors.ink13,

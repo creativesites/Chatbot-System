@@ -17,6 +17,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native'
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming } from 'react-native-reanimated';
 import MyaPressable from '../MyaPressable';
 import { useMotion } from '../motion/useMotion';
+import { useMyaCapabilities } from '../capabilities';
 import { MyaColors, MyaType, MyaFonts, MyaRadii } from '../myaTheme';
 import { moderateScale } from '../scale';
 import { useMyaOffers } from './OffersContext';
@@ -44,6 +45,7 @@ function Sheen({ offerId }) {
 
 export default function ServiceOfferCard({ block }) {
   const ctx = useMyaOffers();
+  const { LinearGradient } = useMyaCapabilities();
   const parsed = useMemo(() => normalizeServiceOffer(block), [block]);
   const offer = parsed.ok ? parsed.offer : null;
 
@@ -122,8 +124,28 @@ export default function ServiceOfferCard({ block }) {
     await dismiss(ctx.storage, offer.id);
   };
 
-  return (
-    <View style={styles.card} accessibilityRole="summary" accessibilityLabel={`MYAVANA service: ${offer.name}`}>
+  // The jewel: a blush-to-coral hairline when a gradient is available, a plain
+  // coral hairline when not. Either way it is one card, one border.
+  const frame = (inner) =>
+    LinearGradient ? (
+      <LinearGradient
+        colors={[MyaColors.blush, MyaColors.coral, '#F3C9B8']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientFrame}
+        accessibilityRole="summary"
+        accessibilityLabel={`MYAVANA service: ${offer.name}`}
+      >
+        <View style={styles.gradientInner}>{inner}</View>
+      </LinearGradient>
+    ) : (
+      <View style={styles.card} accessibilityRole="summary" accessibilityLabel={`MYAVANA service: ${offer.name}`}>
+        {inner}
+      </View>
+    );
+
+  return frame(
+    <>
       <Sheen offerId={offer.id} />
       <Text style={styles.eyebrow}>A MYAVANA service</Text>
       <Text style={styles.name}>{offer.name}</Text>
@@ -167,7 +189,7 @@ export default function ServiceOfferCard({ block }) {
       >
         <Text style={styles.notNowText}>Not now</Text>
       </TouchableOpacity>
-    </View>
+    </>
   );
 }
 
@@ -180,6 +202,18 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: MyaColors.coralLine,
     maxWidth: '92%',
+    overflow: 'hidden',
+  },
+  gradientFrame: {
+    marginTop: 10,
+    padding: 1.5,
+    borderRadius: MyaRadii.card + 4,
+    maxWidth: '92%',
+  },
+  gradientInner: {
+    padding: moderateScale(18),
+    borderRadius: MyaRadii.card + 2.5,
+    backgroundColor: MyaColors.ivory,
     overflow: 'hidden',
   },
   sheen: {

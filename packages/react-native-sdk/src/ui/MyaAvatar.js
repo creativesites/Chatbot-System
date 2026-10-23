@@ -1,34 +1,48 @@
 /**
  * MyaAvatar
  *
- * The berry→coral identity mark. In the design this is a 140° linear gradient;
- * the app has no gradient library installed, and adding a native module we
- * cannot build-test right now is a worse trade than approximating it.
- *
- * The approximation is three stacked layers inside a clipped circle, which at
- * 18pt and 56pt reads as a warm diagonal blend. It is isolated here on purpose:
- * when react-native-linear-gradient is added, this is the only file to change.
- *
- *   <LinearGradient colors={[MyaColors.berry, MyaColors.coral]}
- *                   start={{x:0.15,y:0}} end={{x:0.85,y:1}} />
- *
- * This is the one place the implementation knowingly departs from the artboards.
+ * The MYAVANA mark. When the host provides a LinearGradient (capabilities), the
+ * mark sits inside the berry-to-coral ring the design always called for;
+ * without one it is the plain mark, unchanged.
  */
 
 import React from 'react';
-import { Image, StyleSheet } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
+import { MyaColors } from './myaTheme';
+import { useMyaCapabilities } from './capabilities';
 
 export default function MyaAvatar({ size = 18, style }) {
-  return (
+  const { LinearGradient } = useMyaCapabilities();
+
+  const mark = (diameter) => (
     <Image
       source={require('./assets/myavana_small_logo.png')}
-      style={[
-        { width: size, height: size, borderRadius: size / 2, overflow: 'hidden' },
-        style,
-      ]}
+      style={{ width: diameter, height: diameter, borderRadius: diameter / 2, overflow: 'hidden' }}
       resizeMode="cover"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />
   );
+
+  if (!LinearGradient) {
+    return <View style={style}>{mark(size)}</View>;
+  }
+
+  const ring = Math.max(1.5, Math.round(size * 0.07));
+  return (
+    <LinearGradient
+      colors={[MyaColors.berry, MyaColors.coral]}
+      start={{ x: 0.15, y: 0 }}
+      end={{ x: 0.85, y: 1 }}
+      style={[styles.ring, { width: size, height: size, borderRadius: size / 2 }, style]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      {mark(size - ring * 2)}
+    </LinearGradient>
+  );
 }
+
+const styles = StyleSheet.create({
+  ring: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+});

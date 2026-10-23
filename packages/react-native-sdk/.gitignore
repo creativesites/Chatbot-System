@@ -1,3 +1,4 @@
 
 # Generated output. The authoritative source is src/**/*.js — see README.
 dist/
+node_modules/

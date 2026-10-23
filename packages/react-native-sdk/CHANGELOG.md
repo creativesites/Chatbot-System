@@ -21,6 +21,13 @@
 - Host-injected capabilities (`MyaCapabilitiesProvider`): haptics, gradient and blur are optional and never imported by the SDK. Without them everything degrades to a plain fallback.
 - Honesty: the "Scanning Strand DNA" scanner is now "Looking at your photo..."; invented loading phases ("Cross-referencing...", "lab-backed...") are gone; the loading card shows only the status it is given; unsourced percentages removed from tips.
 
+### M4 (part 2): host capabilities wired
+- With a gradient: the avatar sits in the berry-to-coral ring; the offer card gets a blush-to-coral hairline. Without: plain mark and plain coral hairline.
+- With a blur: the header floats over the thread on a BlurView and the thread scrolls under it. Without: the plain in-flow header.
+- With SVG: checklist ticks draw their stroke over 220 ms. Without: they spring in.
+- One soft coral glow on the routine card the moment the day's list is finished (never on first render).
+- `npm test` now installs and runs from the package itself (devDependencies, `node_modules/` gitignored); `npm run check` lints for undeclared identifiers.
+
 ### M3: service offers
 - `service_offer` card (`ServiceOfferCard`) built to the proposed contract against fixtures: store name, server price or none, up to 3 inclusions, a reason from the member's HairID, one primary action, a quiet "Not now". Renders nothing when malformed, owned, dismissed, or the host cannot fulfil its route.
 - Routing is the host's: `onOpenPaywall` (native purchase; outcome read back from the server) and `onOpenLink` (in-app browser, links tagged `utm_source=mya&utm_medium=chat&utm_campaign=app&utm_content=<service>`). Links must be https on myavana.com or calendly.com.

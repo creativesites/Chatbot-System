@@ -8,6 +8,8 @@
  */
 
 import React, { useEffect } from 'react';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
+import { useMotion } from '../motion/useMotion';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { moderateScale } from '../scale';
@@ -27,6 +29,27 @@ import { useMyaStorage, checklistKey, loadChecked, saveChecked } from '../checkl
 const arr = (v) => (Array.isArray(v) ? v : []);
 
 /* ------------------------------------------------------------------ ROUTINE */
+
+/** One soft coral glow the moment the day's list is finished. Never repeats; never on first render. */
+function CompletionGlow({ done, children }) {
+  const { reduced } = useMotion();
+  const glow = useSharedValue(0);
+  const was = React.useRef(done);
+  useEffect(() => {
+    if (done && !was.current && !reduced) {
+      glow.value = withSequence(withTiming(1, { duration: 360 }), withTiming(0, { duration: 900 }));
+    }
+    was.current = done;
+  }, [done, reduced, glow]);
+  const style = useAnimatedStyle(() => ({
+    shadowColor: '#E7A690',
+    shadowOpacity: 0.55 * glow.value,
+    shadowRadius: 16 * glow.value,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6 * glow.value,
+  }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
 
 export function MyaRoutineCard({ data = {}, actions, onAction }) {
   const steps = arr(data.steps).length ? arr(data.steps) : arr(data.items);
@@ -91,6 +114,7 @@ export function MyaRoutineCard({ data = {}, actions, onAction }) {
   const total = data.totalDuration || data.total;
 
   return (
+    <CompletionGlow done={isAllComplete}>
     <CardShell eyebrow={title} icon="time-outline">
       {totalCount > 0 && (
         <View style={styles.routineProgressHeader}>
@@ -150,6 +174,7 @@ export function MyaRoutineCard({ data = {}, actions, onAction }) {
         onAction={onAction}
       />
     </CardShell>
+    </CompletionGlow>
   );
 }
 

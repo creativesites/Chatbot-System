@@ -15,7 +15,7 @@ COPY packages/widget/package*.json ./packages/widget/
 COPY packages/react-native-sdk/package*.json ./packages/react-native-sdk/
 
 # Install dependencies across all workspaces
-RUN npm ci --omit=dev || npm install --omit=dev
+RUN npm ci --omit=dev --legacy-peer-deps || npm install --omit=dev --legacy-peer-deps
 
 # Copy application source code
 COPY packages ./packages

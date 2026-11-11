@@ -68,14 +68,17 @@ function useMyaChat(options = {}) {
   }
 
   const client = clientRef.current;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   // Nothing is swallowed: every failure, including the quiet storage ones, is
   // reported with the conversation it belongs to. (Plain function, not a hook.)
-  const reportError = (err, where) =>
+  const reportError = useCallback((err, where) =>
     createReporter({
-      onReport: options.onReportError,
+      onReport: optionsRef.current.onReportError,
       getContext: () => ({ conversationId: client.getConversationId(), userId: client.getUserId() }),
-    }).report(err, where);
+    }).report(err, where),
+  [client]);
 
   // Keep client credentials synchronized when options change dynamically
   useEffect(() => {
@@ -231,7 +234,7 @@ function useMyaChat(options = {}) {
             setError(attErr);
             reportError(attErr, 'attachments');
             setUnsentDraft({ text: trimmed, attachments: rawAttachments, reason: 'attachment' });
-            options.onError && options.onError(attErr);
+            optionsRef.current.onError && optionsRef.current.onError(attErr);
             return;
           }
           sendAttachments = ready;
@@ -276,7 +279,7 @@ function useMyaChat(options = {}) {
           setIsThinking(false);
           if (kind === 'aborted') return; // the user stopped it; abortStream owns the message state, and it is not an error
           setError(myaErr);
-          options.onError && options.onError(myaErr);
+          optionsRef.current.onError && optionsRef.current.onError(myaErr);
           reportError(myaErr, 'send');
 
           setMessages((prev) => {
@@ -307,7 +310,7 @@ function useMyaChat(options = {}) {
           if (firstTokenSeen) return;
           firstTokenSeen = true;
           try {
-            options.onPerf && options.onPerf('first_token', Date.now() - sentAt, { conversationId: client.getConversationId() });
+            optionsRef.current.onPerf && optionsRef.current.onPerf('first_token', Date.now() - sentAt, { conversationId: client.getConversationId() });
           } catch (e) {
             reportError(e, 'perf');
           }
@@ -363,7 +366,7 @@ function useMyaChat(options = {}) {
                 const updated = prev.map((msg) => {
                   if (msg.id === assistantMessageId) {
                     const completedMsg = deserializeHistoryMessage({ ...msg, isStreaming: false, metadata: meta });
-                    options.onStreamComplete && options.onStreamComplete(completedMsg);
+                    optionsRef.current.onStreamComplete && optionsRef.current.onStreamComplete(completedMsg);
                     return completedMsg;
                   }
                   return msg;
@@ -381,7 +384,7 @@ function useMyaChat(options = {}) {
         inFlight.delete(client);
       }
     },
-    [client, conversationId, options, persistHistory]
+    [client, conversationId, persistHistory, reportError]
   );
 
   const loadConversation = useCallback(async (targetConvId) => {

@@ -178,6 +178,7 @@ describe('honest loading states', () => {
     await TestRenderer.act(async () => { a = TestRenderer.create(React.createElement(Loading, { status: 'Reading your HairID...' })); b = TestRenderer.create(React.createElement(Loading)); });
     expect(json(a)).toContain('Reading your HairID...');
     expect(json(b)).toContain('Checking your Hair Journey...');
+    TestRenderer.act(() => { a.unmount(); b.unmount(); });
   });
   test('tips carry no unsourced percentages', () => {
     expect(read('MyaLoadingDistraction.js')).not.toMatch(/up to \d+%/);
@@ -191,6 +192,7 @@ describe('honest loading states', () => {
     const out = json(t);
     expect(out).toContain('Looking at your photo');
     expect(out).not.toMatch(/Scanning|analys/i);
+    TestRenderer.act(() => { t.unmount(); });
   });
 });
 
@@ -204,12 +206,14 @@ describe('streamed replies in the message row', () => {
     expect(json(t)).not.toContain('Retain length');
     for (let i = 0; i < 40; i += 1) { await TestRenderer.act(async () => { jest.advanceTimersByTime(32); }); }
     expect(json(t)).toContain('Retain length');
+    TestRenderer.act(() => { t.unmount(); });
   });
   test('history rows render in full at once, with no pacing', async () => {
     const msg = { id: 'h', role: 'assistant', isStreaming: false, content: 'All of this is already here.', blocks: [] };
     let t;
     await TestRenderer.act(async () => { t = TestRenderer.create(React.createElement(MyaMessageRow, { message: msg, showLabel: false })); });
     expect(json(t)).toContain('All of this is already here.');
+    TestRenderer.act(() => { t.unmount(); });
   });
 });
 

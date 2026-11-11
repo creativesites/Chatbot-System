@@ -6,6 +6,8 @@ chatbots/*/node_modules
 .git
 .github
 .gemini
+.claude
+chatbots
 coverage
 logs
 *.log

@@ -59,6 +59,13 @@ function cleanKommunicateResponse(jsonObj) {
                 if (item.platform === "kommunicate") {
                     delete item.platform;
                 }
+                // If model returned a mya-blocks object { blocks: [...], quickReplies: [...] } on Kommunicate channel
+                if (Array.isArray(item.blocks) && item.message === undefined) {
+                    const parsed = parseModelOutput(item);
+                    if (parsed.text) {
+                        return [{ message: parsed.text }];
+                    }
+                }
                 return item;
             }
             return [];
@@ -1159,10 +1166,13 @@ class MyavanaChatbotServer {
             const turnArgs = {
                 userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'widget', experienceContext, imageObj, images,
             };
-            let { chat, messageWithContext, aiPrompt, chatTools } = await this.prepareChatTurn(turnArgs);
-            // Cached for five minutes inside loadServiceCatalog, so this is
-            // not a DB round trip per message.
-            const serviceCatalog = await loadServiceCatalog();
+            // Run prepareChatTurn and loadServiceCatalog concurrently so a cold
+            // Shopify store feed fetch never delays chat.sendStream startup.
+            const [preparedTurn, serviceCatalog] = await Promise.all([
+                this.prepareChatTurn(turnArgs),
+                loadServiceCatalog().catch(() => []),
+            ]);
+            let { chat, messageWithContext, aiPrompt, chatTools } = preparedTurn;
             const shownProductKeys = collectShownProductKeys(chatHistory, serviceCatalog);
 
             // Every block the member sees goes out through emitBlock, so the
@@ -1244,6 +1254,13 @@ class MyavanaChatbotServer {
                         streamedText += chunk.text;
 
                         if (!inCodeBlock) {
+                            const trimmedLead = streamedText.trimStart();
+                            // If a model ignores the fence instruction and outputs bare JSON,
+                            // hold back streaming so parseModelOutput extracts prose + blocks cleanly.
+                            if (!anyChunkWritten && (trimmedLead.startsWith('{') || trimmedLead.startsWith('['))) {
+                                inCodeBlock = true;
+                                continue;
+                            }
                             const fenceIndex = streamedText.indexOf('```');
                             if (fenceIndex !== -1) {
                                 inCodeBlock = true;

@@ -100,8 +100,15 @@ async function upsertMemory(userId, conversationId, candidate) {
  * @returns {Promise<string[]>}
  */
 const retrieveRelevantMemories = async (userId, queryText, k = 5) => {
-    if (!queryText) return [];
+    if (!queryText || !userId) return [];
     try {
+        // Fast check: skip the LLM embedding API call if the user has no stored memories yet
+        const hasAny = await pgClient.query(
+            `SELECT 1 FROM agent_memories WHERE user_id = $1 LIMIT 1`,
+            [userId]
+        );
+        if (!hasAny.rows || hasAny.rows.length === 0) return [];
+
         const vectorLiteral = await embedText(queryText);
         const res = await pgClient.query(
             `SELECT content FROM agent_memories WHERE user_id = $1 ORDER BY embedding <=> $2::vector LIMIT $3`,
@@ -109,7 +116,7 @@ const retrieveRelevantMemories = async (userId, queryText, k = 5) => {
         );
         return res.rows.map(row => row.content);
     } catch (err) {
-        console.error('Error retrieving agent memories:', err);
+        console.error('Error retrieving agent memories:', err.message || err);
         return [];
     }
 };

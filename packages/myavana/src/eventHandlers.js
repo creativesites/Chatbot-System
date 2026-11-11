@@ -129,13 +129,20 @@ const handleWelcomeEvent = async (res, userId) => {
         "platform": "kommunicate"
     }];
     res.json(welcome);
-    return core.ai.createSession({
-        initialState: {
-            userId: userId,
-        },
-        store: new core.DatabaseSessionStore(),
-        sessionId: userId
-    });
+    if (core.ai && typeof core.ai.createSession === 'function') {
+        try {
+            await core.ai.createSession({
+                initialState: {
+                    userId: userId,
+                },
+                store: new core.DatabaseSessionStore(),
+                sessionId: userId
+            });
+        } catch (err) {
+            console.warn('handleWelcomeEvent session init warning (non-fatal):', err?.message || err);
+        }
+    }
+    return welcome;
 };
 
 

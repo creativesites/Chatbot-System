@@ -12,20 +12,21 @@ let staticCatalogCache = {
 };
 
 async function getStaticCatalogData() {
+    const useCache = process.env.NODE_ENV !== 'test';
     const now = Date.now();
-    if (staticCatalogCache.data && now < staticCatalogCache.expiresAt) {
+    if (useCache && staticCatalogCache.data && now < staticCatalogCache.expiresAt) {
         return staticCatalogCache.data;
     }
-    if (staticCatalogCache.inFlight) {
+    if (useCache && staticCatalogCache.inFlight) {
         return staticCatalogCache.inFlight;
     }
-    staticCatalogCache.inFlight = Promise.all([
-        getAllProducts().catch(() => []),
-        getAllFaqs().catch(() => []),
-        getAllYoutubeVideos().catch(() => []),
-        getAllTestimonials().catch(() => []),
-        getTrainingData(20).catch(() => []),
-        getAdditionalInstructions().catch(() => []),
+    const fetchPromise = Promise.all([
+        getAllProducts(),
+        getAllFaqs(),
+        getAllYoutubeVideos(),
+        getAllTestimonials(),
+        getTrainingData(20),
+        getAdditionalInstructions(),
     ]).then(([allProducts, allFaqs, allYoutubeVideos, allTestimonials, trainingData, additionalInstructions]) => {
         const data = {
             allProducts: allProducts || [],
@@ -35,15 +36,20 @@ async function getStaticCatalogData() {
             trainingData: trainingData || [],
             additionalInstructions: additionalInstructions || [],
         };
-        staticCatalogCache.data = data;
-        staticCatalogCache.expiresAt = Date.now() + STATIC_CATALOG_TTL_MS;
-        staticCatalogCache.inFlight = null;
+        if (useCache) {
+            staticCatalogCache.data = data;
+            staticCatalogCache.expiresAt = Date.now() + STATIC_CATALOG_TTL_MS;
+            staticCatalogCache.inFlight = null;
+        }
         return data;
     }).catch((err) => {
         staticCatalogCache.inFlight = null;
         throw err;
     });
-    return staticCatalogCache.inFlight;
+    if (useCache) {
+        staticCatalogCache.inFlight = fetchPromise;
+    }
+    return fetchPromise;
 }
 
 /**
@@ -81,7 +87,7 @@ async function constructPrompt(userId, userDetails, allConversationsSummary, onE
         const summary = allConversationsSummary || 'No previous conversations.';
 
         const [recentHairIssues, staticData] = await Promise.all([
-            getHairIssuesForUser(userId).catch(() => []),
+            getHairIssuesForUser(userId),
             getStaticCatalogData(),
         ]);
 
@@ -210,16 +216,15 @@ You must dynamically choose between two output modes based on the user's intent:
 
 1. PROSE MODE:
    - Trigger: Conversational greetings, empathy, simple check-ins, or brief factual answers.
-   - Response structure: ONLY a single "text" block in the blocks array, accompanied by 2-3 relevant quickReplies.
+   - Response structure: Write warm, direct conversational text (max 100-150 words), followed by a \`\`\`mya-blocks code block at the end containing 2-3 relevant "quickReplies".
    - Word count: Keep concise, warm, and direct (max 100-150 words).
 
 2. STRUCTURED MODE:
    - Trigger: Regimens, multi-step routines, wash day checklists, hair goals, strand DNA analysis, or diary logging.
    - HARD COMPONENT DENSITY BUDGET: Max 1 to 2 structured components per response! NEVER stack more than 2 components. Quality over quantity.
-   - Accompanying text: When structured components are present, keep accompanying text concise (under 80-120 words). Let the cards do the heavy lifting instead of dumping walls of text.
+   - Accompanying text: Write concise conversational prose first (under 80-120 words), then append a single \`\`\`mya-blocks code block at the very end containing the 1-2 structured component blocks and 2-3 "quickReplies". Let the cards do the heavy lifting instead of dumping walls of text.
 
 When-To-Use Heuristics for Block Types:
-- "text": Conversational dialogue, empathetic encouragement, concise explanations.
 - "today_checklist": Immediate step-by-step wash day or styling execution (3-6 clear actionable steps).
 - "routine_card": Complete hair care regimens, multi-step morning/night regimens.
 - "hair_profile_summary": Strand diagnostic attributes (porosity, texture, elasticity, density).
@@ -239,46 +244,9 @@ When counseling users on curl patterns, diagnostics, or styling, apply these fou
 4. TENSION MITIGATION & PROTECTIVE STYLING: Flat twists exert ~40% less scalp shear tension than three-strand plaits. Emphasize tension-free installation, knotless transitions, and edge preservation to prevent traction alopecia.
 
 MANDATORY QUICK REPLIES:
-- You MUST provide 2 to 3 "quickReplies" on EVERY response without exception.
+- You MUST provide 2 to 3 "quickReplies" on EVERY response without exception inside the trailing \`\`\`mya-blocks code block (when channel is widget/mobile).
 - Quick replies anticipate what the USER would naturally ask or tap next.
 - Make labels short, punchy, and actionable (e.g., "See wash steps", "Track in diary", "Adjust frequency").
-
-Response Format Requirements:
-You MUST respond in valid JSON using this EXACT structure:
-
-{
-  "blocks": [
-    {
-      "id": "text_block_1",
-      "type": "text",
-      "data": {
-        "text": "Your concise, warm conversational or descriptive text here (plain markdown, bolding allowed)."
-      }
-    },
-    {
-      "id": "component_block_1",
-      "type": "today_checklist",
-      "data": {
-        "title": "Wash Day Regimen",
-        "steps": [
-          "Pre-poo with jojoba oil (15 mins)",
-          "Cleanse with clarifying shampoo",
-          "Deep condition with moisture mask"
-        ]
-      }
-    }
-  ],
-  "quickReplies": [
-    {
-      "label": "Deep conditioner tips",
-      "payload": { "text": "What deep conditioner should I use for low porosity?" }
-    },
-    {
-      "label": "Log in hair diary",
-      "payload": { "text": "Log this wash day in my hair diary" }
-    }
-  ]
-}
 `;
 
         // TASK_MSDK_007: Adherence-to-Recommendation Personalization
@@ -351,7 +319,7 @@ When discussing the user's curl pattern or diagnostics, you may emit a "media_ca
                 userDetailsLength: safeUserDetailsStr.length,
                 userInfoLength: userInfo.length,
                 summaryLength: summary.length,
-                issueSummaryLength: issueSummary.length,
+                issueSummaryLength: Array.isArray(recentHairIssues) ? recentHairIssues.length : 0,
                 productDataSize: JSON.stringify(allProducts).length,
                 faqDataSize: JSON.stringify(allFaqs).length,
                 videoDataSize: JSON.stringify(allYoutubeVideos).length,

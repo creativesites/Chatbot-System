@@ -15,6 +15,18 @@ const { HairJourneyService } = require('./hairJourney/hairJourneyService');
 
 const hairJourneyService = new HairJourneyService();
 
+function withContextTimeout(promise, ms = 2500, fallbackValue = null) {
+    let timer;
+    const timeoutPromise = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(fallbackValue), ms);
+        if (timer && typeof timer.unref === 'function') timer.unref();
+    });
+    return Promise.race([
+        Promise.resolve(promise),
+        timeoutPromise,
+    ]).finally(() => clearTimeout(timer));
+}
+
 /**
  * Assembles the dynamic context block to prepend to each user message before chat.send().
  * Returns an empty string when there is nothing to inject (first-time users, errors).
@@ -28,6 +40,61 @@ const hairJourneyService = new HairJourneyService();
 async function buildMessageContext(userId, chatHistory = [], currentMessage, experienceContext) {
     const parts = [];
 
+    // Explicit profile check-in / "What do you know about my hair profile?"
+    const isProfileInquiry = /(what.*know.*about.*hair.*profile|what.*know.*hair|what.*have.*on.*file|do you know my hair|tell.*about my hair|my hair profile|what.*profile)/i.test(currentMessage || '');
+    const queryText = currentMessage || [...chatHistory].reverse().find(m => m.role === 'user')?.content;
+
+    // Launch all independent I/O sources in parallel with bounded timeouts so
+    // per-message context assembly takes max(step) instead of sum(steps).
+    const wpProfilePromise = userId
+        ? withContextTimeout(hairJourneyService.getProfileWithBlocks(userId), 2500, null).catch((err) => {
+            console.error('buildMessageContext: WordPress profile fetch failed:', err.message);
+            return null;
+        })
+        : Promise.resolve(null);
+
+    const instructionsPromise = (async () => {
+        try {
+            const { getAdditionalInstructions } = require('./utils');
+            if (typeof getAdditionalInstructions === 'function') {
+                return await withContextTimeout(getAdditionalInstructions(), 2000, []);
+            }
+        } catch (instErr) {
+            console.error('buildMessageContext: master directives fetch error:', instErr?.message);
+        }
+        return [];
+    })();
+
+    const personaPromise = withContextTimeout(getUserPersona(userId), 2000, null).catch((err) => {
+        console.error('buildMessageContext: persona fetch failed:', err.message);
+        return null;
+    });
+
+    const trendsPromise = !isProfileInquiry
+        ? (async () => {
+            try {
+                const stage = inferStage(chatHistory);
+                return await withContextTimeout(getRelevantTrends(stage, 6), 2000, []);
+            } catch (err) {
+                console.error('buildMessageContext: trend fetch failed:', err.message);
+                return [];
+            }
+        })()
+        : Promise.resolve([]);
+
+    const memoriesPromise = withContextTimeout(retrieveRelevantMemories(userId, queryText), 2500, []).catch((err) => {
+        console.error('buildMessageContext: memory retrieval failed:', err.message);
+        return [];
+    });
+
+    const [wpProfileRes, instructions, persona, trendCandidates, memories] = await Promise.all([
+        wpProfilePromise,
+        instructionsPromise,
+        personaPromise,
+        trendsPromise,
+        memoriesPromise,
+    ]);
+
     // 0. Experience context (surface, page, entity, recent actions)
     if (experienceContext && typeof experienceContext === 'object') {
         try {
@@ -39,47 +106,22 @@ async function buildMessageContext(userId, chatHistory = [], currentMessage, exp
     }
 
     // 0a. HairAI Profile Grounding (Anti-Repetition & Single Source of Record)
-    //
-    // This previously relied entirely on experienceContext.userProfile/hairProfile,
-    // whatever the calling client happened to send. On mobile that came from the
-    // app's own Redux hairData (the legacy native questionnaire) via
-    // MyAvanaMobileHostBridge.getAppContext() - a different, often-empty or stale
-    // profile than the real WordPress HairAI profile the member actually completed
-    // (see Thread 024). A member could tell Mya their hair type and porosity, WP
-    // could have it on file, and Mya would still ask again, because the client
-    // never had it to send in the first place.
-    //
-    // Fetching the real WordPress profile server-side, on every turn, makes this
-    // authoritative regardless of what any given client sends - the mobile app,
-    // the web widget, and any future client all ground against the same record.
-    // Client-sent traits (rawProfile below) are kept only as a supplement for
-    // fields WordPress doesn't have, and as the fallback if WordPress is
-    // unreachable - consistent with this service's existing "fail honest, never
-    // fabricate" design (wordPressHairJourneyProvider.js).
     let hasKnownProfile = false;
-    let fetchedWpProfile = null;
     const traits = [];
-    try {
-        if (userId) {
-            const { result: wpProfile } = await hairJourneyService.getProfileWithBlocks(userId);
-            fetchedWpProfile = wpProfile;
-            if (wpProfile && wpProfile.available !== false) {
-                if (wpProfile.hairType) traits.push(`Hair Type: ${wpProfile.hairType}`);
-                if (wpProfile.porosity) traits.push(`Porosity: ${wpProfile.porosity}`);
-                if (wpProfile.density) traits.push(`Density: ${wpProfile.density}`);
-                if (wpProfile.strandDiameter) traits.push(`Strand Diameter: ${wpProfile.strandDiameter}`);
-                if (wpProfile.elasticity) traits.push(`Elasticity: ${wpProfile.elasticity}`);
-                if (Array.isArray(wpProfile.hairConcerns) && wpProfile.hairConcerns.length > 0) {
-                    traits.push(`Concerns: ${wpProfile.hairConcerns.join(', ')}`);
-                }
-                if (Array.isArray(wpProfile.hairGoals) && wpProfile.hairGoals.length > 0) {
-                    traits.push(`Goals: ${wpProfile.hairGoals.join(', ')}`);
-                }
-                if (wpProfile.currentRegimen) traits.push(`Current Regimen: ${wpProfile.currentRegimen}`);
-            }
+    const wpProfile = wpProfileRes?.result;
+    if (wpProfile && wpProfile.available !== false) {
+        if (wpProfile.hairType) traits.push(`Hair Type: ${wpProfile.hairType}`);
+        if (wpProfile.porosity) traits.push(`Porosity: ${wpProfile.porosity}`);
+        if (wpProfile.density) traits.push(`Density: ${wpProfile.density}`);
+        if (wpProfile.strandDiameter) traits.push(`Strand Diameter: ${wpProfile.strandDiameter}`);
+        if (wpProfile.elasticity) traits.push(`Elasticity: ${wpProfile.elasticity}`);
+        if (Array.isArray(wpProfile.hairConcerns) && wpProfile.hairConcerns.length > 0) {
+            traits.push(`Concerns: ${wpProfile.hairConcerns.join(', ')}`);
         }
-    } catch (err) {
-        console.error('buildMessageContext: WordPress profile fetch failed:', err.message);
+        if (Array.isArray(wpProfile.hairGoals) && wpProfile.hairGoals.length > 0) {
+            traits.push(`Goals: ${wpProfile.hairGoals.join(', ')}`);
+        }
+        if (wpProfile.currentRegimen) traits.push(`Current Regimen: ${wpProfile.currentRegimen}`);
     }
 
     // Client-sent profile as a supplement/fallback only - fill gaps, don't overwrite.
@@ -120,8 +162,6 @@ async function buildMessageContext(userId, chatHistory = [], currentMessage, exp
         parts.push(`[MEMBER ASSERTION: The user has explicitly stated they ALREADY completed their HairAI assessment. CRITICAL OVERRIDE: NEVER ask them to take or connect the HairAI assessment again. Treat their profile as established, skip all assessment discovery prompts, and address their hairstyle and product questions directly.]\n\n`);
     }
 
-    // Explicit profile check-in / "What do you know about my hair profile?"
-    const isProfileInquiry = /(what.*know.*about.*hair.*profile|what.*know.*hair|what.*have.*on.*file|do you know my hair|tell.*about my hair|my hair profile|what.*profile)/i.test(currentMessage || '');
     if (isProfileInquiry && hasKnownProfile) {
         parts.push(`[EXPLICIT PROFILE INQUIRY DIRECTIVE:
 The member is asking what you know about their hair profile.
@@ -136,66 +176,34 @@ MANDATORY BEHAVIOR:
     }
 
     // 0b. Active Executive Master Directives (Configured via Dashboard)
-    try {
-        const { getAdditionalInstructions } = require('./utils');
-        if (typeof getAdditionalInstructions === 'function') {
-            const instructions = await getAdditionalInstructions();
-            if (Array.isArray(instructions) && instructions.length > 0) {
-                const active = instructions.filter(i => i.is_active === undefined || i.is_active === true);
-                if (active.length > 0) {
-                    const lines = active.map(i => i.instruction_text || i.instruction || i.content || i.title).filter(Boolean);
-                    if (lines.length > 0) {
-                        parts.push(`[EXECUTIVE MASTER DIRECTIVES FROM CANDACE & LEADERSHIP:\n${lines.map(l => `- ${l}`).join('\n')}\nStrictly adhere to these operational directives above all general defaults.]\n\n`);
-                    }
-                }
+    if (Array.isArray(instructions) && instructions.length > 0) {
+        const active = instructions.filter(i => i.is_active === undefined || i.is_active === true);
+        if (active.length > 0) {
+            const lines = active.map(i => i.instruction_text || i.instruction || i.content || i.title).filter(Boolean);
+            if (lines.length > 0) {
+                parts.push(`[EXECUTIVE MASTER DIRECTIVES FROM CANDACE & LEADERSHIP:\n${lines.map(l => `- ${l}`).join('\n')}\nStrictly adhere to these operational directives above all general defaults.]\n\n`);
             }
         }
-    } catch (instErr) {
-        console.error('buildMessageContext: master directives fetch error:', instErr?.message);
     }
 
     // Shared state — built up across steps so later steps can use earlier results
-    let personaType  = null;
+    let personaType  = persona ? (persona.personaType || null) : null;
     let trendContext = '';
 
-    // 1. Persona context (tone + communication style)
-    let persona = null;
-    try {
-        persona = await getUserPersona(userId);
-        if (persona) personaType = persona.personaType || null;
-    } catch (err) {
-        console.error('buildMessageContext: persona fetch failed:', err.message);
-    }
-
     // Deduplicate against previous assistant turns in chatHistory or profile inquiry.
-    //
-    // This used to check the recent transcript for two hardcoded strings
-    // ("peptide", "bond-repair") - it would dedup exactly the trend that
-    // triggered that check and nothing else. Any other trend name from
-    // trendManager's rotating pool would repeat turn after turn the same way.
-    // Pull a wider candidate set and drop whichever ones actually already
-    // appear in the last few assistant turns, instead of guessing keywords.
     const recentAssistantTurns = chatHistory
         .filter(m => m.role === 'assistant' || m.role === 'model')
         .slice(-3)
         .map(m => (m.content || m.text || '').toLowerCase())
         .join(' ');
 
-    if (!isProfileInquiry) {
-        try {
-            const stage = inferStage(chatHistory);
-            const candidates = await getRelevantTrends(stage, 6);
-            const fresh = candidates.filter(
-                (t) => t.trend_name && !recentAssistantTurns.includes(t.trend_name.toLowerCase())
-            );
-            const chosen = fresh.slice(0, 2);
-            if (chosen.length > 0) {
-                trendContext = `[Trending in hair care: ${chosen.map((t) => t.trend_name.toLowerCase()).join('; ')}]\n`;
-            }
-            // If every candidate has already been mentioned recently, trendContext
-            // stays empty for this turn rather than repeating one anyway.
-        } catch (err) {
-            console.error('buildMessageContext: trend fetch failed:', err.message);
+    if (!isProfileInquiry && Array.isArray(trendCandidates) && trendCandidates.length > 0) {
+        const fresh = trendCandidates.filter(
+            (t) => t.trend_name && !recentAssistantTurns.includes(t.trend_name.toLowerCase())
+        );
+        const chosen = fresh.slice(0, 2);
+        if (chosen.length > 0) {
+            trendContext = `[Trending in hair care: ${chosen.map((t) => t.trend_name.toLowerCase()).join('; ')}]\n`;
         }
     }
 
@@ -222,14 +230,8 @@ MANDATORY BEHAVIOR:
     }
 
     // 4. Relevant long-term memory (Local Agent Memory — durable facts/preferences)
-    try {
-        const queryText = currentMessage || [...chatHistory].reverse().find(m => m.role === 'user')?.content;
-        const memories = await retrieveRelevantMemories(userId, queryText);
-        if (memories.length > 0) {
-            parts.push(`\nRelevant memory:\n${memories.map(m => `- ${m}`).join('\n')}\n`);
-        }
-    } catch (err) {
-        console.error('buildMessageContext: memory retrieval failed:', err.message);
+    if (Array.isArray(memories) && memories.length > 0) {
+        parts.push(`\nRelevant memory:\n${memories.map(m => `- ${m}`).join('\n')}\n`);
     }
 
     return parts.join('');

@@ -103,6 +103,33 @@ async function imagePartsFor(opts) {
     return parts;
 }
 
+function withCallTimeout(promise, ms, label = 'AI call') {
+    let timer;
+    const timeoutPromise = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+            const err = new Error(`${label} timed out after ${ms}ms (504 ETIMEDOUT)`);
+            err.code = 'ETIMEDOUT';
+            err.status = 504;
+            reject(err);
+        }, ms);
+        if (timer && typeof timer.unref === 'function') timer.unref();
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
+
+async function iterateStreamWithTimeout(asyncIterable, chunkTimeoutMs, onChunk) {
+    const iterator = asyncIterable[Symbol.asyncIterator]();
+    while (true) {
+        const { value, done } = await withCallTimeout(
+            iterator.next(),
+            chunkTimeoutMs,
+            'Gemini stream chunk'
+        );
+        if (done) break;
+        await onChunk(value);
+    }
+}
+
 class AiCore {
     constructor(opts = {}) {
         this.opts = opts;
@@ -137,11 +164,15 @@ class AiCore {
         const text = typeof opts === 'string' ? opts : opts.content || opts.text;
         const model = opts.embedder || 'gemini-embedding-001';
         const outputDimensionality = opts.outputDimensionality || 768;
-        const res = await this.client.models.embedContent({
-            model: normalizeModelName(model),
-            contents: text,
-            config: { outputDimensionality },
-        });
+        const res = await withCallTimeout(
+            this.client.models.embedContent({
+                model: normalizeModelName(model),
+                contents: text,
+                config: { outputDimensionality },
+            }),
+            opts.timeoutMs || 2500,
+            `embedContent(${model})`
+        );
         const values = res.embeddings?.[0]?.values || res.embedding?.values || [];
         return [{ embedding: values }];
     }
@@ -302,6 +333,9 @@ class AiCore {
 
         const chatConfig = {
             temperature,
+            // Disable unbounded default thinking latency on Flash chat models so
+            // conversational turns and tool-call round-trips respond in 1-4s instead of 15-60s+.
+            thinkingConfig: opts.config?.thinkingConfig ?? { thinkingBudget: 0 },
         };
 
         if (opts.cache) {
@@ -320,6 +354,9 @@ class AiCore {
             history: opts.history,
         });
 
+        const callTimeoutMs = opts.config?.timeoutMs || 18000;
+        const streamChunkTimeoutMs = opts.config?.streamChunkTimeoutMs || 15000;
+
         return {
             genaiChat,
             send: async (message) => {
@@ -330,7 +367,11 @@ class AiCore {
                 parts.push({ text: message });
                 const messagePayload = parts.length > 1 ? parts : message;
 
-                let res = await genaiChat.sendMessage({ message: messagePayload });
+                let res = await withCallTimeout(
+                    genaiChat.sendMessage({ message: messagePayload }),
+                    callTimeoutMs,
+                    `sendMessage(${model})`
+                );
                 const toolCalls = [];
                 let loopCount = 0;
                 const maxLoops = 5;
@@ -346,7 +387,11 @@ class AiCore {
 
                         if (tool) {
                             try {
-                                toolResult = await tool.execute(call.args);
+                                toolResult = await withCallTimeout(
+                                    Promise.resolve(tool.execute(call.args)),
+                                    8000,
+                                    `tool(${call.name})`
+                                );
                             } catch (err) {
                                 console.error(`❌ Tool ${call.name} execution error:`, err.message);
                                 toolResult = { error: err.message };
@@ -364,7 +409,11 @@ class AiCore {
                         });
                     }
 
-                    res = await genaiChat.sendMessage({ message: functionResponses });
+                    res = await withCallTimeout(
+                        genaiChat.sendMessage({ message: functionResponses }),
+                        callTimeoutMs,
+                        `sendMessage(${model}, toolLoop=${loopCount})`
+                    );
                 }
 
                 const text = res.text || '';
@@ -410,13 +459,24 @@ class AiCore {
                         while (loopCount < maxLoops) {
                             loopCount++;
                             const pendingFunctionCalls = [];
-                            const responseStream = await genaiChat.sendMessageStream({ message: currentMessage });
+                            const responseStream = await withCallTimeout(
+                                genaiChat.sendMessageStream({ message: currentMessage }),
+                                streamChunkTimeoutMs,
+                                `sendMessageStream(${model}, loop=${loopCount})`
+                            );
 
-                            for await (const chunk of responseStream) {
-                                if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                            const iterator = responseStream[Symbol.asyncIterator]();
+                            while (true) {
+                                const { value: chunk, done } = await withCallTimeout(
+                                    iterator.next(),
+                                    streamChunkTimeoutMs,
+                                    `streamChunk(${model}, loop=${loopCount})`
+                                );
+                                if (done) break;
+                                if (chunk && chunk.functionCalls && chunk.functionCalls.length > 0) {
                                     pendingFunctionCalls.push(...chunk.functionCalls);
                                 }
-                                if (chunk.text) {
+                                if (chunk && chunk.text) {
                                     textAccumulator += chunk.text;
                                     yield { text: chunk.text };
                                 }
@@ -434,7 +494,11 @@ class AiCore {
 
                                 if (tool) {
                                     try {
-                                        toolResult = await tool.execute(call.args);
+                                        toolResult = await withCallTimeout(
+                                            Promise.resolve(tool.execute(call.args)),
+                                            8000,
+                                            `tool(${call.name})`
+                                        );
                                     } catch (err) {
                                         console.error(`❌ Tool ${call.name} execution error:`, err.message);
                                         toolResult = { error: err.message };
@@ -473,6 +537,15 @@ class AiCore {
         };
     }
 
+    async createSession(opts = {}) {
+        const userId = opts.sessionId || opts.initialState?.userId || 'guest';
+        const session = await this.loadSession(userId, { store: opts.store });
+        if (opts.initialState && typeof session.updateState === 'function') {
+            await session.updateState(opts.initialState).catch(() => {});
+        }
+        return session;
+    }
+
     async loadSession(userId, { store } = {}) {
         let sessionData = null;
         if (store && typeof store.get === 'function') {
@@ -486,6 +559,18 @@ class AiCore {
                     ...opts,
                     history: sessionData?.history,
                 });
+            },
+            updateState: async (stateUpdates = {}) => {
+                sessionData = {
+                    ...(sessionData || {}),
+                    state: {
+                        ...(sessionData?.state || {}),
+                        ...stateUpdates,
+                    },
+                };
+                if (store && typeof store.save === 'function') {
+                    await store.save(userId, sessionData);
+                }
             },
             save: async (data) => {
                 if (store && typeof store.save === 'function') {

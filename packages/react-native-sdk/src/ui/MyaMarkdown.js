@@ -14,10 +14,12 @@
  * standalone image URLs) are extracted as dedicated block-level View elements.
  */
 
-import React, { useMemo, useState } from 'react';
-import { View, Text, Image, Linking, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, Linking, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { MyaColors, MyaType, MyaFonts } from './myaTheme';
+import MyaImage from './MyaImage';
+import { buildImageSource } from './rich/cards';
 
 const BULLET = /^\s*[-*•]\s+(.*)$/;
 const NUMBERED = /^\s*(\d+)[.)]\s+(.*)$/;
@@ -31,40 +33,21 @@ const INLINE = /(!?\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\
 const IMAGE_PATTERN = /(?:!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)|<img\s+[^>]*src=["'](https?:\/\/[^"'>\s]+)["'][^>]*\/?>|\[([^\]]*)\]\((https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|webp|bmp)(?:\?[^\s)]*)?)\))/gi;
 
 function ChatImage({ url, alt }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  if (!url) return null;
+  // Same source rules as cards (normalised URL + User-Agent header, which some
+  // CDNs require), same loading/failed states as every other image in the thread.
+  const source = useMemo(() => buildImageSource(url), [url]);
+  if (!source) return null;
+  const hasCaption = !!alt && alt.toLowerCase() !== 'image';
 
   return (
     <View style={styles.imageBlockWrap}>
-      {error ? (
-        <View style={styles.imageErrorBox}>
-          <Ionicons name="image-outline" size={24} color={MyaColors.blueberry || '#4A4D68'} />
-          <Text style={styles.imageErrorText}>{alt || 'Image reference'}</Text>
-        </View>
-      ) : (
-        <View style={styles.imageInnerWrap}>
-          <Image
-            source={{ uri: url }}
-            style={styles.chatImage}
-            resizeMode="cover"
-            onLoadStart={() => setLoading(true)}
-            onLoadEnd={() => setLoading(false)}
-            onError={() => {
-              setLoading(false);
-              setError(true);
-            }}
-            accessibilityLabel={alt || 'Visual reference'}
-          />
-          {loading && (
-            <View style={styles.imageLoadingOverlay}>
-              <ActivityIndicator size="small" color={MyaColors.coral || '#E7A690'} />
-            </View>
-          )}
-        </View>
-      )}
-      {!!alt && alt.toLowerCase() !== 'image' && !error && (
+      <MyaImage
+        source={source}
+        style={styles.imageInnerWrap}
+        accessibilityLabel={alt || 'Visual reference'}
+        failedLabel={hasCaption ? `${alt} (image unavailable)` : 'Image unavailable'}
+      />
+      {hasCaption && (
         <Text style={styles.imageCaption} numberOfLines={2}>
           {alt}
         </Text>
@@ -396,30 +379,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 175,
     backgroundColor: '#EEECE1',
-  },
-  chatImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(245,245,247,0.7)',
-  },
-  imageErrorBox: {
-    height: 110,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    backgroundColor: '#F5F5F7',
-  },
-  imageErrorText: {
-    fontFamily: MyaFonts.regular,
-    fontSize: 12,
-    color: '#4A4D68',
-    marginTop: 6,
-    textAlign: 'center',
   },
   imageCaption: {
     fontFamily: MyaFonts.medium,

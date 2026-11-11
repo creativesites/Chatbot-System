@@ -10,7 +10,8 @@
 import React, { useEffect } from 'react';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import { useMotion } from '../motion/useMotion';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import MyaImage from '../MyaImage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { moderateScale } from '../scale';
 import { MyaColors, MyaType, MyaFonts, MyaRadii } from '../myaTheme';
@@ -291,10 +292,10 @@ export function MyaJourneyCard({ data = {}, actions, onAction }) {
       {single ? (
         <>
           {(data.imageUrl || (Array.isArray(data.photos) && data.photos[0])) ? (
-            <Image
+            <MyaImage
               source={buildImageSource(data.imageUrl || data.photos[0])}
               style={styles.hero}
-              resizeMode="cover"
+              accessibilityLabel={data.title ? `Photo: ${data.title}` : 'Journey photo'}
             />
           ) : null}
           {!!data.date && <Text style={styles.date}>{data.date}</Text>}
@@ -544,13 +545,12 @@ export function MyaMediaCard({ data = {}, actions, onAction }) {
     source_url;
   const fallbackCandidate = sourceUrl || source_url || imageUrl || image;
 
-  const [useFallbackUri, setUseFallbackUri] = React.useState(false);
-  const [imgFailed, setImgFailed] = React.useState(false);
-
-  const activeUri = normalizeMediaImageUri(
-    useFallbackUri && fallbackCandidate ? fallbackCandidate : primaryCandidate
-  );
-  const imageSource = buildImageSource(activeUri);
+  // Thumbnail first; if it fails, MyaImage retries once with the original, then
+  // shows an honest "unavailable" tile.
+  const imageSource = buildImageSource(normalizeMediaImageUri(primaryCandidate));
+  const fallbackUri = normalizeMediaImageUri(fallbackCandidate);
+  const fallbackSource =
+    fallbackUri && fallbackUri !== normalizeMediaImageUri(primaryCandidate) ? buildImageSource(fallbackUri) : null;
 
   const resolvedHairType = hairType || hair_attributes?.type;
   const resolvedCaption = caption || description;
@@ -566,18 +566,13 @@ export function MyaMediaCard({ data = {}, actions, onAction }) {
 
   return (
     <CardShell eyebrow={eyebrow} icon="camera-outline">
-      {!!imageSource && !imgFailed && (
-        <Image
+      {!!imageSource && (
+        <MyaImage
           source={imageSource}
+          fallbackSource={fallbackSource}
           style={styles.hero}
-          resizeMode="cover"
-          onError={() => {
-            if (!useFallbackUri && fallbackCandidate && fallbackCandidate !== primaryCandidate) {
-              setUseFallbackUri(true);
-            } else {
-              setImgFailed(true);
-            }
-          }}
+          accessibilityLabel={resolvedTitle}
+          failedLabel="Reference image unavailable"
         />
       )}
       <CardTitle>{resolvedTitle}</CardTitle>

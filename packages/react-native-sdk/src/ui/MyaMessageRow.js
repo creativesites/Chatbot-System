@@ -13,7 +13,7 @@
  */
 
 import React, { memo } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Share } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, cancelAnimation } from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MyaPresence from './MyaPresence';
@@ -25,6 +25,7 @@ import MyaLoadingDistraction from './MyaLoadingDistraction';
 import MyaRichBlock from './rich/MyaRichBlock';
 import { buildImageSource } from './rich/cards';
 import MyaMarkdown from './MyaMarkdown';
+import MyaImage from './MyaImage';
 import { MyaColors, MyaFonts, MyaType, MyaRadii, MyaShadow } from './myaTheme';
 
 /**
@@ -279,11 +280,12 @@ function MyaMessageRow({
           const src = buildImageSource(uri);
           if (!src) return null;
           return (
-            <Image
+            <MyaImage
               key={a?.id || uri || `ua-${i}`}
               source={src}
               style={styles.userAttachment}
-              resizeMode="cover"
+              accessibilityLabel="Your photo"
+              compact
             />
           );
         })}
@@ -332,11 +334,11 @@ function MyaMessageRow({
         const src = buildImageSource(uri);
         if (!src) return null;
         return (
-          <Image
+          <MyaImage
             key={a?.id || uri || `aa-${i}`}
             source={src}
             style={styles.assistantAttachment}
-            resizeMode="cover"
+            accessibilityLabel={a?.alt || a?.caption || 'Image from Mya'}
           />
         );
       })}
@@ -350,10 +352,10 @@ function MyaMessageRow({
           !attachments.some((a) => (typeof a === 'string' ? a : (a?.uri || a?.url)) === topLevelImg)
         ) {
           return (
-            <Image
+            <MyaImage
               source={src}
               style={styles.assistantAttachment}
-              resizeMode="cover"
+              accessibilityLabel="Image from Mya"
             />
           );
         }

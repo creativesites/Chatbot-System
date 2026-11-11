@@ -30,7 +30,13 @@ function isPlaceholderSummary(summary) {
  * the transport envelope around it.
  */
 function cleanTurnContent(content) {
-    return String(content || '')
+    let text = content;
+    if (Array.isArray(text)) {
+        text = text.map(p => (typeof p === 'string' ? p : p?.message || p?.text || '')).filter(Boolean).join(' ');
+    } else if (text && typeof text === 'object') {
+        text = text.message || text.text || JSON.stringify(text);
+    }
+    return String(text || '')
         .replace(/^\s*\d{4}-\d{2}-\d{2}T[\d:.]+Z?\s*-\s*(?:User Said|Assistant Said|Mya Said)\s*:\s*/i, '')
         .replace(/\[Photo Attached:[^\]]*\]/gi, '')
         .replace(/```[\s\S]*?```/g, ' ')

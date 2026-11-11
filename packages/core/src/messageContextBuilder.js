@@ -15,6 +15,18 @@ const { HairJourneyService } = require('./hairJourney/hairJourneyService');
 
 const hairJourneyService = new HairJourneyService();
 
+function safeExtractContent(val) {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    if (Array.isArray(val)) {
+        return val.map(p => (typeof p === 'string' ? p : p?.message || p?.text || p?.content || '')).filter(Boolean).join(' ');
+    }
+    if (typeof val === 'object') {
+        return val.message || val.text || val.content || JSON.stringify(val);
+    }
+    return String(val);
+}
+
 function withContextTimeout(promise, ms = 2500, fallbackValue = null) {
     let timer;
     const timeoutPromise = new Promise((resolve) => {
@@ -42,7 +54,8 @@ async function buildMessageContext(userId, chatHistory = [], currentMessage, exp
 
     // Explicit profile check-in / "What do you know about my hair profile?"
     const isProfileInquiry = /(what.*know.*about.*hair.*profile|what.*know.*hair|what.*have.*on.*file|do you know my hair|tell.*about my hair|my hair profile|what.*profile)/i.test(currentMessage || '');
-    const queryText = currentMessage || [...chatHistory].reverse().find(m => m.role === 'user')?.content;
+    const lastUserTurn = [...chatHistory].reverse().find(m => m && m.role === 'user');
+    const queryText = currentMessage || safeExtractContent(lastUserTurn?.content ?? lastUserTurn?.text);
 
     // Launch all independent I/O sources in parallel with bounded timeouts so
     // per-message context assembly takes max(step) instead of sum(steps).
@@ -150,7 +163,7 @@ async function buildMessageContext(userId, chatHistory = [], currentMessage, exp
 
     // Explicit user assertion check in conversation history or current message
     const allRecentUserTurns = [
-        ...chatHistory.filter(m => m.role === 'user').slice(-3).map(m => m.content || ''),
+        ...chatHistory.filter(m => m && m.role === 'user').slice(-3).map(m => safeExtractContent(m.content ?? m.text)),
         currentMessage || ''
     ].join(' ').toLowerCase();
 
@@ -192,9 +205,9 @@ MANDATORY BEHAVIOR:
 
     // Deduplicate against previous assistant turns in chatHistory or profile inquiry.
     const recentAssistantTurns = chatHistory
-        .filter(m => m.role === 'assistant' || m.role === 'model')
+        .filter(m => m && (m.role === 'assistant' || m.role === 'model'))
         .slice(-3)
-        .map(m => (m.content || m.text || '').toLowerCase())
+        .map(m => safeExtractContent(m.content ?? m.text).toLowerCase())
         .join(' ');
 
     if (!isProfileInquiry && Array.isArray(trendCandidates) && trendCandidates.length > 0) {

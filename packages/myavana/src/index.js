@@ -25,6 +25,23 @@ const {
 require('dotenv').config();
 
 // Helper functions
+function normalizeHistoryTurns(turns) {
+    if (!Array.isArray(turns)) return [];
+    return turns.map(turn => {
+        if (!turn) return turn;
+        let c = turn.content ?? turn.text ?? '';
+        if (Array.isArray(c)) {
+            c = c.map(p => (typeof p === 'string' ? p : p?.message || p?.text || '')).filter(Boolean).join('\n');
+        } else if (c && typeof c === 'object') {
+            c = c.message || c.text || JSON.stringify(c);
+        }
+        return {
+            ...turn,
+            content: typeof c === 'string' ? c : String(c || '')
+        };
+    });
+}
+
 function cleanKommunicateResponse(jsonObj) {
     try {
         if (typeof jsonObj === 'string') {
@@ -978,14 +995,9 @@ class MyavanaChatbotServer {
             console.log('✅ User data fetched successfully');
 
             console.log('📜 Loading conversation history...');
-            let chatHistory = await core.getConversationHistory(conversationId, userId);
-
-            if (!Array.isArray(chatHistory)) {
-                console.log('⚠️ Chat history is not an array, initializing empty array');
-                chatHistory = [];
-            }
-
-            console.log('✅ Conversation history loaded');
+            const rawChatHistory = await core.getConversationHistory(conversationId, userId);
+            let chatHistory = normalizeHistoryTurns(rawChatHistory);
+            console.log(`✅ Conversation history loaded (${chatHistory.length} turns)`);
 
             if (eventName === "KOMMUNICATE_MEDIA_EVENT") {
                 console.log('🖼️ Processing KOMMUNICATE_MEDIA_EVENT (image message)...');
@@ -1154,7 +1166,7 @@ class MyavanaChatbotServer {
                 core.getConversationHistory(conversationId, userId),
             ]);
 
-            let chatHistory = Array.isArray(rawHistory) ? rawHistory : [];
+            let chatHistory = normalizeHistoryTurns(rawHistory);
 
             // Photos: the widget sends them inline as data: URLs, the mobile SDK
             // as https links. Up to four go to the model with the message - see

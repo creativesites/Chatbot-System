@@ -38,6 +38,19 @@ const STAGE_KEYWORDS = [
 // Analysis helpers
 // ---------------------------------------------------------------------------
 
+function safeTurnText(turn) {
+    if (!turn) return '';
+    const raw = turn.content ?? turn.text ?? '';
+    if (typeof raw === 'string') return raw;
+    if (Array.isArray(raw)) {
+        return raw.map(p => (typeof p === 'string' ? p : p?.message || p?.text || '')).filter(Boolean).join(' ');
+    }
+    if (typeof raw === 'object' && raw !== null) {
+        return raw.message || raw.text || JSON.stringify(raw);
+    }
+    return String(raw);
+}
+
 /**
  * Infer the most likely stage from recent user messages.
  * Scans last 4 user messages — recent context is more reliable than old.
@@ -47,10 +60,11 @@ const STAGE_KEYWORDS = [
  * @returns {number|null}
  */
 function inferStage(chatHistory) {
+    if (!Array.isArray(chatHistory)) return null;
     const recentUserMessages = chatHistory
-        .filter(m => m.role === 'user')
+        .filter(m => m && m.role === 'user')
         .slice(-4)
-        .map(m => (m.content || '').toLowerCase());
+        .map(m => safeTurnText(m).toLowerCase());
 
     const combined = recentUserMessages.join(' ');
     if (!combined) return null;
@@ -70,13 +84,14 @@ function inferStage(chatHistory) {
  * @returns {{ total: number, withQuestion: number, lastTurnHadQuestion: boolean }}
  */
 function analyzeAIQuestions(chatHistory, lookback = 3) {
+    if (!Array.isArray(chatHistory)) return { total: 0, withQuestion: 0, lastTurnHadQuestion: false };
     const aiTurns = chatHistory
-        .filter(m => m.role === 'model' || m.role === 'assistant')
+        .filter(m => m && (m.role === 'model' || m.role === 'assistant'))
         .slice(-lookback);
 
-    const withQuestion = aiTurns.filter(m => (m.content || '').includes('?')).length;
+    const withQuestion = aiTurns.filter(m => safeTurnText(m).includes('?')).length;
     const lastTurnHadQuestion = aiTurns.length > 0
-        ? (aiTurns[aiTurns.length - 1].content || '').includes('?')
+        ? safeTurnText(aiTurns[aiTurns.length - 1]).includes('?')
         : false;
 
     return { total: aiTurns.length, withQuestion, lastTurnHadQuestion };

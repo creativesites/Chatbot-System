@@ -131,12 +131,13 @@ function MyaChatInner({
   const scrolledSv = useSharedValue(0);
   const navBorderStyle = useAnimatedStyle(() => ({ opacity: scrolledSv.value }));
 
-  // safe-area-context already reports the status bar plus any display cutout on
-  // both platforms (the host is edge-to-edge, with a SafeAreaProvider at the
-  // root). StatusBar.currentHeight is shorter than a tall cutout on Android, and
-  // a 44pt floor added dead space on home-button iPhones. Before the first
-  // measurement insets are 0; fall back to the status bar only then.
-  const topInset = insets.top || (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 20);
+  // Standardized header clearance across platforms:
+  // On iOS, guaranteed 48pt floor so the header never touches non-notched screens or camera islands.
+  // On Android, guaranteed status-bar offset (at least 44pt) so translucent status bar and camera punch holes are cleanly cleared.
+  const topInset =
+    Platform.OS === 'ios'
+      ? Math.max(insets.top || 0, 48)
+      : Math.max((StatusBar.currentHeight || 24) + 12, (insets.top || 0) + 12, 44);
 
   const composerBottomPad = insets.bottom || 8;
   const listRef = useRef(null);

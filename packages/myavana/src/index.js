@@ -42,56 +42,127 @@ function normalizeHistoryTurns(turns) {
     });
 }
 
+function cleanHtmlForChat(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<head[\s\S]*?<\/head>/gi, '')
+        .replace(/<\/?(?:html|head|body|meta|link)[^>]*>/gi, '')
+        .trim();
+}
+
 function cleanKommunicateResponse(jsonObj) {
     try {
         if (typeof jsonObj === 'string') {
-            let trimmed = jsonObj.trim();
-            const fenceMatch = trimmed.match(/^```(?:json|mya-blocks|mya|blocks)?\s*([\s\S]*?)```$/i);
-            if (fenceMatch && fenceMatch[1]) {
-                trimmed = fenceMatch[1].trim();
-            }
-            if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+            let text = jsonObj.trim();
+
+            // 1. Try direct JSON parse
+            let directJson = null;
+            const fenceMatch = text.match(/^```(?:json|mya-blocks|mya|blocks)?\s*([\s\S]*?)```$/i);
+            const candidate = fenceMatch ? fenceMatch[1].trim() : text;
+            if ((candidate.startsWith('[') && candidate.endsWith(']')) || (candidate.startsWith('{') && candidate.endsWith('}'))) {
                 try {
-                    jsonObj = JSON.parse(trimmed);
-                } catch {
-                    return [{ message: stripBlocksFence(jsonObj) || jsonObj }];
-                }
+                    directJson = JSON.parse(candidate);
+                } catch (e) {}
+            }
+
+            if (directJson) {
+                jsonObj = directJson;
             } else {
-                return [{ message: stripBlocksFence(jsonObj) || jsonObj }];
+                // 2. Prose + block pattern (e.g. text followed by ```mya-blocks or ```quickReplies)
+                let quickReplies = [];
+                const blockRegex = /```(?:json|mya-blocks|mya|blocks|quickReplies)?\s*([\s\S]*?)```/gi;
+                let match;
+                while ((match = blockRegex.exec(text)) !== null) {
+                    try {
+                        const parsedBlock = JSON.parse(match[1].trim());
+                        if (Array.isArray(parsedBlock)) {
+                            if (parsedBlock.length && typeof parsedBlock[0] === 'string') {
+                                quickReplies = parsedBlock;
+                            } else if (parsedBlock.length && parsedBlock[0]?.title) {
+                                quickReplies = parsedBlock;
+                            }
+                        } else if (parsedBlock && typeof parsedBlock === 'object') {
+                            if (Array.isArray(parsedBlock.quickReplies)) {
+                                quickReplies = parsedBlock.quickReplies;
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Strip all code fences from prose
+                let prose = text
+                    .replace(/```(?:json|mya-blocks|mya|blocks|quickReplies)?\s*[\s\S]*?```/gi, '')
+                    .replace(/```(?:json|mya-blocks|mya|blocks|quickReplies)?\s*[\s\S]*$/gi, '')
+                    .trim();
+
+                prose = cleanHtmlForChat(prose);
+                if (!prose) {
+                    prose = "I'm here to help with your hair journey! What can I assist you with today?";
+                }
+
+                const item = { message: prose };
+                if (Array.isArray(quickReplies) && quickReplies.length > 0) {
+                    item.metadata = {
+                        contentType: '300',
+                        templateId: '6',
+                        payload: quickReplies.map(r => {
+                            const title = typeof r === 'string' ? r : (r.title || r.message || '');
+                            const message = typeof r === 'string' ? r : (r.message || r.title || '');
+                            return { title, message };
+                        }).filter(p => p.title)
+                    };
+                }
+                return [item];
             }
         }
 
         if (!Array.isArray(jsonObj)) {
             jsonObj = [jsonObj];
         }
-        
+
         const cleanedList = jsonObj.flatMap((item) => {
             if (Array.isArray(item)) {
                 return cleanKommunicateResponse(item);
             }
             if (typeof item === 'string') {
-                return [{ message: stripBlocksFence(item) || item }];
+                const cleaned = cleanHtmlForChat(item.replace(/```[\s\S]*?```/g, '').trim());
+                return [{ message: cleaned || item }];
             }
             if (item && typeof item === 'object') {
-                if (item.platform === "kommunicate") {
+                if (item.platform === 'kommunicate') {
                     delete item.platform;
+                }
+                if (item.message && typeof item.message === 'string') {
+                    item.message = cleanHtmlForChat(item.message);
                 }
                 // If model returned a mya-blocks object { blocks: [...], quickReplies: [...] } on Kommunicate channel
                 if (Array.isArray(item.blocks) && item.message === undefined) {
                     const parsed = parseModelOutput(item);
                     if (parsed.text) {
-                        return [{ message: parsed.text }];
+                        const out = { message: cleanHtmlForChat(parsed.text) };
+                        if (Array.isArray(parsed.quickReplies) && parsed.quickReplies.length > 0) {
+                            out.metadata = {
+                                contentType: '300',
+                                templateId: '6',
+                                payload: parsed.quickReplies.map(r => ({
+                                    title: typeof r === 'string' ? r : (r.title || r.message || ''),
+                                    message: typeof r === 'string' ? r : (r.message || r.title || '')
+                                })).filter(p => p.title)
+                            };
+                        }
+                        return [out];
                     }
                 }
                 return item;
             }
             return [];
         });
-        
+
         return cleanedList.length > 0 ? cleanedList : [{ message: "I'm here to help with your hair journey! What can I assist you with today?" }];
     } catch (error) {
-        console.error("Error parsing AI response JSON:", error);
-        return typeof jsonObj === 'string' ? [{ message: jsonObj }] : jsonObj;
+        console.error('Error parsing AI response JSON:', error);
+        return [{ message: "I'm here to help with your hair journey! What can I assist you with today?" }];
     }
 }
 

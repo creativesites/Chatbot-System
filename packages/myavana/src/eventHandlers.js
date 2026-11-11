@@ -24,13 +24,17 @@ try {
 }
 
 const handleWelcomeEvent = async (res, userId) => {
-    const defaultWelcomeMessage = "<html><head><style>body{font-family:'Archivo',sans-serif;}h3{font-size:1.0em;font-weight:600;color:#222323;}p{color:#222323;font-size:0.9em;line-height:1.5;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}</style></head><body><p><i>Hey there, beautiful! 👋 I'm Mya, your</i> <span class='highlight'>MYAVANA Hair AI</span> guide! I'm here to help you understand your hair and get the best recommendations. How can I assist you today?</p></body></html>";
+    const defaultWelcomeMessage = "<p><i>Hey there, beautiful! 👋 I'm Mya, your</i> <b>MYAVANA Hair AI</b> guide! I'm here to help you understand your hair and get the best recommendations. How can I assist you today?</p>";
 
     const buildWelcomeMessage = (text) => {
         if (!text) return defaultWelcomeMessage;
-        const safeText = String(text).replace(/\n/g, '<br />');
-        
-        return `<html><head><style>body{font-family:'Archivo',sans-serif;}h3{font-size:1.0em;font-weight:600;color:#222323;}p{color:#222323;font-size:0.9em;line-height:1.5;}span{font-weight:600;letter-spacing:-0.04em;color:#222323;}.highlight{font-family:'Archivo Expanded Black',sans-serif;font-size:14px;text-transform:uppercase;background-color:#fce5d7;color:#222323;padding:2px 6px;border-radius:4px;}</style></head><body><p>${safeText}</p></body></html>`;
+        const cleanText = String(text)
+            .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<head[\s\S]*?<\/head>/gi, '')
+            .replace(/<\/?(?:html|head|body|meta|link)[^>]*>/gi, '')
+            .trim();
+        const safeText = cleanText.replace(/\n/g, '<br />');
+        return safeText.startsWith('<p>') ? safeText : `<p>${safeText}</p>`;
     };
 
     const normalizeImages = (value) => {

@@ -19,6 +19,7 @@ const getUserDetails = async (userId) => {
         const createUserQuery = `
             INSERT INTO users (user_id)
             VALUES ($1)
+            ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
             RETURNING *;
         `;
         const createUserRes = await pgClient.query(createUserQuery, [userId]);
@@ -28,8 +29,8 @@ const getUserDetails = async (userId) => {
         }
         return null;
     } catch (err) {
-        console.error('Error retrieving user details:', err);
-        throw err;
+        console.error('Error retrieving user details (non-fatal fallback to null):', err.message);
+        return null;
     }
 };
 

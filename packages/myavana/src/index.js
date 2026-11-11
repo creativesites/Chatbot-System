@@ -943,12 +943,6 @@ class MyavanaChatbotServer {
             const userId = from || bodyUserId || (experienceContext && (experienceContext.wpUserId || experienceContext.userId)) || 'guest';
             const conversationId = groupId || bodyConvId || (experienceContext && experienceContext.conversationId) || 'conv_default';
             const safeMessage = message || '';
-            // 1. Start fetching everything in parallel immediately
-            const dataPromise = Promise.all([
-                core.getAllConversationsSummary(userId),
-                core.getUserDetails(userId),
-                core.ai.loadSession(userId, { store: new core.DatabaseSessionStore() })
-            ]);
             
             console.log('📊 Request Details:', {
                 requestId,
@@ -966,8 +960,13 @@ class MyavanaChatbotServer {
                 return;
             }
 
-            // 3. Destructure the results
-            const [allchatsSummary, userInfo, session] = await dataPromise;
+            // 1. Start fetching user/session data in parallel only after WELCOME short-circuit
+            // so WELCOME never leaves unawaited DB/Redis promises running after res.json().
+            const [allchatsSummary, userInfo, session] = await Promise.all([
+                core.getAllConversationsSummary(userId),
+                core.getUserDetails(userId),
+                core.ai.loadSession(userId, { store: new core.DatabaseSessionStore() })
+            ]);
             
             console.log('✅ User data fetched successfully');
 
@@ -1048,13 +1047,17 @@ class MyavanaChatbotServer {
             
             console.log('✅ Response processing and cleaning completed!');
 
+            // Persist conversation history and deterministic signals BEFORE sending res.json()
+            // so Cloud Run CPU throttling after response completion cannot freeze DB/Redis sockets.
+            await Promise.race([
+                this.runPostProcessing({ userId, conversationId, message: safeMessage, aiOutput, allchatsSummary }),
+                new Promise((resolve) => setTimeout(resolve, 3000)),
+            ]);
+
             // Send response to client
             console.log('📤 ===== SENDING RESPONSE TO CLIENT =====');
             res.json(cleanedResponse);
             console.log('✅✅✅ RESPONSE TRANSMITTED SUCCESSFULLY!');
-
-            // Post-processing (non-blocking)
-            setImmediate(() => this.runPostProcessing({ userId, conversationId, message, aiOutput, allchatsSummary }));
 
             const finalTotalTime = performance.now() - start;
             console.log('🎉 ===== COMPLETE REQUEST SUMMARY =====');
@@ -1395,15 +1398,30 @@ class MyavanaChatbotServer {
             }
             }
 
+            // Persist conversation history and deterministic signals BEFORE res.end()
+            // so Cloud Run CPU stays allocated during the DB/Redis write and history is
+            // immediately available when the client receives the final frame.
+            await Promise.race([
+                this.runPostProcessing({ userId, conversationId, message: safeMessage, aiOutput, allchatsSummary }),
+                new Promise((resolve) => setTimeout(resolve, 3000)),
+            ]);
+
             res.end();
             console.log('🏁 ===== STREAM REQUEST COMPLETE =====', requestId, modelUsed);
-
-            setImmediate(() => this.runPostProcessing({ userId, conversationId, message, aiOutput, allchatsSummary }));
         } catch (error) {
             console.error('❌❌❌ STREAM REQUEST FAILURE!', error);
             if (!res.headersSent) {
                 res.status(500).json({ error: true, message: 'Internal server error - chatbot temporarily unavailable' });
             } else {
+                try {
+                    const acceptsNDJSON =
+                        (req.headers['accept'] && req.headers['accept'].includes('application/x-ndjson')) ||
+                        req.query?.format === 'ndjson' ||
+                        req.body?.format === 'ndjson';
+                    if (acceptsNDJSON) {
+                        res.write(encodeFrame(createErrorFrame(error.message || 'Chatbot temporarily unavailable', 'STREAM_ERROR')));
+                    }
+                } catch (_) {}
                 res.end();
             }
         }

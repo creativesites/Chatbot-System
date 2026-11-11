@@ -42,7 +42,7 @@ class BlockBoundary extends React.Component {
   }
 }
 
-export default function MyaRichBlock({ block, message, onAction }) {
+function MyaRichBlock({ block, message, onAction }) {
   if (!block || typeof block !== 'object') return null;
 
   const type = block.type;
@@ -76,6 +76,25 @@ export default function MyaRichBlock({ block, message, onAction }) {
     </BlockBoundary>
   );
 }
+
+/**
+ * A card only needs to re-render when its block, its handler or the message's
+ * lifecycle changes. `message` is a fresh object on every streamed chunk but is
+ * only read when an action fires, so comparing it by identity would re-render a
+ * live card on every token. It is compared by id and streaming state instead,
+ * which means the card re-renders once at `done` and actions always carry the
+ * completed message.
+ */
+function sameRichBlockProps(prev, next) {
+  if (prev.block !== next.block || prev.onAction !== next.onAction) return false;
+  const a = prev.message || null;
+  const b = next.message || null;
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.id === b.id && !!a.isStreaming === !!b.isStreaming;
+}
+
+export default React.memo(MyaRichBlock, sameRichBlockProps);
 
 /**
  * Shown only when a card genuinely threw. Says something true and small rather

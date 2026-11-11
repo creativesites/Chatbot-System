@@ -263,7 +263,7 @@ function toBlocks(source) {
   return blocks;
 }
 
-export default function MyaMarkdown({ children, color = MyaColors.onyx, trailing = null }) {
+function MyaMarkdown({ children, color = MyaColors.onyx, trailing = null }) {
   const blocks = useMemo(() => toBlocks(children), [children]);
 
   // Nothing markdown-ish found and no image: render as a single Text so the streaming
@@ -446,3 +446,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+// A streamed reply re-renders its row on every pacing tick. Text runs that are
+// already final (everything before the last card) keep the same string and no
+// trailing caret, so they can skip rendering entirely.
+export default React.memo(MyaMarkdown);

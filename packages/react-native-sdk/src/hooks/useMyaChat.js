@@ -3,7 +3,7 @@
  */
 
 const { useState, useEffect, useRef, useCallback } = require('react');
-const { MyaMobileClient } = require('../client/MyaMobileClient');
+const { MyaMobileClient, deserializeHistoryMessage } = require('../client/MyaMobileClient');
 const { createId } = require('../types');
 const { classifyError, toMyaError, makeError, errorCopy } = require('../client/errors');
 const { normalizeAttachments } = require('../client/attachments');
@@ -117,7 +117,7 @@ function useMyaChat(options = {}) {
             if (cached && mounted) {
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                setMessages(parsed);
+                setMessages(parsed.map((item) => deserializeHistoryMessage(item)));
               }
             }
           } catch (e) {
@@ -246,13 +246,13 @@ function useMyaChat(options = {}) {
 
         // Attachments belong on the message from the moment it is created, so
         // the user's own photo renders for the whole reply.
-        const userMessage = {
+        const userMessage = deserializeHistoryMessage({
           id: userMessageId,
           role: 'user',
           content: trimmed,
           timestamp: now,
           ...(sendAttachments && sendAttachments.length ? { attachments: sendAttachments } : {})
-        };
+        });
 
         const initialAssistantMessage = {
           id: assistantMessageId,
@@ -362,7 +362,7 @@ function useMyaChat(options = {}) {
               setMessages((prev) => {
                 const updated = prev.map((msg) => {
                   if (msg.id === assistantMessageId) {
-                    const completedMsg = { ...msg, isStreaming: false, metadata: meta };
+                    const completedMsg = deserializeHistoryMessage({ ...msg, isStreaming: false, metadata: meta });
                     options.onStreamComplete && options.onStreamComplete(completedMsg);
                     return completedMsg;
                   }
@@ -388,7 +388,10 @@ function useMyaChat(options = {}) {
     if (!targetConvId) return;
     try {
       setIsThinking(true);
-      const history = await client.fetchConversationHistory(targetConvId);
+      const rawHistory = await client.fetchConversationHistory(targetConvId);
+      const history = Array.isArray(rawHistory)
+        ? rawHistory.map((item) => deserializeHistoryMessage(item))
+        : [];
       client.setConversationId(targetConvId);
       setConversationId(targetConvId);
       setMessages(history);

@@ -287,5 +287,41 @@ describe('MyaMobileClient & Mobile Telemetry', () => {
 
       streamFetchSpy.mockRestore();
     });
+
+    test('deserializeHistoryMessage extracts mya-blocks fences and strips User Said prefixes', () => {
+      const { deserializeHistoryMessage } = require('../src/client/MyaMobileClient');
+
+      const userTurn = deserializeHistoryMessage({
+        role: 'user',
+        content: '2026-11-11T00:10:00.000Z - User Said: What should I do for wash day?'
+      });
+      expect(userTurn.content).toBe('What should I do for wash day?');
+
+      const assistantTurn = deserializeHistoryMessage({
+        role: 'assistant',
+        content:
+          'Here is your personalized wash day routine.\n\n```mya-blocks\n' +
+          JSON.stringify({
+            blocks: [
+              {
+                id: 'chk_1',
+                type: 'today_checklist',
+                data: { title: 'Wash Day Regimen', steps: ['Pre-poo', 'Cleanse', 'Deep condition'] }
+              }
+            ],
+            quickReplies: [{ label: 'What products?', payload: { text: 'What products should I use?' } }]
+          }) +
+          '\n```'
+      });
+
+      expect(assistantTurn.content).toBe('Here is your personalized wash day routine.');
+      expect(assistantTurn.blocks).toHaveLength(1);
+      expect(assistantTurn.blocks[0].type).toBe('today_checklist');
+      expect(assistantTurn.actions).toHaveLength(1);
+      expect(assistantTurn.actions[0].label).toBe('What products?');
+      // Reference idempotency: re-normalizing a normalized message returns the exact same object
+      expect(deserializeHistoryMessage(userTurn)).toBe(userTurn);
+      expect(deserializeHistoryMessage(assistantTurn)).toBe(assistantTurn);
+    });
   });
 });

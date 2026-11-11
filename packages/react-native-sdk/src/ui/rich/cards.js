@@ -28,6 +28,29 @@ import { useMyaStorage, checklistKey, loadChecked, saveChecked } from '../checkl
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 
+const IMAGE_HEADERS = {
+  'User-Agent': 'MYAVANA-Mobile-App/2.2 (https://www.myavana.com; support@myavana.com)',
+  Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+};
+
+export function normalizeMediaImageUri(rawUri) {
+  if (!rawUri || typeof rawUri !== 'string') return null;
+  let u = rawUri.trim();
+  if (!u) return null;
+  // thumb.wikimedia.org is not a public CDN hostname; thumbnails live on upload.wikimedia.org
+  u = u.replace(/^https?:\/\/thumb\.wikimedia\.org\//i, 'https://upload.wikimedia.org/');
+  return u;
+}
+
+export function buildImageSource(rawUri) {
+  const uri = normalizeMediaImageUri(rawUri);
+  if (!uri) return null;
+  if (/^https?:\/\//i.test(uri)) {
+    return { uri, headers: IMAGE_HEADERS };
+  }
+  return { uri };
+}
+
 /* ------------------------------------------------------------------ ROUTINE */
 
 /** One soft coral glow the moment the day's list is finished. Never repeats; never on first render. */
@@ -267,6 +290,13 @@ export function MyaJourneyCard({ data = {}, actions, onAction }) {
     <CardShell eyebrow={data.title && entries.length ? data.title : 'Your recent journey'} icon="calendar-outline">
       {single ? (
         <>
+          {(data.imageUrl || (Array.isArray(data.photos) && data.photos[0])) ? (
+            <Image
+              source={buildImageSource(data.imageUrl || data.photos[0])}
+              style={styles.hero}
+              resizeMode="cover"
+            />
+          ) : null}
           {!!data.date && <Text style={styles.date}>{data.date}</Text>}
           <CardTitle>{data.title}</CardTitle>
           {!!data.notes && <CardBody>{data.notes}</CardBody>}
@@ -302,7 +332,16 @@ export function MyaJourneyCard({ data = {}, actions, onAction }) {
  */
 export function MyaChoiceGroup({ data = {}, actions, onAction }) {
   const prompt = data.prompt || data.question || data.title;
-  const raw = arr(data.options).length ? arr(data.options) : arr(data.replies);
+  const raw =
+    arr(data.options).length
+      ? arr(data.options)
+      : arr(data.replies).length
+      ? arr(data.replies)
+      : arr(data.suggestions).length
+      ? arr(data.suggestions)
+      : arr(data.items).length
+      ? arr(data.items)
+      : arr(data.choices);
   const options = raw.length ? raw : arr(actions);
 
   if (options.length === 0) return null;
@@ -312,14 +351,25 @@ export function MyaChoiceGroup({ data = {}, actions, onAction }) {
       {!!prompt && <Text style={styles.choicePrompt}>{prompt}</Text>}
       <View style={styles.choiceRow}>
         {options.map((o, i) => {
-          const label = typeof o === 'string' ? o : o.label || o.title || '';
+          const label =
+            typeof o === 'string'
+              ? o
+              : o?.label || o?.title || o?.text || o?.message || o?.value || '';
           if (!label) return null;
-          const payload = typeof o === 'string' ? o : o.payload || o.value || o.label;
-          const type = (typeof o === 'object' && o.type) || 'choice_selected';
+          const rawPayload =
+            typeof o === 'string'
+              ? o
+              : o?.payload ?? o?.prompt ?? o?.value ?? o?.message ?? o?.text ?? o?.label ?? label;
+          const payload =
+            typeof rawPayload === 'string'
+              ? rawPayload
+              : rawPayload?.prompt || rawPayload?.text || rawPayload?.message || rawPayload?.value || label;
+          const type = (typeof o === 'object' && o?.type) || 'choice_selected';
           return (
             <TouchableOpacity
-              key={(typeof o === 'object' && o.id) || `opt-${i}`}
+              key={(typeof o === 'object' && o?.id) || `opt-${i}`}
               style={styles.choiceChip}
+              activeOpacity={0.72}
               onPress={() => onAction && onAction({ type, label, payload })}
               accessibilityRole="button"
               accessibilityLabel={label}
@@ -467,6 +517,8 @@ export function MyaMediaCard({ data = {}, actions, onAction }) {
     subcategory,
     imageUrl,
     image,
+    thumbnailUrl,
+    thumbnail_url,
     sourceUrl,
     source_url,
     hairType,
@@ -481,7 +533,25 @@ export function MyaMediaCard({ data = {}, actions, onAction }) {
   } = data;
 
   const resolvedTitle = title || heading || 'Visual Strand Reference';
-  const resolvedImage = imageUrl || image || data.image_url || data.url || sourceUrl || source_url;
+  const primaryCandidate =
+    thumbnailUrl ||
+    thumbnail_url ||
+    imageUrl ||
+    image ||
+    data.image_url ||
+    data.url ||
+    sourceUrl ||
+    source_url;
+  const fallbackCandidate = sourceUrl || source_url || imageUrl || image;
+
+  const [useFallbackUri, setUseFallbackUri] = React.useState(false);
+  const [imgFailed, setImgFailed] = React.useState(false);
+
+  const activeUri = normalizeMediaImageUri(
+    useFallbackUri && fallbackCandidate ? fallbackCandidate : primaryCandidate
+  );
+  const imageSource = buildImageSource(activeUri);
+
   const resolvedHairType = hairType || hair_attributes?.type;
   const resolvedCaption = caption || description;
   const resolvedNotes = educationalNotes || educational_notes;
@@ -496,11 +566,18 @@ export function MyaMediaCard({ data = {}, actions, onAction }) {
 
   return (
     <CardShell eyebrow={eyebrow} icon="camera-outline">
-      {!!resolvedImage && (
+      {!!imageSource && !imgFailed && (
         <Image
-          source={{ uri: resolvedImage }}
+          source={imageSource}
           style={styles.hero}
           resizeMode="cover"
+          onError={() => {
+            if (!useFallbackUri && fallbackCandidate && fallbackCandidate !== primaryCandidate) {
+              setUseFallbackUri(true);
+            } else {
+              setImgFailed(true);
+            }
+          }}
         />
       )}
       <CardTitle>{resolvedTitle}</CardTitle>

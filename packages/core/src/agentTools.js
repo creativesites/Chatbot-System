@@ -583,77 +583,100 @@ const getWeatherForecast = ai.defineTool(
 
 /**
  * Real Community Activity Tool (TASK_MSDK_008)
- * Queries real social_posts from the central SQLite db
- * and returns them as a rich-message community_post block!
+ *
+ * This used to query `social_posts` in CreativeSites-Ai-Team/data/myaos.db -
+ * that database is the internal agent team's own coordination/watercooler
+ * store (see that repo's CLAUDE.md), not a member-facing feature. A member
+ * asking "what's the community talking about" was at real risk of being shown
+ * the dev team's internal chatter, captioned with a hardcoded, fabricated
+ * "14 likes, 3 comments" that had no relationship to anything real - on the
+ * literal success path, not just the error fallback.
+ *
+ * The real Hair Journey community already exists and already works: the
+ * mobile app's own community feed screen
+ * (MyAvana_FrontEnd_RN/src/containers/MyaCommunityScreen.js) reads and writes
+ * it at https://myhairjourney.ai/wp-json/myavana/v1/community/*. This tool
+ * now reads the same public feed endpoint, so a post Mya surfaces in chat is
+ * the same real post, with the same real counts, a member would see on the
+ * Community tab.
  */
-const { execFileSync } = require('child_process');
-const path = require('path');
-const DB_PATH = path.resolve(__dirname, '../../../../CreativeSites-Ai-Team/data/myaos.db');
+const COMMUNITY_FEED_URL = 'https://myhairjourney.ai/wp-json/myavana/v1/community/feed';
+const COMMUNITY_FEED_TIMEOUT_MS = 4000;
 
-function queryDb(sql) {
-  try {
-    const stdout = execFileSync('sqlite3', ['-json', DB_PATH, sql], { encoding: 'utf8' }).trim();
-    return stdout ? JSON.parse(stdout) : [];
-  } catch (e) {
-    console.error('getCommunityPost queryDb error:', e.message);
-    return [];
-  }
+/**
+ * @param {string} query optional keyword filter
+ * @param {Function} [fetchImpl] fetch-compatible function, for tests
+ * @returns {Promise<object|null>} the best-matching real post, or null
+ */
+async function fetchCommunityPost(query, fetchImpl = globalThis.fetch) {
+    if (typeof fetchImpl !== 'function') return null;
+
+    const signal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+        ? AbortSignal.timeout(COMMUNITY_FEED_TIMEOUT_MS)
+        : undefined;
+    const res = await fetchImpl(`${COMMUNITY_FEED_URL}?_t=${Date.now()}`, {
+        headers: { 'Content-Type': 'application/json' },
+        signal,
+    });
+    if (!res || !res.ok) throw new Error(`community feed HTTP ${res ? res.status : 'no response'}`);
+
+    const data = await res.json();
+    const items = data?.data?.items || data?.items || data?.posts
+        || (Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []));
+    if (!Array.isArray(items) || items.length === 0) return null;
+
+    const needle = (query || '').trim().toLowerCase();
+    const match = needle
+        ? items.find((p) => String(p.content || p.title || '').toLowerCase().includes(needle))
+        : null;
+    return match || items[0];
 }
 
 const getCommunityPost = ai.defineTool(
     {
         name: 'getCommunityPost',
         description:
-            'Search and retrieve contextually relevant Myavana community updates or watercooler discussions. ' +
-            'Call this when the user asks about the community, watercooler discussions, social posts, what others are saying, ' +
-            'or when a peer discussion adds valuable hair-journey perspective.',
+            'Search and retrieve a real, current Hair Journey community post - the same feed members see on the ' +
+            'Community tab. Call this when the user asks about the community, what others are saying, or when a ' +
+            'peer post adds valuable hair-journey perspective.',
         inputSchema: z.object({
-            query: z.string().optional().describe('Keywords to filter community discussions (e.g. "routines", "outage", "analysis").'),
+            query: z.string().optional().describe('Keywords to filter community posts (e.g. "routines", "wash day", "analysis").'),
         }),
         outputSchema: z.object({
-            id: z.number(),
+            id: z.union([z.number(), z.string()]),
             author: z.string(),
-            channel: z.string(),
             content: z.string(),
             timestamp: z.string(),
             likesCount: z.number(),
             commentsCount: z.number(),
+            message: z.string().optional(),
         }).passthrough(),
     },
     async ({ query = '' }) => {
         try {
-            let sql = `SELECT * FROM social_posts`;
-            if (query) {
-                sql += ` WHERE content LIKE '%' || '${query.replace(/'/g, "''")}' || '%'`;
-            }
-            sql += ` ORDER BY ts DESC LIMIT 1`;
-            
-            const rows = queryDb(sql);
-            const row = rows[0] || queryDb(`SELECT * FROM social_posts ORDER BY ts DESC LIMIT 1`)[0];
-            
-            if (!row) {
-                throw new Error('No community posts found');
+            const post = await fetchCommunityPost(query);
+            if (!post) {
+                return {
+                    id: 0, author: '', content: '', timestamp: '', likesCount: 0, commentsCount: 0,
+                    message: 'No community posts are available right now.',
+                };
             }
 
             return {
-                id: row.id,
-                author: row.author_identity || 'Anonymous',
-                channel: row.channel || 'watercooler',
-                content: row.content,
-                timestamp: row.ts,
-                likesCount: 14,
-                commentsCount: 3,
+                id: post.id,
+                author: post.authorName || post.author_name || post.author || 'MYAVANA Member',
+                content: post.content,
+                timestamp: post.createdAt || post.created_at || new Date().toISOString(),
+                likesCount: post.likeCount ?? post.like_count ?? post.likes ?? 0,
+                commentsCount: post.commentCount ?? post.comment_count ?? post.comments_count ?? 0,
+                imageUrl: post.mediaUrl || (post.media_urls && post.media_urls[0]) || post.image_url || post.imageUrl,
+                hairType: post.hairType || post.hair_type,
             };
         } catch (err) {
             console.error('getCommunityPost tool error:', err.message);
             return {
-                id: 1,
-                author: 'Candace (CEO)',
-                channel: 'announcements',
-                content: 'Welcome to the MYAVANA Hair Journey community! Connect with other curl scientists and share your progress here.',
-                timestamp: new Date().toISOString(),
-                likesCount: 120,
-                commentsCount: 18,
+                id: 0, author: '', content: '', timestamp: '', likesCount: 0, commentsCount: 0,
+                message: 'Unable to reach the community feed right now.',
             };
         }
     }

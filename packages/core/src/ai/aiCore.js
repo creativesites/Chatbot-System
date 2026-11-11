@@ -370,8 +370,12 @@ class AiCore {
                 const text = res.text || '';
                 let output = text;
 
-                // Try parsing JSON if output looks like JSON (e.g. Kommunicate payload or JSON blocks)
-                const trimmed = text.trim();
+                // Try parsing JSON if output looks like JSON or markdown-fenced JSON (e.g. Kommunicate payload or JSON blocks)
+                let trimmed = text.trim();
+                const fenceMatch = trimmed.match(/^```(?:json|mya-blocks|mya|blocks)?\s*([\s\S]*?)```$/i);
+                if (fenceMatch && fenceMatch[1]) {
+                    trimmed = fenceMatch[1].trim();
+                }
                 if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
                     try {
                         output = JSON.parse(trimmed);

@@ -26,9 +26,16 @@ class ExperienceContextService {
       };
     }
 
+    const resolvedPage =
+      rawContext.page ||
+      rawContext.route ||
+      rawContext.screen ||
+      (rawContext.screenContext && (rawContext.screenContext.page || rawContext.screenContext.screen)) ||
+      '/';
+
     return {
       surface: String(rawContext.surface || 'myhairjourney.ai'),
-      page: String(rawContext.page || '/'),
+      page: String(resolvedPage),
       entity: rawContext.entity || null,
       state: rawContext.state || null,
       userName: rawContext.userName || rawContext.firstName || null,
@@ -77,7 +84,7 @@ class ExperienceContextService {
     const pageLower = norm.page.toLowerCase();
     if (pageLower.includes('goal')) {
       contextualHint = 'The user is actively viewing their Hair Goals. Frame advice around their active targets and length retention.';
-    } else if (pageLower.includes('routine')) {
+    } else if (pageLower.includes('routine') || pageLower.includes('regime')) {
       contextualHint = 'The user is actively reviewing their Hair Care Routine / Wash Day steps. Frame advice around regimen consistency.';
     } else if (pageLower.includes('today')) {
       contextualHint = 'The user is on the Today Hub checking daily habits. Offer quick encouragement and checklist guidance.';

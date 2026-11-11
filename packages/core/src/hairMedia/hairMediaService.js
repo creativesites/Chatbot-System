@@ -209,13 +209,21 @@ const HairMediaService = {
    */
   isVerifiedImageUrl(url) {
     if (!url || typeof url !== 'string') return false;
-    const clean = url.trim().toLowerCase();
+    const clean = url
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\/thumb\.wikimedia\.org\//, 'https://upload.wikimedia.org/');
     if (!clean) return false;
-    return loadCatalog().some(
-      (a) =>
-        (a.source_url && String(a.source_url).trim().toLowerCase() === clean) ||
-        (a.thumbnail_url && String(a.thumbnail_url).trim().toLowerCase() === clean)
-    );
+    return loadCatalog().some((a) => {
+      const src = a.source_url ? String(a.source_url).trim().toLowerCase() : '';
+      const thumb = a.thumbnail_url
+        ? String(a.thumbnail_url)
+            .trim()
+            .toLowerCase()
+            .replace(/^https?:\/\/thumb\.wikimedia\.org\//, 'https://upload.wikimedia.org/')
+        : '';
+      return src === clean || thumb === clean;
+    });
   },
 
   /**
@@ -244,6 +252,9 @@ const HairMediaService = {
    */
   formatMediaBlock(asset, blockType = 'media_card') {
     if (!asset) return null;
+    const normalizedThumb = asset.thumbnail_url
+      ? String(asset.thumbnail_url).replace(/^https?:\/\/thumb\.wikimedia\.org\//i, 'https://upload.wikimedia.org/')
+      : null;
     return {
       id: `block_${asset.id}`,
       type: blockType,
@@ -252,7 +263,8 @@ const HairMediaService = {
         title: asset.title,
         category: asset.category,
         subcategory: asset.subcategory,
-        imageUrl: asset.source_url,
+        imageUrl: normalizedThumb || asset.source_url,
+        thumbnailUrl: normalizedThumb || asset.source_url,
         sourceUrl: asset.source_url,
         pageUrl: asset.page_url,
         resolution: asset.resolution,

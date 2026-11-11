@@ -27,6 +27,23 @@ require('dotenv').config();
 // Helper functions
 function cleanKommunicateResponse(jsonObj) {
     try {
+        if (typeof jsonObj === 'string') {
+            let trimmed = jsonObj.trim();
+            const fenceMatch = trimmed.match(/^```(?:json|mya-blocks|mya|blocks)?\s*([\s\S]*?)```$/i);
+            if (fenceMatch && fenceMatch[1]) {
+                trimmed = fenceMatch[1].trim();
+            }
+            if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+                try {
+                    jsonObj = JSON.parse(trimmed);
+                } catch {
+                    return [{ message: stripBlocksFence(jsonObj) || jsonObj }];
+                }
+            } else {
+                return [{ message: stripBlocksFence(jsonObj) || jsonObj }];
+            }
+        }
+
         if (!Array.isArray(jsonObj)) {
             jsonObj = [jsonObj];
         }
@@ -35,18 +52,22 @@ function cleanKommunicateResponse(jsonObj) {
             if (Array.isArray(item)) {
                 return cleanKommunicateResponse(item);
             }
-            
-            if (item.platform === "kommunicate") {
-                delete item.platform;
+            if (typeof item === 'string') {
+                return [{ message: stripBlocksFence(item) || item }];
             }
-            
-            return item;
+            if (item && typeof item === 'object') {
+                if (item.platform === "kommunicate") {
+                    delete item.platform;
+                }
+                return item;
+            }
+            return [];
         });
         
-        return cleanedList;
+        return cleanedList.length > 0 ? cleanedList : [{ message: "I'm here to help with your hair journey! What can I assist you with today?" }];
     } catch (error) {
         console.error("Error parsing AI response JSON:", error);
-        return jsonObj;
+        return typeof jsonObj === 'string' ? [{ message: jsonObj }] : jsonObj;
     }
 }
 
@@ -477,7 +498,36 @@ class MyavanaChatbotServer {
             }
             try {
                 const history = await core.getConversationHistory(conversationId, String(userId));
-                return res.json({ success: true, conversationId, chatHistory: history || [] });
+                const serviceCatalog = await loadServiceCatalog().catch(() => null);
+                const normalizedHistory = (Array.isArray(history) ? history : []).map((turn) => {
+                    if (!turn || typeof turn !== 'object') return turn;
+                    const role = turn.role || 'assistant';
+                    const rawContent = turn.content ?? turn.message ?? '';
+                    if (role === 'user') {
+                        const cleanUserText = typeof rawContent === 'string'
+                            ? rawContent.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*-\s*User Said:\s*/i, '').trim()
+                            : String(rawContent || '');
+                        return { ...turn, role: 'user', content: cleanUserText };
+                    }
+                    // Assistant turn: deserialize any fenced ```mya-blocks or JSON payload so clients receive
+                    // clean prose in `content` and structured rich components in `blocks` / `actions`.
+                    const parsed = parseModelOutput(rawContent);
+                    const blocks = (parsed.blocks || [])
+                        .filter((b) => b && b.type !== 'text')
+                        .map((b) => sanitizeBlock(decodeBlockText(b), serviceCatalog, null))
+                        .filter(Boolean);
+                    const existingBlocks = Array.isArray(turn.blocks) ? turn.blocks : [];
+                    return {
+                        ...turn,
+                        role: 'assistant',
+                        content: parsed.text || stripBlocksFence(typeof rawContent === 'string' ? rawContent : ''),
+                        blocks: existingBlocks.length > 0 ? existingBlocks : blocks,
+                        actions: Array.isArray(turn.actions) && turn.actions.length > 0
+                            ? turn.actions
+                            : (parsed.quickReplies || []),
+                    };
+                });
+                return res.json({ success: true, conversationId, chatHistory: normalizedHistory });
             } catch (err) {
                 console.error('Error fetching conversation history:', err);
                 return res.status(500).json({ error: true, message: err.message });
@@ -768,6 +818,47 @@ class MyavanaChatbotServer {
     }
 
     /**
+     * Deterministic, zero-LLM signal extractor for hair profile & reported issues
+     * so essential user profile, issue, and persona updates still happen when
+     * background LLM post-processing is disabled to protect API quota.
+     */
+    extractDeterministicSignals(message) {
+        const text = typeof message === 'string' ? message : '';
+        const profileUpdates = {};
+        const reportedIssues = [];
+        if (!text.trim()) {
+            return { profileUpdates, reportedIssues };
+        }
+
+        const typeMatch = text.match(/\b([1-4][a-cA-C])\b/);
+        if (typeMatch) {
+            profileUpdates.hair_type = typeMatch[1].toUpperCase();
+        }
+        const porosityMatch = text.match(/\b(low|medium|normal|high)\s+porosity\b/i);
+        if (porosityMatch) {
+            profileUpdates.porosity = porosityMatch[1].toLowerCase();
+        }
+
+        const issuePatterns = [
+            { label: 'breakage', re: /\bbreakage|breaking\b/i },
+            { label: 'dryness', re: /\bdry(?:ness)?|brittle|dehydrated\b/i },
+            { label: 'shedding', re: /\bshedding\b/i },
+            { label: 'split ends', re: /\bsplit\s+ends\b/i },
+            { label: 'dandruff', re: /\bdandruff|flak(?:es|y|ing)\b/i },
+            { label: 'itchy scalp', re: /\bitch(?:y|ing)\s+scalp\b/i },
+            { label: 'frizz', re: /\bfrizz(?:y)?\b/i },
+            { label: 'thinning', re: /\bthinning|hair\s+loss|balding|edges\s+thinning\b/i },
+            { label: 'heat damage', re: /\bheat\s+damage\b/i },
+        ];
+        for (const { label, re } of issuePatterns) {
+            if (re.test(text)) {
+                reportedIssues.push(label);
+            }
+        }
+        return { profileUpdates, reportedIssues };
+    }
+
+    /**
      * Shared post-processing after a turn's response has been sent: updates
      * conversation history, extracts hair issues/profile updates, and extracts
      * durable Local Agent Memory facts. Non-blocking — call via setImmediate.
@@ -786,11 +877,45 @@ class MyavanaChatbotServer {
             chatHistory.push({ role: 'user', content: timestampedUserSaid });
             chatHistory.push({ role: 'assistant', content: aiOutput });
 
-            const postProcessData = await core.postProcessConversation(chatHistory, message);
-            await core.postResponseProcessing(postProcessData, userId, aiOutput, allchatsSummary, conversationId, chatHistory, JSON.stringify(aiOutput));
+            // 1. Always persist conversation history, deterministic title/summary, and Redis summary cache
+            // (zero extra LLM calls, protecting API quota).
+            await core.saveConversation(conversationId, userId, chatHistory, allchatsSummary);
 
-            // Local Agent Memory extraction — independent of the rest of post-processing
-            await core.extractAndStoreMemories(userId, conversationId, chatHistory);
+            // 2. Optional full LLM extraction (disabled by default to avoid 4x extra LLM quota burn per message)
+            if (process.env.ENABLE_LLM_POST_PROCESSING === 'true') {
+                const postProcessData = await core.postProcessConversation(chatHistory, message);
+                await core.postResponseProcessing(postProcessData, userId, aiOutput, allchatsSummary, conversationId, chatHistory, JSON.stringify(aiOutput));
+                await core.extractAndStoreMemories(userId, conversationId, chatHistory);
+            } else {
+                // Deterministic zero-LLM path: preserve profile updates, hair issues, and persona classification
+                const { profileUpdates, reportedIssues } = this.extractDeterministicSignals(message);
+                if (Object.keys(profileUpdates).length > 0 && typeof core.updateUserProfile === 'function') {
+                    try {
+                        await core.updateUserProfile(userId, profileUpdates);
+                    } catch (profErr) {
+                        console.warn('Deterministic profile update skipped:', profErr.message);
+                    }
+                }
+                if (reportedIssues.length > 0 && typeof core.saveHairIssue === 'function') {
+                    for (const issue of reportedIssues) {
+                        try {
+                            await core.saveHairIssue(userId, issue, typeof aiOutput === 'string' ? aiOutput : JSON.stringify(aiOutput));
+                        } catch (issueErr) {
+                            console.warn('Deterministic hair issue save skipped:', issueErr.message);
+                        }
+                    }
+                }
+                if (core.personaClassifier && typeof core.personaClassifier.classifyAndSavePersona === 'function') {
+                    try {
+                        await core.personaClassifier.classifyAndSavePersona(userId, {
+                            profileUpdates,
+                            chatHistory,
+                        });
+                    } catch (personaErr) {
+                        console.warn('Deterministic persona classification skipped:', personaErr.message);
+                    }
+                }
+            }
 
             console.log('✅ Post-processing completed successfully!');
         } catch (postProcessError) {
@@ -1012,14 +1137,14 @@ class MyavanaChatbotServer {
                 return res.end();
             }
 
-            const [allchatsSummary, userInfo, session] = await Promise.all([
+            const [allchatsSummary, userInfo, session, rawHistory] = await Promise.all([
                 core.getAllConversationsSummary(userId),
                 core.getUserDetails(userId),
                 core.ai.loadSession(userId, { store: new core.DatabaseSessionStore() }),
+                core.getConversationHistory(conversationId, userId),
             ]);
 
-            let chatHistory = await core.getConversationHistory(conversationId, userId);
-            if (!Array.isArray(chatHistory)) chatHistory = [];
+            let chatHistory = Array.isArray(rawHistory) ? rawHistory : [];
 
             // Photos: the widget sends them inline as data: URLs, the mobile SDK
             // as https links. Up to four go to the model with the message - see
@@ -1041,7 +1166,27 @@ class MyavanaChatbotServer {
             // guards cannot be bypassed by a new emission site. Quick replies
             // are held back and sent last by finishBlocks, so a server-added
             // store card lands above the reply pills rather than below them.
-            const turnBlocks = { productCards: 0, storeLink: false, heldQuickReplies: null };
+            const turnBlocks = {
+                productCards: 0,
+                storeLink: false,
+                heldQuickReplies: null,
+                emittedSignatures: new Set(),
+            };
+
+            const getBlockSignatures = (block) => {
+                if (!block) return [];
+                const sigs = [];
+                const type = block.type || '';
+                const data = block.data || {};
+                if (block.id) sigs.push(`id:${block.id}`);
+                if (data.id !== undefined && data.id !== null) sigs.push(`${type}:dataId:${data.id}`);
+                const title = String(data.title || data.heading || data.name || data.label || '').trim().toLowerCase();
+                if (title) sigs.push(`${type}:title:${title}`);
+                const notes = String(data.notes || data.summary || data.description || data.caption || data.text || '').trim().toLowerCase().slice(0, 60);
+                if (notes) sigs.push(`${type}:notes:${notes}`);
+                return sigs;
+            };
+
             const emitBlock = (block) => {
                 const safe = sanitizeBlock(decodeBlockText(block), serviceCatalog, shownProductKeys);
                 if (!safe) return;
@@ -1049,6 +1194,17 @@ class MyavanaChatbotServer {
                     turnBlocks.heldQuickReplies = safe;
                     return;
                 }
+
+                // Prevent duplicate blocks within the same turn (e.g. tool block + model synthesized block)
+                const sigs = getBlockSignatures(safe);
+                if (sigs.length > 0 && sigs.some((sig) => turnBlocks.emittedSignatures.has(sig))) {
+                    console.log(`🛡️ Suppressed duplicate block in stream: type=${safe.type}`);
+                    return;
+                }
+                for (const sig of sigs) {
+                    turnBlocks.emittedSignatures.add(sig);
+                }
+
                 if (PRODUCT_BLOCK_TYPES.has(safe.type)) turnBlocks.productCards += 1;
                 if (safe.type === 'navigation' && safe.data?.url === STORE_URL) turnBlocks.storeLink = true;
                 res.write(encodeFrame(createBlockFrame(safe)));

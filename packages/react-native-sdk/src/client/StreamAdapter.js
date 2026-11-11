@@ -149,7 +149,14 @@ async function streamFetch(url, options = {}, callbacks = {}) {
 
   const isReactNative =
     (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') ||
-    (typeof globalThis !== 'undefined' && Boolean(globalThis.__fbBatchedBridge || globalThis.nativeCallSyncHook));
+    (typeof globalThis !== 'undefined' &&
+      Boolean(
+        globalThis.__fbBatchedBridge ||
+          globalThis.nativeCallSyncHook ||
+          globalThis.HermesInternal ||
+          globalThis.RN$Bridgeless ||
+          globalThis.__turboModuleProxy
+      ));
 
   // In React Native, fetch polyfill does not support streaming ReadableStream bodies.
   // When options.fetchFn is not explicitly provided, use XMLHttpRequest directly for on-device streaming
@@ -244,12 +251,19 @@ async function streamFetch(url, options = {}, callbacks = {}) {
         });
       }
 
-      xhr.onprogress = () => {
+      const drainIncremental = () => {
         const text = xhr.responseText || '';
         if (text.length > processedIndex) {
           const chunk = text.substring(processedIndex);
           processedIndex = text.length;
           parser.feed(chunk);
+        }
+      };
+
+      xhr.onprogress = drainIncremental;
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === 3) {
+          drainIncremental();
         }
       };
 

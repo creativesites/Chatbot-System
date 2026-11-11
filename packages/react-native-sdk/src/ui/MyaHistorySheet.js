@@ -53,11 +53,37 @@ function formatGroupDate(dateStr) {
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
+function cleanPreviewText(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  let text = raw
+    .replace(/^\s*\d{4}-\d{2}-\d{2}T[^\s]+\s*-\s*User(?:\s*\(Voice\))?(?:\s*Said)?:\s*/i, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/```[\s\S]*$/g, '')
+    .trim();
+  if ((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        const msg = parsed.find((p) => p && typeof p.message === 'string' && p.message.trim());
+        if (msg) text = msg.message.trim();
+      } else if (parsed && typeof parsed === 'object') {
+        if (typeof parsed.text === 'string') text = parsed.text.trim();
+        else if (typeof parsed.message === 'string') text = parsed.message.trim();
+        else if (Array.isArray(parsed.blocks)) {
+          const tb = parsed.blocks.find((b) => b && (b.type === 'text' || b.type === 'markdown'));
+          text = tb?.data?.text || tb?.data?.content || '';
+        }
+      }
+    } catch {}
+  }
+  return text.replace(/[#*_`]/g, '').trim();
+}
+
 export function deriveTopicTitle(item) {
   if (item.title && item.title !== 'Hair Discussion' && item.title !== 'New Conversation' && !item.title.toLowerCase().startsWith('conversation')) {
     return item.title;
   }
-  const text = item.summary || item.preview || item.lastMessage || '';
+  const text = cleanPreviewText(item.summary || item.preview || item.lastMessage || '');
   if (!text) return 'Hair Care Consultation';
 
   const lower = text.toLowerCase();
@@ -82,11 +108,10 @@ export function deriveTopicTitle(item) {
 
 export function deriveTopicSummary(item) {
   const title = deriveTopicTitle(item);
-  let summary = item.summary || item.preview || item.lastMessage || '';
+  const summary = cleanPreviewText(item.summary || item.preview || item.lastMessage || '');
   if (!summary || summary === title) {
     return 'Detailed regimen, custom product picks & expert guidance tailored for your hair texture.';
   }
-  summary = summary.replace(/```[\s\S]*?```/g, '').replace(/[#*_`]/g, '').trim();
   return summary.length > 95 ? summary.slice(0, 92) + '...' : summary;
 }
 

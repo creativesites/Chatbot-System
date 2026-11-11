@@ -30,7 +30,7 @@ export const PRESS_SCALE = 0.97;
 export const PRESENCE = Object.freeze({ breatheScale: 1.04, breatheMs: 1600, ringMs: 1300 });
 
 /** Word pacing for streamed replies (see inkPacing). */
-export const PACING = Object.freeze({ tickMs: 32, maxBacklogWords: 12, flushMs: 280 });
+export const PACING = Object.freeze({ tickMs: 24, maxBacklogWords: 5, flushMs: 120 });
 
 export function springConfig(name) {
   return MyaSprings[name] || MyaSprings.gentle;

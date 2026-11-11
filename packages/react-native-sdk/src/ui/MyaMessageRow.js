@@ -23,6 +23,7 @@ import { errorCopy } from '../client/errors';
 import MyaThinkingDots from './MyaThinkingDots';
 import MyaLoadingDistraction from './MyaLoadingDistraction';
 import MyaRichBlock from './rich/MyaRichBlock';
+import { buildImageSource } from './rich/cards';
 import MyaMarkdown from './MyaMarkdown';
 import { MyaColors, MyaFonts, MyaType, MyaRadii, MyaShadow } from './myaTheme';
 
@@ -275,11 +276,12 @@ function MyaMessageRow({
       <Animated.View style={styles.userWrap} entering={justSent ? sendEntering() : undefined}>
         {attachments.map((a, i) => {
           const uri = typeof a === 'string' ? a : (a?.uri || a?.url || a?.imageUrl || a?.image_url);
-          if (!uri) return null;
+          const src = buildImageSource(uri);
+          if (!src) return null;
           return (
             <Image
               key={a?.id || uri || `ua-${i}`}
-              source={{ uri }}
+              source={src}
               style={styles.userAttachment}
               resizeMode="cover"
             />
@@ -327,11 +329,12 @@ function MyaMessageRow({
         const uri = typeof a === 'string'
           ? a
           : (a?.uri || a?.url || a?.imageUrl || a?.image_url || a?.source_url || a?.sourceUrl);
-        if (!uri) return null;
+        const src = buildImageSource(uri);
+        if (!src) return null;
         return (
           <Image
             key={a?.id || uri || `aa-${i}`}
-            source={{ uri }}
+            source={src}
             style={styles.assistantAttachment}
             resizeMode="cover"
           />
@@ -341,14 +344,14 @@ function MyaMessageRow({
       {/* Render top-level message image if present and not in attachments */}
       {(() => {
         const topLevelImg = message.imageUrl || message.image_url || message.image;
+        const src = buildImageSource(topLevelImg);
         if (
-          topLevelImg &&
-          typeof topLevelImg === 'string' &&
+          src &&
           !attachments.some((a) => (typeof a === 'string' ? a : (a?.uri || a?.url)) === topLevelImg)
         ) {
           return (
             <Image
-              source={{ uri: topLevelImg }}
+              source={src}
               style={styles.assistantAttachment}
               resizeMode="cover"
             />
@@ -411,6 +414,15 @@ function MyaMessageRow({
 }
 
 export default memo(MyaMessageRow, (prev, next) => {
+  if (
+    prev.onRetry !== next.onRetry ||
+    prev.onQuickReply !== next.onQuickReply ||
+    prev.onBlockAction !== next.onBlockAction ||
+    prev.showLabel !== next.showLabel
+  ) {
+    return false;
+  }
+  if (prev.message === next.message) return true;
   const a = prev.message || {};
   const b = next.message || {};
   if (
@@ -429,6 +441,7 @@ export default memo(MyaMessageRow, (prev, next) => {
   const bBlocks = b.blocks || [];
   if (aBlocks.length !== bBlocks.length) return false;
   for (let i = 0; i < aBlocks.length; i++) {
+    if (aBlocks[i] === bBlocks[i]) continue;
     if (
       aBlocks[i].id !== bBlocks[i].id ||
       JSON.stringify(aBlocks[i].data) !== JSON.stringify(bBlocks[i].data)
@@ -439,6 +452,10 @@ export default memo(MyaMessageRow, (prev, next) => {
   const aActions = a.actions || [];
   const bActions = b.actions || [];
   if (aActions.length !== bActions.length) return false;
+  const aAtt = a.attachments || [];
+  const bAtt = b.attachments || [];
+  if (aAtt.length !== bAtt.length) return false;
+  for (let i = 0; i < aAtt.length; i++) if (aAtt[i] !== bAtt[i]) return false;
   return true;
 });
 

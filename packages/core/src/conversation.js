@@ -120,6 +120,13 @@ const saveConversation = async (conversationId, userId, chatHistory, summary) =>
         conversationId, userId, JSON.stringify(chatHistory), effectiveSummary, title
     ]);
     await redisClient.set(`conversation:${conversationId}`, JSON.stringify({ chatHistory: chatHistory }));
+    if (userId && effectiveSummary && !isPlaceholderSummary(effectiveSummary)) {
+        try {
+            await redisClient.set(`summary:${userId}`, effectiveSummary, { EX: 3600 });
+        } catch (summaryCacheErr) {
+            console.warn('Non-fatal error caching user summary in Redis:', summaryCacheErr.message);
+        }
+    }
     return res.rows[0];
 };
 

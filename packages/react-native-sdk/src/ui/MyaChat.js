@@ -54,6 +54,7 @@ import { SDK_VERSION } from '../telemetry/deviceTelemetry';
 
 import { useMyaChat } from '../hooks/useMyaChat';
 import { normalizeAttachments } from '../client/attachments';
+import { deserializeHistoryMessage } from '../client/MyaMobileClient';
 
 function sameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -361,7 +362,9 @@ function MyaChatInner({
       setDraft('');
       setAttachments([]);
 
-      await refreshEntitlements();
+      // Refresh entitlements asynchronously so tapping Send or a Quick Reply
+      // renders the user bubble and starts streaming immediately (0ms UI latency).
+      refreshEntitlements();
       await sendMessage(wire, context, { attachments: sentAttachments });
     },
     [attachments, activeScreen, sendMessage, getContext, refreshEntitlements]
@@ -385,15 +388,85 @@ function MyaChatInner({
 
   const handleStarter = useCallback((s) => send(s.prompt || s.label), [send]);
 
-  const handleQuickReply = useCallback((payload) => send(payload), [send]);
+  const handleQuickReply = useCallback(
+    (payload) => {
+      if (!payload) return;
+      if (typeof payload === 'string') {
+        send(payload);
+        return;
+      }
+      if (typeof payload === 'object') {
+        const text =
+          payload.prompt ||
+          payload.text ||
+          payload.message ||
+          payload.value ||
+          payload.payload ||
+          payload.label ||
+          payload.title ||
+          '';
+        if (typeof text === 'string' && text.trim()) {
+          send(text);
+        }
+      }
+    },
+    [send]
+  );
 
   const handleBlockAction = useCallback(
     (action, payload) => {
       if (!action) return;
-      const actionObj = typeof action === 'object' ? action : { type: action, payload };
-      const effectivePayload = payload !== undefined ? payload : (actionObj.payload || {});
+      if (typeof action === 'string') {
+        const handled = onBlockAction ? onBlockAction({ type: action, payload }, payload || {}) : false;
+        if (!handled) send(action);
+        return;
+      }
+      const actionObj = typeof action === 'object' ? action : { type: String(action), payload };
+      const effectivePayload = payload !== undefined ? payload : (actionObj.payload ?? {});
+      const actionType = String(actionObj.type || '').toLowerCase();
+
+      // Conversational quick suggestions / choice chips always submit a chat turn directly
+      const isConversationalReply =
+        actionType === 'choice_selected' ||
+        actionType === 'quick_reply' ||
+        actionType === 'send_message' ||
+        actionType === 'message' ||
+        actionType === 'reply' ||
+        actionType === 'prompt' ||
+        actionObj.block?.type === 'quick_replies' ||
+        actionObj.block?.type === 'confirmation';
+
+      if (isConversationalReply) {
+        const replyText =
+          typeof effectivePayload === 'string' && effectivePayload.trim()
+            ? effectivePayload
+            : effectivePayload?.prompt ||
+              effectivePayload?.text ||
+              effectivePayload?.message ||
+              effectivePayload?.value ||
+              actionObj.label ||
+              actionObj.title ||
+              '';
+        if (typeof replyText === 'string' && replyText.trim()) {
+          send(replyText);
+          return;
+        }
+      }
+
       const handled = onBlockAction ? onBlockAction(actionObj, effectivePayload) : false;
-      if (!handled && typeof action === 'string') send(action);
+      if (!handled) {
+        const fallbackText =
+          typeof effectivePayload === 'string' && effectivePayload.trim()
+            ? effectivePayload
+            : effectivePayload?.prompt ||
+              effectivePayload?.text ||
+              effectivePayload?.message ||
+              actionObj.label ||
+              '';
+        if (typeof fallbackText === 'string' && fallbackText.trim()) {
+          send(fallbackText);
+        }
+      }
     },
     [onBlockAction, send]
   );
@@ -463,12 +536,16 @@ function MyaChatInner({
   }, [restartConversation]);
 
   const data = useMemo(() => {
-    const list = (Array.isArray(messages) ? messages : []).filter(
+    const normalizedList = (Array.isArray(messages) ? messages : []).map((m) =>
+      m && !m.isStreaming && !m._deserialized ? deserializeHistoryMessage(m) : m
+    );
+    const list = normalizedList.filter(
       (m) =>
         m &&
         ((m.content && String(m.content).trim().length > 0) ||
           (m.blocks && m.blocks.length > 0) ||
           (m.attachments && m.attachments.length > 0) ||
+          m.isStreaming ||
           m.isThinking)
     );
     const decorated = list.map((m, i) => {
@@ -480,7 +557,7 @@ function MyaChatInner({
           String(list[i - 1].content || '').includes('[Photo Attached:'));
 
       let content = m.content;
-      let blocks = m.blocks ? [...m.blocks] : [];
+      const blocks = m.blocks || [];
 
       if (m.role !== 'user' && content) {
         content = filterUserSalutations(content);
@@ -501,6 +578,12 @@ function MyaChatInner({
 
   const isEmpty = data.length === 0;
 
+  const rowHandlersRef = useRef(null);
+  rowHandlersRef.current = { handleRetry, handleQuickReply, handleBlockAction };
+  const onRowRetry = useCallback((...args) => rowHandlersRef.current.handleRetry(...args), []);
+  const onRowQuickReply = useCallback((...args) => rowHandlersRef.current.handleQuickReply(...args), []);
+  const onRowBlockAction = useCallback((...args) => rowHandlersRef.current.handleBlockAction(...args), []);
+
   const renderItem = useCallback(
     ({ item }) => (
       <View style={styles.row}>
@@ -512,13 +595,13 @@ function MyaChatInner({
         <MyaMessageRow
           message={item}
           showLabel={item._showLabel}
-          onRetry={handleRetry}
-          onQuickReply={handleQuickReply}
-          onBlockAction={handleBlockAction}
+          onRetry={onRowRetry}
+          onQuickReply={onRowQuickReply}
+          onBlockAction={onRowBlockAction}
         />
       </View>
     ),
-    [handleRetry, handleQuickReply, handleBlockAction]
+    [onRowRetry, onRowQuickReply, onRowBlockAction]
   );
 
   const keyExtractor = useCallback((item) => item._key, []);

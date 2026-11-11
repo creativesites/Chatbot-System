@@ -307,7 +307,34 @@ class HairJourneyService {
    * @param {object} entry
    * @returns {object} ChatBlock
    */
-  buildJournalEntryBlock(entry) {
+  buildJournalEntryBlock(entry = {}) {
+    const rawPhotos = Array.isArray(entry.photos) ? entry.photos.filter(Boolean) : [];
+    const candidatePhotos = [
+      entry.featuredImage,
+      entry.imageUrl,
+      entry.photoUrl,
+      entry.photo,
+      ...rawPhotos,
+    ].filter((u) => typeof u === 'string' && u.trim().length > 0);
+    // Prefer durable server-hosted HTTPS URLs over local file/data URIs
+    const httpsPhoto = candidatePhotos.find((u) => /^https?:\/\//i.test(u.trim()));
+    const primaryPhoto = httpsPhoto || candidatePhotos[0] || null;
+    const photos = [...rawPhotos];
+    if (primaryPhoto && !photos.includes(primaryPhoto)) {
+      photos.unshift(primaryPhoto);
+    }
+
+    const rawMoisture =
+      entry.moistureLevel !== undefined && entry.moistureLevel !== null && entry.moistureLevel !== ''
+        ? Number(entry.moistureLevel)
+        : null;
+    const normalizedMoisture =
+      Number.isFinite(rawMoisture) && rawMoisture > 0
+        ? rawMoisture > 5
+          ? Math.max(1, Math.min(5, Math.round(rawMoisture / 2)))
+          : rawMoisture
+        : null;
+
     return {
       id: createBlockId('journal'),
       type: BlockType.JOURNAL_ENTRY,
@@ -317,10 +344,27 @@ class HairJourneyService {
         notes: entry.notes || '',
         date: entry.date || new Date().toISOString().split('T')[0],
         entryType: entry.entryType || 'quick_checkin',
-        moistureLevel: entry.moistureLevel || 4,
-        scalpState: entry.scalpState || 'Healthy',
+        moistureLevel: normalizedMoisture,
+        moisture: entry.moisture || (normalizedMoisture !== null ? `${normalizedMoisture}/5` : null),
+        scalpState: entry.scalpState || null,
         hairLength: entry.hairLength || null,
-        photos: Array.isArray(entry.photos) ? entry.photos : (entry.photoUrl ? [entry.photoUrl] : [])
+        currentMood: entry.currentMood || entry.mood || null,
+        mood: entry.mood || entry.currentMood || null,
+        guidanceNeeded: entry.guidanceNeeded || null,
+        products: Array.isArray(entry.products)
+          ? entry.products
+          : Array.isArray(entry.productsUsed)
+          ? entry.productsUsed
+          : [],
+        productsUsed: Array.isArray(entry.productsUsed)
+          ? entry.productsUsed
+          : Array.isArray(entry.products)
+          ? entry.products
+          : [],
+        featuredImage: primaryPhoto,
+        imageUrl: primaryPhoto,
+        photoUrl: primaryPhoto,
+        photos
       },
       actions: [
         {
@@ -351,11 +395,28 @@ class HairJourneyService {
   /**
    * Create a journal entry and return block
    */
-  async createJournalEntryWithBlock(myavanaUserId, entryData) {
+  async createJournalEntryWithBlock(myavanaUserId, entryData = {}) {
     const wpUserId = await this.resolveWordPressUserId(myavanaUserId);
     const result = await this.provider.createJournalEntry(wpUserId, entryData);
-    const block = this.buildJournalEntryBlock(result);
-    return { result, blocks: [block] };
+    const mergedEntry = {
+      ...entryData,
+      ...result,
+      featuredImage:
+        result?.featuredImage ||
+        result?.imageUrl ||
+        entryData?.featuredImage ||
+        entryData?.imageUrl ||
+        (Array.isArray(entryData?.photos) ? entryData.photos[0] : null) ||
+        null,
+      photos:
+        Array.isArray(result?.photos) && result.photos.length > 0
+          ? result.photos
+          : Array.isArray(entryData?.photos)
+          ? entryData.photos
+          : [],
+    };
+    const block = this.buildJournalEntryBlock(mergedEntry);
+    return { result: mergedEntry, blocks: [block] };
   }
 }
 

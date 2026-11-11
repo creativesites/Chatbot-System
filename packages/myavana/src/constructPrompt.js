@@ -4,6 +4,48 @@ const {getHairIssuesForUser} = require("myavana-bot-test-core");
 const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions, getTrainingData, buildBudgetedPromptContext, HairMediaService } = require('myavana-bot-test-core');
 
 
+const STATIC_CATALOG_TTL_MS = 10 * 60 * 1000; // 10 minutes
+let staticCatalogCache = {
+    expiresAt: 0,
+    data: null,
+    inFlight: null,
+};
+
+async function getStaticCatalogData() {
+    const now = Date.now();
+    if (staticCatalogCache.data && now < staticCatalogCache.expiresAt) {
+        return staticCatalogCache.data;
+    }
+    if (staticCatalogCache.inFlight) {
+        return staticCatalogCache.inFlight;
+    }
+    staticCatalogCache.inFlight = Promise.all([
+        getAllProducts().catch(() => []),
+        getAllFaqs().catch(() => []),
+        getAllYoutubeVideos().catch(() => []),
+        getAllTestimonials().catch(() => []),
+        getTrainingData(20).catch(() => []),
+        getAdditionalInstructions().catch(() => []),
+    ]).then(([allProducts, allFaqs, allYoutubeVideos, allTestimonials, trainingData, additionalInstructions]) => {
+        const data = {
+            allProducts: allProducts || [],
+            allFaqs: allFaqs || [],
+            allYoutubeVideos: allYoutubeVideos || [],
+            allTestimonials: allTestimonials || [],
+            trainingData: trainingData || [],
+            additionalInstructions: additionalInstructions || [],
+        };
+        staticCatalogCache.data = data;
+        staticCatalogCache.expiresAt = Date.now() + STATIC_CATALOG_TTL_MS;
+        staticCatalogCache.inFlight = null;
+        return data;
+    }).catch((err) => {
+        staticCatalogCache.inFlight = null;
+        throw err;
+    });
+    return staticCatalogCache.inFlight;
+}
+
 /**
  * Builds the full system prompt for the AI model by fetching all context data from the DB.
  * This is only called on a cache miss — the result is passed to cacheManager.getOrCreateCache().
@@ -37,91 +79,20 @@ async function constructPrompt(userId, userDetails, allConversationsSummary, onE
         console.log('📝 Processing user information...');
         const userInfo = userDetails ? JSON.stringify(userDetails) : 'New User';
         const summary = allConversationsSummary || 'No previous conversations.';
-        console.log('✅ User info processed:', {
-            userInfoLength: userInfo.length,
-            isNewUser: !userDetails,
-            summaryLength: summary.length
-        });
 
-        console.log('🔍 Fetching user hair issues...');
-        const recentHairIssues = await getHairIssuesForUser(userId);
-        const issueSummary = recentHairIssues.length > 0
-            ? `Recent Hair Issues: ${JSON.stringify(recentHairIssues)}`
-            : 'No recent hair issues reported.';
-        console.log('✅ Hair issues fetched:', {
-            issueCount: recentHairIssues.length,
-            hasIssues: recentHairIssues.length > 0,
-            issueSummaryLength: issueSummary.length
-        });
+        const [recentHairIssues, staticData] = await Promise.all([
+            getHairIssuesForUser(userId).catch(() => []),
+            getStaticCatalogData(),
+        ]);
 
-        console.log('🛍️ Fetching products/services...');
-        const allProducts = await getAllProducts();
-        const productRecommendations = allProducts.length > 0
-            ? `Myavana Services:\n${JSON.stringify(allProducts, null, 2)}`
-            : 'No services found.';
-        console.log('✅ Products fetched:', {
-            productCount: allProducts.length,
-            productsDataSize: JSON.stringify(allProducts).length,
-            hasProducts: allProducts.length > 0
-        });
-
-        console.log('❓ Fetching FAQs...');
-        const allFaqs = await getAllFaqs();
-        const faqsSummary = allFaqs.length > 0
-            ? `Myavana Responses and FAQs:\n${JSON.stringify(allFaqs, null, 2)}`
-            : 'No Myavana Responses and  FAQs found.';
-        console.log('✅ FAQs fetched:', {
-            faqCount: allFaqs.length,
-            faqsDataSize: JSON.stringify(allFaqs).length,
-            hasFaqs: allFaqs.length > 0
-        });
-
-        console.log('🎥 Fetching YouTube videos...');
-        const allYoutubeVideos = await getAllYoutubeVideos();
-        const youtubeVideosSummary = allYoutubeVideos.length > 0
-            ? `YouTube Videos:\n${JSON.stringify(allYoutubeVideos, null, 2)}`
-            : 'No YouTube videos available.';
-        console.log('✅ YouTube videos fetched:', {
-            videoCount: allYoutubeVideos.length,
-            videosDataSize: JSON.stringify(allYoutubeVideos).length,
-            hasVideos: allYoutubeVideos.length > 0
-        });
-
-        console.log('⭐ Fetching testimonials...');
-        const allTestimonials = await getAllTestimonials();
-        const testimonialsSummary = allTestimonials.length > 0
-            ? `Testimonials:\n${JSON.stringify(allTestimonials, null, 2)}`
-            : 'No testimonials available.';
-        console.log('✅ Testimonials fetched:', {
-            testimonialCount: allTestimonials.length,
-            testimonialsDataSize: JSON.stringify(allTestimonials).length,
-            hasTestimonials: allTestimonials.length > 0
-        });
-
-        
-        console.log('📚 Fetching training data...');
-        const trainingData = await getTrainingData(20);
-        const trainingDataSummary = trainingData.length > 0
-            ? `Training Data (Latest ${trainingData.length}):\n${JSON.stringify(trainingData.map(item => ({
-                title: item.title || 'Untitled',
-                sourceType: item.source_type || 'text',
-                excerpt: (item.extracted_text || '').slice(0, 1200)
-            })), null, 2)}`
-            : 'No training data available.';
-        console.log('✅ Training data fetched:', {
-            trainingCount: trainingData.length,
-            hasTraining: trainingData.length > 0
-        });
-console.log('📋 Fetching additional instructions...');
-        const additionalInstructions = await getAdditionalInstructions();
-        const instructionsSummary = additionalInstructions.length > 0
-            ? `Additional Bot Instructions:\n${JSON.stringify(additionalInstructions, null, 2)}`
-            : 'No additional bot instructions defined.';
-        console.log('✅ Additional instructions fetched:', {
-            instructionCount: additionalInstructions.length,
-            instructionsDataSize: JSON.stringify(additionalInstructions).length,
-            hasInstructions: additionalInstructions.length > 0
-        });
+        const {
+            allProducts,
+            allFaqs,
+            allYoutubeVideos,
+            allTestimonials,
+            trainingData,
+            additionalInstructions,
+        } = staticData;
 
         const dataFetchTime = Date.now() - startTime;
         console.log('⏱️ Data fetching completed in', dataFetchTime, 'ms');

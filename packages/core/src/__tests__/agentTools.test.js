@@ -219,17 +219,64 @@ describe('getWeatherForecast tool (TASK_MSDK_005)', () => {
 });
 
 describe('getCommunityPost tool (TASK_MSDK_008)', () => {
-    it('executes cleanly and retrieves the latest social post from SQLite', async () => {
-        const handler = mockCapturedHandlers['getCommunityPost'];
-        expect(handler).toBeDefined();
+    // getCommunityPost used to query CreativeSites-Ai-Team/data/myaos.db - the
+    // internal agent team's own coordination database, not a member-facing
+    // feature - and returned a hardcoded "14 likes, 3 comments" on every real
+    // post regardless of its actual engagement. It now reads the same real
+    // WordPress community feed the mobile app's own Community tab uses.
+    const realFetch = global.fetch;
+    afterEach(() => { global.fetch = realFetch; });
 
-        // Run tool and verify it returns a valid social post payload from DB or its fallback
-        const result = await handler({ query: 'watercooler' });
-        expect(result.id).toBeDefined();
-        expect(result.author).toBeDefined();
-        expect(result.content).toBeDefined();
-        expect(typeof result.likesCount).toBe('number');
-        expect(typeof result.commentsCount).toBe('number');
+    const mockFeed = (items) => {
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true, status: 200, json: async () => ({ data: { items } }),
+        });
+    };
+
+    it('returns a real post with its real engagement counts', async () => {
+        mockFeed([{
+            id: 42, authorName: 'Jasmine R.', content: 'My wash day routine finally clicked!',
+            createdAt: '2026-09-10T12:00:00Z', likeCount: 37, commentCount: 9,
+        }]);
+        const handler = mockCapturedHandlers['getCommunityPost'];
+        const result = await handler({ query: '' });
+        expect(result).toMatchObject({
+            id: 42, author: 'Jasmine R.', content: 'My wash day routine finally clicked!',
+            likesCount: 37, commentsCount: 9,
+        });
+    });
+
+    it('filters by query against real post content', async () => {
+        mockFeed([
+            { id: 1, authorName: 'A', content: 'Talking about protective styles', likeCount: 2, commentCount: 0 },
+            { id: 2, authorName: 'B', content: 'Wash day routine tips', likeCount: 5, commentCount: 1 },
+        ]);
+        const handler = mockCapturedHandlers['getCommunityPost'];
+        const result = await handler({ query: 'wash day' });
+        expect(result.id).toBe(2);
+    });
+
+    it('never fabricates a post or engagement numbers when the real feed is empty or unreachable', async () => {
+        const handler = mockCapturedHandlers['getCommunityPost'];
+
+        mockFeed([]);
+        let result = await handler({ query: '' });
+        expect(result.likesCount).toBe(0);
+        expect(result.commentsCount).toBe(0);
+        expect(result.author).toBe('');
+        expect(result.message).toBeTruthy();
+
+        global.fetch = jest.fn().mockRejectedValue(new Error('network down'));
+        result = await handler({ query: '' });
+        expect(result.likesCount).toBe(0);
+        expect(result.author).toBe('');
+        expect(result.message).toBeTruthy();
+    });
+
+    it('does not read from the internal agent-team database', () => {
+        const src = require('fs').readFileSync(require.resolve('../agentTools'), 'utf8');
+        expect(src).not.toMatch(/execFileSync/);
+        expect(src).not.toMatch(/sqlite3/);
     });
 });
 

@@ -278,6 +278,14 @@
             // Hidden — not display:none — so it animates back on close.
             '.mya-launcher.is-morphed{opacity:0;transform:scale(0.6) translateY(10px);pointer-events:none;',
             'transition:opacity 0.2s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1);}',
+            // Suppress launcher when offcanvas drawers or modal overlays are active so buttons are never blocked
+            'body.has-active-offcanvas .mya-launcher, body.offcanvas-open .mya-launcher,',
+            'body:has(.offcanvas-hjn.is-open) .mya-launcher, body:has(.offcanvas-hjn.active) .mya-launcher,',
+            'body:has(#goalOffcanvas.is-open) .mya-launcher, body:has(#routineOffcanvas.is-open) .mya-launcher,',
+            'body:has(#entryOffcanvas.is-open) .mya-launcher, body:has(#createOffcanvasOverlay.is-open) .mya-launcher{',
+            '  opacity:0!important;pointer-events:none!important;visibility:hidden!important;',
+            '  transform:scale(0.7) translateY(18px)!important;',
+            '  transition:opacity 0.2s ease, transform 0.2s ease, visibility 0.2s!important;}',
 
             // Scoped reset. This widget is embedded into arbitrary WordPress
             // themes whose global input/button rules otherwise win on
@@ -4594,7 +4602,17 @@
         card.className = 'mya-card mya-journal-card';
         var title = esc(data.title || 'Hair Diary Entry');
         var notes = esc(data.notes || data.summary || data.text || '');
-        var date = esc(data.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+        var rawDate = data.date;
+        var formattedDate = '';
+        if (rawDate) {
+            try {
+                var parsedDate = new Date(typeof rawDate === 'string' ? rawDate.replace(' ', 'T') : rawDate);
+                if (!isNaN(parsedDate.getTime())) {
+                    formattedDate = parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+            } catch (e) {}
+        }
+        var date = esc(formattedDate || (typeof rawDate === 'string' && rawDate.length <= 15 ? rawDate : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })));
         var photos = Array.isArray(data.photos) ? data.photos : (data.photo ? [data.photo] : []);
 
         var html = [
@@ -4810,8 +4828,90 @@
         scrollToBottom(state.els.stream);
     }
 
+    function getBlockSig(block) {
+        if (!block) return { type: '', id: '', dataId: '', title: '', notes: '' };
+        var type = block.type || '';
+        var data = block.data || {};
+        var id = block.id ? String(block.id) : '';
+        var dataId = data.id !== undefined && data.id !== null ? String(data.id) : '';
+        var title = String(data.title || data.heading || data.name || data.label || '').trim().toLowerCase();
+        var notes = String(data.notes || data.summary || data.description || data.caption || data.text || data.body || '').trim().toLowerCase().slice(0, 60);
+        return { type: type, id: id, dataId: dataId, title: title, notes: notes };
+    }
+
+    function isDuplicateBlockCard(block) {
+        if (!block || !state.els.stream) return false;
+        var sig = getBlockSig(block);
+        if (!sig.type) return false;
+
+        // If the block is quick replies, check if .mya-qr-row was already added in the current turn
+        if (sig.type === 'quick_replies' || sig.type === 'confirmation') {
+            var lastUserRow = state.els.stream.querySelector('.mya-msg-row.user:last-of-type');
+            var existingQr = lastUserRow
+                ? state.els.stream.querySelector('.mya-msg-row.user:last-of-type ~ .mya-qr-row')
+                : state.els.stream.querySelector('.mya-qr-row');
+            if (existingQr) return true;
+            return false;
+        }
+
+        // Within the current turn (since the last user turn):
+        var lastUserMsg = state.els.stream.querySelector('.mya-msg-row.user:last-of-type');
+        var recentCards = [];
+        if (lastUserMsg) {
+            var sibling = lastUserMsg.nextElementSibling;
+            while (sibling) {
+                if (sibling.classList && sibling.classList.contains('mya-card')) {
+                    recentCards.push(sibling);
+                }
+                sibling = sibling.nextElementSibling;
+            }
+        } else {
+            var allCards = state.els.stream.querySelectorAll('.mya-card');
+            for (var k = 0; k < allCards.length; k++) {
+                recentCards.push(allCards[k]);
+            }
+        }
+
+        for (var i = 0; i < recentCards.length; i++) {
+            var el = recentCards[i];
+            var elType = el.getAttribute('data-block-type');
+            if (!elType || elType !== sig.type) continue;
+
+            var elId = el.getAttribute('data-block-id');
+            if (sig.id && elId && sig.id === elId) return true;
+
+            var elDataId = el.getAttribute('data-block-data-id');
+            if (sig.dataId && elDataId && sig.dataId === elDataId) return true;
+
+            var elTitle = el.getAttribute('data-block-title');
+            if (sig.title && elTitle && sig.title === elTitle) return true;
+
+            var elNotes = el.getAttribute('data-block-notes');
+            if (sig.notes && elNotes && sig.notes === elNotes) return true;
+        }
+
+        return false;
+    }
+
+    function tagBlockCard(card, block) {
+        if (!card || !card.setAttribute || !block) return;
+        var sig = getBlockSig(block);
+        card.setAttribute('data-block-type', sig.type);
+        if (sig.id) card.setAttribute('data-block-id', sig.id);
+        if (sig.dataId) card.setAttribute('data-block-data-id', sig.dataId);
+        if (sig.title) card.setAttribute('data-block-title', sig.title);
+        if (sig.notes) card.setAttribute('data-block-notes', sig.notes);
+    }
+
     function renderBlock(block) {
         if (!block || !block.type) return;
+        if (isDuplicateBlockCard(block)) {
+            console.log('[Mya Widget] Suppressed duplicate card in stream:', block.type, block.data?.title || '');
+            return;
+        }
+
+        var prevLastChild = state.els.stream ? state.els.stream.lastElementChild : null;
+
         switch (block.type) {
             case 'goal_card':
             case 'goal_progress':
@@ -4863,6 +4963,11 @@
             default:
                 renderGenericCard(block);
                 break;
+        }
+
+        var newLastChild = state.els.stream ? state.els.stream.lastElementChild : null;
+        if (newLastChild && newLastChild !== prevLastChild && newLastChild.classList && newLastChild.classList.contains('mya-card')) {
+            tagBlockCard(newLastChild, block);
         }
     }
 
@@ -5340,9 +5445,15 @@
         },
         openHistory: function () { if (!state.open) togglePanel(); switchView('history'); },
         sendMessage: sendMessage,
+        renderBlock: renderBlock,
         startLiveVoice: startLiveVoice,
-        endLiveVoice: endLiveVoice,
-        openProfile: openProfileSheet
+        openProfile: openProfileSheet,
+        hideLauncher: function () {
+            if (state.els && state.els.launcher) state.els.launcher.classList.add('is-morphed');
+        },
+        showLauncher: function () {
+            if (state.els && state.els.launcher && !state.open) state.els.launcher.classList.remove('is-morphed');
+        }
     };
 
 })(window, document);

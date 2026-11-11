@@ -414,6 +414,8 @@ function MyaMessageRow({
 }
 
 export default memo(MyaMessageRow, (prev, next) => {
+  // Handlers are compared so a skipped row can never hold a stale closure
+  // (MyaChat keeps them stable, so this costs nothing in practice).
   if (
     prev.onRetry !== next.onRetry ||
     prev.onQuickReply !== next.onQuickReply ||
@@ -422,6 +424,8 @@ export default memo(MyaMessageRow, (prev, next) => {
   ) {
     return false;
   }
+  // Same message object: nothing to compare. This is the common case while a
+  // reply streams, since only the live row's object changes.
   if (prev.message === next.message) return true;
   const a = prev.message || {};
   const b = next.message || {};
@@ -441,7 +445,7 @@ export default memo(MyaMessageRow, (prev, next) => {
   const bBlocks = b.blocks || [];
   if (aBlocks.length !== bBlocks.length) return false;
   for (let i = 0; i < aBlocks.length; i++) {
-    if (aBlocks[i] === bBlocks[i]) continue;
+    if (aBlocks[i] === bBlocks[i]) continue; // same block object: no need to serialise it
     if (
       aBlocks[i].id !== bBlocks[i].id ||
       JSON.stringify(aBlocks[i].data) !== JSON.stringify(bBlocks[i].data)

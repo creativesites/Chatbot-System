@@ -11,8 +11,10 @@
  * Profiler durations are Node timings and only indicative. This is NOT a device
  * measurement - layout, image decode and the UI thread are not exercised.
  *
+ * It always runs as a regression guard; MYA_BENCH=1 prints the numbers.
  * MYA_SDK_ROOT points it at another checkout of this package (read-only), so the
- * same benchmark can be run against a different working tree.
+ * same benchmark can be run against a different working tree (expect the guards
+ * to fail on a tree without these optimisations).
  *   MYA_BENCH=1 npx jest --config jest.ui.config.js __tests__/ui/perf
  */
 const path = require('path');
@@ -21,18 +23,22 @@ const TestRenderer = require('react-test-renderer');
 
 const mockSdk = process.env.MYA_SDK_ROOT || path.resolve(__dirname, '../../..');
 const mockCounts = { markdown: 0, rich: 0 };
+// Count real renders of a component, whether or not it is wrapped in React.memo
+// (a memo keeps its comparator, so skipped renders are not counted).
+function mockCounted(Comp, name) {
+  const R = require('react');
+  const inner = Comp && Comp.type ? Comp.type : Comp;
+  function Counted(props) { mockCounts[name] += 1; return inner(props); }
+  return Comp && Comp.type ? R.memo(Counted, Comp.compare) : Counted;
+}
 
 jest.mock(require('path').join(process.env.MYA_SDK_ROOT || require('path').resolve(__dirname, '../../..'), 'src/ui/MyaMarkdown'), () => {
   const actual = jest.requireActual(require('path').join(process.env.MYA_SDK_ROOT || require('path').resolve(__dirname, '../../..'), 'src/ui/MyaMarkdown'));
-  const Real = actual.default;
-  function CountedMarkdown(props) { mockCounts.markdown += 1; return Real(props); }
-  return { __esModule: true, ...actual, default: CountedMarkdown };
+  return { __esModule: true, ...actual, default: mockCounted(actual.default, 'markdown') };
 });
 jest.mock(require('path').join(process.env.MYA_SDK_ROOT || require('path').resolve(__dirname, '../../..'), 'src/ui/rich/MyaRichBlock'), () => {
   const actual = jest.requireActual(require('path').join(process.env.MYA_SDK_ROOT || require('path').resolve(__dirname, '../../..'), 'src/ui/rich/MyaRichBlock'));
-  const Real = actual.default;
-  function CountedRich(props) { mockCounts.rich += 1; return Real(props); }
-  return { __esModule: true, ...actual, default: CountedRich };
+  return { __esModule: true, ...actual, default: mockCounted(actual.default, 'rich') };
 });
 
 const { MemoryStorageAdapter } = require(path.join(mockSdk, 'src/storage/StorageAdapter'));
@@ -41,7 +47,6 @@ const MyaChat = require(path.join(mockSdk, 'src/ui/MyaChat')).default;
 const HISTORY = 40;
 const CHUNKS = 60;
 const KEYSTROKES = 20;
-const run = process.env.MYA_BENCH ? test : test.skip;
 
 function seedHistory() {
   const msgs = [];
@@ -88,7 +93,7 @@ const flush = async (n = 4) => {
   }
 };
 
-run('thread render cost: restore, stream and type', async () => {
+test('thread render cost: restore, stream and type', async () => {
   jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
   const tick = async (ms) => { await TestRenderer.act(async () => { jest.advanceTimersByTime(ms); }); };
   const storage = new MemoryStorageAdapter();
@@ -189,9 +194,18 @@ run('thread render cost: restore, stream and type', async () => {
       ms: per(typing.ms, KEYSTROKES),
     },
   };
-  // eslint-disable-next-line no-console
-  console.log(`MYA_BENCH ${JSON.stringify(report, null, 2)}`);
+  if (process.env.MYA_BENCH) {
+    // eslint-disable-next-line no-console
+    console.log(`MYA_BENCH ${JSON.stringify(report, null, 2)}`);
+  }
   expect(restored.markdown).toBeGreaterThan(0);
+  // Regression guards. Before this work: 82.35 stringify calls and 1.02 rich-card
+  // renders per chunk. One stringify per chunk is this test encoding the frame.
+  expect(report.perStreamedChunk.jsonStringifyCalls).toBeLessThanOrEqual(1.1);
+  expect(report.perStreamedChunk.richRenders).toBeLessThan(0.1);
+  // Only the live text run re-renders: about two renders per chunk (delta + pacing tick).
+  expect(report.perStreamedChunk.markdownRenders).toBeLessThanOrEqual(2.1);
+  expect(report.perKeystroke.markdownRenders).toBe(0);
   TestRenderer.act(() => tree.unmount());
   jest.useRealTimers();
 }, 60000);

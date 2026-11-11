@@ -56,29 +56,7 @@ import { useMyaChat } from '../hooks/useMyaChat';
 import { normalizeAttachments } from '../client/attachments';
 import { deserializeHistoryMessage } from '../client/MyaMobileClient';
 
-function sameDay(a, b) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-/** "Today", "Yesterday" or a date: shown above the first message of each day. */
-function dayLabelFor(message, previous, now = new Date()) {
-  const t = message && message.timestamp ? new Date(message.timestamp) : null;
-  if (!t || Number.isNaN(t.getTime())) return null;
-  const p = previous && previous.timestamp ? new Date(previous.timestamp) : null;
-  if (p && !Number.isNaN(p.getTime()) && sameDay(t, p)) return null;
-  if (sameDay(t, now)) return 'Today';
-  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  if (sameDay(t, y)) return 'Yesterday';
-  return t.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function filterUserSalutations(text) {
-  if (!text || typeof text !== 'string') return text;
-  return text
-    .replace(/^(?:Hi|Hello|Hey|Greetings|Welcome|Dear)\s+[A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)?[,!:]\s*/i, '')
-    .replace(/^(?:Hi|Hello|Hey|Greetings)\s+there[,!:]\s*/i, '')
-    .trim();
-}
+import { createThreadRowDeriver, dayLabelFor } from './thread/deriveThreadRows';
 
 /**
  * @param {object} props
@@ -153,10 +131,12 @@ function MyaChatInner({
   const scrolledSv = useSharedValue(0);
   const navBorderStyle = useAnimatedStyle(() => ({ opacity: scrolledSv.value }));
 
-  const topInset =
-    Platform.OS === 'ios'
-      ? Math.max(insets.top, 44)
-      : StatusBar.currentHeight ?? insets.top;
+  // safe-area-context already reports the status bar plus any display cutout on
+  // both platforms (the host is edge-to-edge, with a SafeAreaProvider at the
+  // root). StatusBar.currentHeight is shorter than a tall cutout on Android, and
+  // a 44pt floor added dead space on home-button iPhones. Before the first
+  // measurement insets are 0; fall back to the status bar only then.
+  const topInset = insets.top || (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 20);
 
   const composerBottomPad = insets.bottom || 8;
   const listRef = useRef(null);
@@ -535,49 +515,23 @@ function MyaChatInner({
     );
   }, [restartConversation]);
 
-  const data = useMemo(() => {
-    const normalizedList = (Array.isArray(messages) ? messages : []).map((m) =>
-      m && !m.isStreaming && !m._deserialized ? deserializeHistoryMessage(m) : m
-    );
-    const list = normalizedList.filter(
-      (m) =>
-        m &&
-        ((m.content && String(m.content).trim().length > 0) ||
-          (m.blocks && m.blocks.length > 0) ||
-          (m.attachments && m.attachments.length > 0) ||
-          m.isStreaming ||
-          m.isThinking)
-    );
-    const decorated = list.map((m, i) => {
-      const isPhotoTurn =
-        m.role !== 'user' &&
-        i > 0 &&
-        list[i - 1].role === 'user' &&
-        ((list[i - 1].attachments && list[i - 1].attachments.length > 0) ||
-          String(list[i - 1].content || '').includes('[Photo Attached:'));
-
-      let content = m.content;
-      const blocks = m.blocks || [];
-
-      if (m.role !== 'user' && content) {
-        content = filterUserSalutations(content);
-      }
-
-      return {
-        ...m,
-        content,
-        blocks,
-        isPhotoTurn,
-        _dayLabel: dayLabelFor(m, i > 0 ? list[i - 1] : null),
-        _showLabel: m.role !== 'user' && (i === 0 || list[i - 1].role === 'user'),
-        _key: m.id || `${m.role}-${m.timestamp || ''}-${i}`,
-      };
-    });
-    return decorated.reverse();
-  }, [messages]);
+  // Rows are derived incrementally: during a stream only the live row is rebuilt,
+  // so every other row keeps its identity and its memo short-circuits.
+  const deriveRowsRef = useRef(null);
+  if (!deriveRowsRef.current) deriveRowsRef.current = createThreadRowDeriver();
+  // History normalisation (Argon4's deserializeHistoryMessage) runs at most once per message object.
+  const data = useMemo(
+    () => deriveRowsRef.current(messages, { normalize: deserializeHistoryMessage }),
+    [messages]
+  );
 
   const isEmpty = data.length === 0;
 
+  // Row handlers keep one identity for the life of the screen and always call the
+  // latest implementation. send/retry change on every render (they close over
+  // draft, messages and the hook's options), and handing those straight to rows
+  // re-rendered every visible row and live card on every streamed chunk, while
+  // memoised rows that did skip kept a stale closure.
   const rowHandlersRef = useRef(null);
   rowHandlersRef.current = { handleRetry, handleQuickReply, handleBlockAction };
   const onRowRetry = useCallback((...args) => rowHandlersRef.current.handleRetry(...args), []);

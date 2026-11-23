@@ -112,6 +112,8 @@ describe('claudeBackup', () => {
 
         expect(toolExecute).toHaveBeenCalledWith({ locationQuery: 'Atlanta' });
         expect(fetchImpl).toHaveBeenCalledTimes(2);
+        const firstBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
+        expect(firstBody.temperature).toBeUndefined();
         expect(res.text).toBe('I found Krush Beauty in Atlanta!');
         expect(res.toolCalls).toEqual([{ name: 'findStylistOrSalon', args: { locationQuery: 'Atlanta' } }]);
         expect(res.modelUsed).toBe('claude-sonnet-5-5');

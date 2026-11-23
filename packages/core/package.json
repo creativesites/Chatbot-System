@@ -1,6 +1,6 @@
 {
     "name": "myavana-bot-test-core",
-    "version": "2.9.2",
+    "version": "2.9.3",
     "description": "Shared bot functionality with enhanced features",
     "main": "index.js",
     "scripts": {

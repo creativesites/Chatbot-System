@@ -205,17 +205,14 @@ async function sendClaudeMessage({
             : String(message || '');
     messages.push({ role: 'user', content: userContent });
 
-    // Clamp temperature to Anthropic's [0, 1] range
-    const safeTemperature = Math.min(1, Math.max(0, Number.isFinite(temperature) ? temperature : 0.9));
-
     const toolCalls = [];
     const toolBlocks = [];
 
     for (let loop = 0; loop <= MAX_TOOL_LOOPS; loop++) {
+        // Claude 5.x models deprecate and reject `temperature` with HTTP 400.
         const body = {
             model,
             max_tokens: maxTokens,
-            temperature: safeTemperature,
             messages,
             ...(system ? { system: String(system) } : {}),
             ...(anthropicTools.length > 0 ? { tools: anthropicTools } : {}),

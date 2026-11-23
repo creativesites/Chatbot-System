@@ -16,6 +16,7 @@ const {
     isHairAssessmentQuestion, stripMobileAssessmentLinks,
 } = require('myavana-bot-test-core/src/serviceCatalog');
 const { resolveStylistLocationFollowUp } = require('myavana-bot-test-core/src/ecosystem/stylistFollowUp');
+const StylistEcosystemService = require('myavana-bot-test-core/src/ecosystem/stylistEcosystemService');
 const { getClaudeBackupModels } = require('myavana-bot-test-core/src/ai/claudeBackup');
 const {
     encodeFrame,
@@ -282,11 +283,62 @@ const ALLOWED_NAVIGATION_LINKS = [
     /^https:\/\/play\.google\.com\/store\/apps\/details\?id=com\.myavana\b/i,
 ];
 
+let verifiedPartnerHostsCache = null;
+
+function getVerifiedPartnerHosts() {
+    if (verifiedPartnerHostsCache) return verifiedPartnerHostsCache;
+    const hosts = new Set();
+    try {
+        const partners = StylistEcosystemService.getAllPartners() || [];
+        for (const p of partners) {
+            for (const raw of [p?.booking_url, p?.contact?.website]) {
+                if (!raw || typeof raw !== 'string') continue;
+                const trimmed = raw.trim();
+                if (!trimmed) continue;
+                const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+                try {
+                    const host = new URL(withProto).hostname.toLowerCase().replace(/^www\./, '');
+                    if (host) hosts.add(host);
+                } catch (_) {
+                    // ignore malformed partner URL
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('⚠️ Could not load verified partner hosts:', err.message);
+    }
+    verifiedPartnerHostsCache = hosts;
+    return hosts;
+}
+
+function normalizeNavUrl(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== 'string') return '';
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (/^[a-z0-9.-]+\.[a-z]{2,}(?:[/?#].*)?$/i.test(trimmed)) return `https://${trimmed}`;
+    return '';
+}
+
+function isAllowedNavigationUrl(url) {
+    if (!url) return false;
+    if (ALLOWED_NAVIGATION_LINKS.some((re) => re.test(url))) return true;
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+        const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+        return getVerifiedPartnerHosts().has(host);
+    } catch (_) {
+        return false;
+    }
+}
+
 /**
  * A "Shop" / "Store" navigation card always opens the real store front, no
- * matter what URL the model wrote. Any other off-site link is removed, so the
- * card falls back to its in-widget screen rather than sending the member to
- * a page we cannot vouch for.
+ * matter what URL the model wrote. Verified MYAVANA Ecosystem partner booking
+ * links are preserved; any other off-site link is removed, so the card falls
+ * back to its in-widget screen rather than sending the member to a page we
+ * cannot vouch for.
  *
  * @param {object} block a navigation block
  * @returns {object}
@@ -297,7 +349,13 @@ function sanitizeNavigationBlock(block) {
     if (/\b(shop|store)\b/i.test(label)) {
         return { ...block, data: { ...data, url: STORE_URL } };
     }
-    if (!data.url || ALLOWED_NAVIGATION_LINKS.some((re) => re.test(String(data.url)))) return block;
+    if (!data.url) return block;
+    const normalizedUrl = normalizeNavUrl(String(data.url));
+    if (normalizedUrl && isAllowedNavigationUrl(normalizedUrl)) {
+        return normalizedUrl === data.url
+            ? block
+            : { ...block, data: { ...data, url: normalizedUrl } };
+    }
 
     console.warn(`🧭 Removed off-site navigation link "${data.url}" from "${label.trim()}"`);
     const stripped = { ...block, data: { ...data } };

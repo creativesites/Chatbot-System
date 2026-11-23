@@ -737,26 +737,39 @@ const findStylistOrSalon = ai.defineTool(
                 };
             }
 
-            if (hasCoordinates) {
-                const nearest = StylistEcosystemService.findNearest({
-                    latitude,
-                    longitude,
-                    category: normalizedCategory,
-                    limit
-                });
-                if (nearest.length > 0) return { partners: nearest };
-            }
+            if (hasCoordinates || searchTerm) {
+                const { partners, nearest, noLocalPartner, resolvedLocation } =
+                    await StylistEcosystemService.searchByLocation({
+                        query: searchTerm || '',
+                        latitude: hasCoordinates ? latitude : null,
+                        longitude: hasCoordinates ? longitude : null,
+                        category: normalizedCategory,
+                        limit,
+                    });
 
-            if (searchTerm) {
-                const results = StylistEcosystemService.searchPartners({
-                    query: searchTerm,
-                    category: normalizedCategory,
-                    limit
-                });
-                if (results.length > 0) return { partners: results };
+                if (!noLocalPartner && partners.length > 0) {
+                    return { partners };
+                }
+
+                if (nearest && nearest.length > 0) {
+                    const nearestSummary = nearest
+                        .map((p) => `${p.name} (${p.address?.city}, ${p.address?.state} — ${p.distance_miles} mi away)`)
+                        .join('; ');
+                    return {
+                        partners: nearest,
+                        noLocalPartner: true,
+                        message:
+                            `No certified MYAVANA partners found right in "${resolvedLocation || searchTerm}" yet. ` +
+                            `Tell the member honestly that there is no partner nearby, share these closest partners with their distances (${nearestSummary}), ` +
+                            'and point them to the full ecosystem directory at https://www.myavana.com/pages/myavana-ecosystem.',
+                    };
+                }
+
                 return {
                     partners: [],
-                    message: `No certified MYAVANA partners found near "${searchTerm}" yet. ` +
+                    noLocalPartner: true,
+                    message:
+                        `No certified MYAVANA partners found near "${searchTerm || 'that location'}" yet. ` +
                         'Direct the member to the full ecosystem map at https://www.myavana.com/pages/myavana-ecosystem.',
                 };
             }

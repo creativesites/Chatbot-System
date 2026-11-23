@@ -191,9 +191,76 @@ function toReasonText(value) {
 }
 
 /**
+ * Detect whether a request originated from the MYAVANA React Native mobile app.
+ *
+ * MyaMobileClient.js + deviceTelemetry.js set:
+ *   - experienceContext.channel = 'mobile-sdk'
+ *   - experienceContext.platform = 'react-native-ios' | 'react-native-android'
+ *   - header 'X-Platform': 'react-native-ios' | 'react-native-android'
+ * MyAvanaMobileHostBridge.js sets:
+ *   - experienceContext.surface = 'myavana_mobile_app'
+ *
+ * @param {object} [experienceContext]
+ * @param {object} [headers]
+ * @returns {boolean}
+ */
+function isMobileAppContext(experienceContext, headers = {}) {
+    const ctx = experienceContext && typeof experienceContext === 'object' ? experienceContext : {};
+    const hdrs = headers && typeof headers === 'object' ? headers : {};
+    const channel = String(ctx.channel || '').toLowerCase().trim();
+    const surface = String(ctx.surface || '').toLowerCase().trim();
+    const platform = String(
+        ctx.platform || hdrs['x-platform'] || hdrs['X-Platform'] || ''
+    ).toLowerCase().trim();
+
+    if (channel === 'mobile-sdk' || channel === 'mobile' || channel === 'react-native') return true;
+    if (surface === 'myavana_mobile_app' || surface.includes('mobile_app')) return true;
+    if (/^(?:react-native-)?(?:ios|android)$/.test(platform)) return true;
+    return false;
+}
+
+/**
+ * Host action card that opens New Analysis natively inside the mobile app
+ * instead of sending members out to the web HairAI assessment page.
+ */
+function buildHairAnalysisActionBlock() {
+    return {
+        id: 'nav_hair_analysis',
+        type: 'navigation',
+        data: {
+            eyebrow: 'HairAI™',
+            title: 'Start a New Analysis',
+            description: 'Go to New Analysis on Home to take your HairAI™ photo assessment and subscribe right in the app.',
+            action: 'open_hair_analysis',
+            cta: 'Start a New Analysis',
+        },
+        actions: [
+            {
+                type: 'open_hair_analysis',
+                label: 'Start a New Analysis',
+                payload: { screen: 'NewAnalysis' },
+            },
+        ],
+    };
+}
+
+/** True when a product, service, or navigation card refers to HairAI / the web Hair Assessment. */
+function isHairAiBlock(block) {
+    if (!block || typeof block !== 'object') return false;
+    if (!PRODUCT_BLOCK_TYPES.has(block.type) && block.type !== 'navigation') return false;
+    const data = block.data || {};
+    if (data.action === 'open_hair_analysis') return true;
+    if (handleFromUrl(data.url || data.link) === 'hair-assessment') return true;
+    const label = `${data.name || ''} ${data.title || ''} ${data.productName || ''} ${data.label || ''}`;
+    return /\bhair\s*ai\b|\bhair\s*assessment\b/i.test(label);
+}
+
+/**
  * Ground a product / service card in the catalog.
  *
  *   - Not a product/service card            -> returned untouched
+ *   - Mobile app + HairAI / assessment card -> replaced with the native
+ *                                              open_hair_analysis host action
  *   - Catalog unavailable (empty rows)      -> returned untouched; an outage
  *                                              must not wipe every card
  *   - Matches a catalog row                 -> factual fields rebuilt from it
@@ -202,16 +269,32 @@ function toReasonText(value) {
  *
  * @param {object} block
  * @param {object[]} rows normalized catalog rows from loadServiceCatalog()
+ * @param {{ isMobileApp?: boolean }} [options]
  * @returns {object|null}
  */
-function enrichProductBlock(block, rows) {
+function enrichProductBlock(block, rows, options = {}) {
     if (!block || !PRODUCT_BLOCK_TYPES.has(block.type)) return block;
+
+    const isMobileApp = Boolean(options && options.isMobileApp);
+    if (isMobileApp && isHairAiBlock(block)) {
+        return buildHairAnalysisActionBlock();
+    }
+
     if (!Array.isArray(rows) || rows.length === 0) return block;
 
     const data = block.data || {};
     const label = data.name || data.title || data.productName || '';
     const entry = findCatalogEntry(label, rows);
     if (!entry) return null;
+
+    if (
+        isMobileApp &&
+        (entry.handle === 'hair-assessment' ||
+            handleFromUrl(entry.url) === 'hair-assessment' ||
+            /\bhairai\b/.test(normalizeName(entry.name)))
+    ) {
+        return buildHairAnalysisActionBlock();
+    }
 
     // The widget reads `reason || description`. Models write that copy under
     // several names, so carry whichever one they used.
@@ -431,6 +514,18 @@ const PRODUCT_ASK = new RegExp(
 );
 
 /**
+ * Questions about the HairAI assessment, hair analysis, or HairScan.
+ * These must NEVER get the "Shop MYAVANA" store card (and on mobile they
+ * trigger the native open_hair_analysis action instead of a web link).
+ */
+const ASSESSMENT_INTENT = /\b(?:hair\s*ai|hair\s*assessment|assessment(?:\s+link)?|hair\s*analysis|new\s*analysis|strand\s*analysis|hair\s*scan|hairscope)\b/i;
+
+function isHairAssessmentQuestion(message) {
+    const text = typeof message === 'string' ? message : '';
+    return ASSESSMENT_INTENT.test(text);
+}
+
+/**
  * Whether this turn should end with a link to the MYAVANA store.
  *
  * The prompt asks the model to add a "Shop MYAVANA" card, and in live testing
@@ -439,6 +534,9 @@ const PRODUCT_ASK = new RegExp(
  * card went out, i.e. when the answer would otherwise leave them with nowhere
  * to go (the "recommend a deep conditioner" case - MYAVANA sells none).
  *
+ * Questions about the assessment, analysis, or HairAI are explicitly excluded
+ * so "Where can I find the assessment link?" never gets a "Shop MYAVANA" card.
+ *
  * @param {string} message the member's message
  * @param {number} productCardsSent product/service cards sent this turn
  * @returns {boolean}
@@ -446,8 +544,21 @@ const PRODUCT_ASK = new RegExp(
 function shouldOfferStoreLink(message, productCardsSent = 0) {
     const text = typeof message === 'string' ? message : '';
     if (!text.trim()) return false;
+    if (ASSESSMENT_INTENT.test(text)) return false;
     if (BUY_INTENT.test(text)) return true;
     return PRODUCT_ASK.test(text) && !(productCardsSent > 0);
+}
+
+/**
+ * On mobile app turns, rewrite any raw web HairAI assessment link in prose so
+ * members are never sent out to the web store for an assessment they can take
+ * and subscribe to under New Analysis on Home.
+ */
+function stripMobileAssessmentLinks(text, isMobileApp = false) {
+    if (!isMobileApp || typeof text !== 'string' || !text) return text;
+    return text
+        .replace(/\[([^\]]+)\]\(https?:\/\/(?:www\.)?myavana\.com\/products\/hair-assessment[^)]*\)/gi, 'New Analysis on Home in the app')
+        .replace(/https?:\/\/(?:www\.)?myavana\.com\/products\/hair-assessment[^\s)\]]*/gi, 'New Analysis on Home in the app');
 }
 
 /** The store navigation card, built server-side so its link is always real. */
@@ -497,6 +608,11 @@ module.exports = {
     cleanUrl,
     formatPrice,
     fetchStoreProducts,
+    isMobileAppContext,
+    buildHairAnalysisActionBlock,
+    isHairAiBlock,
+    isHairAssessmentQuestion,
+    stripMobileAssessmentLinks,
     enrichProductBlock,
     productCardKey,
     collectShownProductKeys,

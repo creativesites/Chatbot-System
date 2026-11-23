@@ -12,7 +12,10 @@ const { extractImageAttachments } = require('myavana-bot-test-core/src/imageAtta
 const {
     loadServiceCatalog, enrichProductBlock, productCardKey, collectShownProductKeys,
     shouldOfferStoreLink, buildStoreLinkBlock, repairStoreLinks, PRODUCT_BLOCK_TYPES, STORE_URL,
+    isMobileAppContext, buildHairAnalysisActionBlock, isHairAiBlock,
+    isHairAssessmentQuestion, stripMobileAssessmentLinks,
 } = require('myavana-bot-test-core/src/serviceCatalog');
+const { resolveStylistLocationFollowUp } = require('myavana-bot-test-core/src/ecosystem/stylistFollowUp');
 const {
     encodeFrame,
     createDeltaFrame,
@@ -346,12 +349,18 @@ function decodeBlockText(block) {
  *   same response cannot carry it twice either
  * @returns {object|null}
  */
-function sanitizeBlock(block, serviceCatalog, shownProductKeys) {
+function sanitizeBlock(block, serviceCatalog, shownProductKeys, options = {}) {
+    const isMobileApp = Boolean(options && options.isMobileApp);
     const visual = sanitizeVisualBlock(block);
     if (!visual) return null;
-    if (visual.type === 'navigation') return sanitizeNavigationBlock(visual);
+    if (visual.type === 'navigation') {
+        if (isMobileApp && isHairAiBlock(visual)) {
+            return buildHairAnalysisActionBlock();
+        }
+        return sanitizeNavigationBlock(visual);
+    }
     try {
-        const grounded = enrichProductBlock(visual, serviceCatalog);
+        const grounded = enrichProductBlock(visual, serviceCatalog, { isMobileApp });
         if (!grounded) {
             const label = visual.data?.name || visual.data?.title || '';
             console.warn(`🛍️  Dropped ${visual.type} "${label}" - not in the product/service catalog`);
@@ -607,9 +616,10 @@ class MyavanaChatbotServer {
                     // Assistant turn: deserialize any fenced ```mya-blocks or JSON payload so clients receive
                     // clean prose in `content` and structured rich components in `blocks` / `actions`.
                     const parsed = parseModelOutput(rawContent);
+                    const isMobileHistory = isMobileAppContext(null, req.headers);
                     const blocks = (parsed.blocks || [])
                         .filter((b) => b && b.type !== 'text')
-                        .map((b) => sanitizeBlock(decodeBlockText(b), serviceCatalog, null))
+                        .map((b) => sanitizeBlock(decodeBlockText(b), serviceCatalog, null, { isMobileApp: isMobileHistory }))
                         .filter(Boolean);
                     const existingBlocks = Array.isArray(turn.blocks) ? turn.blocks : [];
                     return {
@@ -1081,6 +1091,24 @@ class MyavanaChatbotServer {
                 }
             }
 
+            // Deterministic stylist location follow-up (e.g. "Atlanta, GA" after Mya asked for a city)
+            const blockingStylistFollowUp = await resolveStylistLocationFollowUp({
+                message: safeMessage,
+                chatHistory,
+                experienceContext,
+                reqBody: req.body,
+            });
+            if (blockingStylistFollowUp && blockingStylistFollowUp.handled) {
+                console.log(`💇 Resolved stylist location follow-up deterministically on blocking route`);
+                const aiOutput = blockingStylistFollowUp.text;
+                const cleanedResponse = cleanKommunicateResponse(aiOutput);
+                await Promise.race([
+                    this.runPostProcessing({ userId, conversationId, message: safeMessage, aiOutput, allchatsSummary }),
+                    new Promise((resolve) => setTimeout(resolve, 3000)),
+                ]);
+                return res.json(cleanedResponse);
+            }
+
             // Extract attachments for multimodal vision pipeline (TASK_MSDK_011 / HJ_024)
             const attachments = req.body.attachments || metadata?.KM_CHAT_CONTEXT?.attachments || [];
             let imageObj = null;
@@ -1238,6 +1266,46 @@ class MyavanaChatbotServer {
             ]);
 
             let chatHistory = normalizeHistoryTurns(rawHistory);
+            const isMobileApp = isMobileAppContext(experienceContext, req.headers);
+            const formatProseChunk = (chunk) => stripMobileAssessmentLinks(repairStoreLinks(chunk), isMobileApp);
+
+            // Deterministic stylist location follow-up: when Mya asked for a city/zip/location
+            // to find a stylist and the member replied with a location, query StylistEcosystemService
+            // directly instead of relying on the model to call findStylistOrSalon.
+            const stylistFollowUp = await resolveStylistLocationFollowUp({
+                message: safeMessage,
+                chatHistory,
+                experienceContext,
+                reqBody: req.body,
+            });
+            if (stylistFollowUp && stylistFollowUp.handled) {
+                console.log(
+                    `💇 Resolved stylist location follow-up deterministically (${stylistFollowUp.partners.length} local, ${stylistFollowUp.nearest?.length || 0} nearest)`
+                );
+                const aiOutput = stylistFollowUp.text;
+                if (acceptsNDJSON) {
+                    res.write(encodeFrame(createDeltaFrame(aiOutput)));
+                    for (const block of stylistFollowUp.blocks || []) {
+                        res.write(encodeFrame(createBlockFrame(block)));
+                    }
+                    if (Array.isArray(stylistFollowUp.quickReplies) && stylistFollowUp.quickReplies.length > 0) {
+                        res.write(encodeFrame(createActionFrame(stylistFollowUp.quickReplies)));
+                    }
+                    res.write(encodeFrame(createDoneFrame({
+                        modelUsed: 'stylist-ecosystem-direct',
+                        blocksCount: (stylistFollowUp.blocks || []).length,
+                    })));
+                } else {
+                    res.write(aiOutput);
+                }
+                await Promise.race([
+                    this.runPostProcessing({ userId, conversationId, message: safeMessage, aiOutput, allchatsSummary }),
+                    new Promise((resolve) => setTimeout(resolve, 3000)),
+                ]);
+                res.end();
+                console.log('🏁 ===== STREAM REQUEST COMPLETE (STYLIST DIRECT) =====', requestId);
+                return;
+            }
 
             // Photos: the widget sends them inline as data: URLs, the mobile SDK
             // as https links. Up to four go to the model with the message - see
@@ -1265,6 +1333,7 @@ class MyavanaChatbotServer {
             const turnBlocks = {
                 productCards: 0,
                 storeLink: false,
+                hairAnalysisAction: false,
                 heldQuickReplies: null,
                 emittedSignatures: new Set(),
             };
@@ -1284,7 +1353,7 @@ class MyavanaChatbotServer {
             };
 
             const emitBlock = (block) => {
-                const safe = sanitizeBlock(decodeBlockText(block), serviceCatalog, shownProductKeys);
+                const safe = sanitizeBlock(decodeBlockText(block), serviceCatalog, shownProductKeys, { isMobileApp });
                 if (!safe) return;
                 if (safe.type === 'quick_replies') {
                     turnBlocks.heldQuickReplies = safe;
@@ -1303,9 +1372,20 @@ class MyavanaChatbotServer {
 
                 if (PRODUCT_BLOCK_TYPES.has(safe.type)) turnBlocks.productCards += 1;
                 if (safe.type === 'navigation' && safe.data?.url === STORE_URL) turnBlocks.storeLink = true;
+                if (
+                    safe.data?.action === 'open_hair_analysis' ||
+                    (Array.isArray(safe.actions) && safe.actions.some((a) => a && a.type === 'open_hair_analysis'))
+                ) {
+                    turnBlocks.hairAnalysisAction = true;
+                }
                 res.write(encodeFrame(createBlockFrame(safe)));
             };
             const finishBlocks = () => {
+                if (isMobileApp && !turnBlocks.hairAnalysisAction && isHairAssessmentQuestion(safeMessage)) {
+                    res.write(encodeFrame(createBlockFrame(buildHairAnalysisActionBlock())));
+                    turnBlocks.hairAnalysisAction = true;
+                    console.log('📱 Added native open_hair_analysis card for mobile app');
+                }
                 if (!turnBlocks.storeLink && shouldOfferStoreLink(safeMessage, turnBlocks.productCards)) {
                     res.write(encodeFrame(createBlockFrame(buildStoreLinkBlock())));
                     turnBlocks.storeLink = true;
@@ -1351,9 +1431,9 @@ class MyavanaChatbotServer {
                                 const newProseChunk = proseBeforeFence.slice(pendingProse.length);
                                 if (newProseChunk) {
                                     if (acceptsNDJSON) {
-                                        res.write(encodeFrame(createDeltaFrame(repairStoreLinks(newProseChunk))));
+                                        res.write(encodeFrame(createDeltaFrame(formatProseChunk(newProseChunk))));
                                     } else {
-                                        res.write(repairStoreLinks(newProseChunk));
+                                        res.write(formatProseChunk(newProseChunk));
                                     }
                                     pendingProse = proseBeforeFence;
                                     anyChunkWritten = true;
@@ -1368,9 +1448,9 @@ class MyavanaChatbotServer {
                                 const newProseChunk = safeProse.slice(pendingProse.length);
                                 if (newProseChunk) {
                                     if (acceptsNDJSON) {
-                                        res.write(encodeFrame(createDeltaFrame(repairStoreLinks(newProseChunk))));
+                                        res.write(encodeFrame(createDeltaFrame(formatProseChunk(newProseChunk))));
                                     } else {
-                                        res.write(repairStoreLinks(newProseChunk));
+                                        res.write(formatProseChunk(newProseChunk));
                                     }
                                     pendingProse = safeProse;
                                     anyChunkWritten = true;
@@ -1385,9 +1465,9 @@ class MyavanaChatbotServer {
                     const remaining = streamedText.slice(pendingProse.length);
                     if (remaining) {
                         if (acceptsNDJSON) {
-                            res.write(encodeFrame(createDeltaFrame(repairStoreLinks(remaining))));
+                            res.write(encodeFrame(createDeltaFrame(formatProseChunk(remaining))));
                         } else {
-                            res.write(repairStoreLinks(remaining));
+                            res.write(formatProseChunk(remaining));
                         }
                         anyChunkWritten = true;
                     }
@@ -1410,7 +1490,7 @@ class MyavanaChatbotServer {
                     const parsed = parseModelOutput(aiOutput);
                     // If no chunks were written as prose yet (e.g. model output pure JSON), emit parsed prose text
                     if (!anyChunkWritten && parsed.text) {
-                        res.write(encodeFrame(createDeltaFrame(repairStoreLinks(parsed.text))));
+                        res.write(encodeFrame(createDeltaFrame(formatProseChunk(parsed.text))));
                         anyChunkWritten = true;
                     }
 
@@ -1470,7 +1550,7 @@ class MyavanaChatbotServer {
                         // the entire fenced JSON into the chat as visible text, so
                         // strip the fence explicitly instead of showing raw blocks.
                         const proseText = parsed.text || stripBlocksFence(aiOutput);
-                        res.write(encodeFrame(createDeltaFrame(repairStoreLinks(proseText))));
+                        res.write(encodeFrame(createDeltaFrame(formatProseChunk(proseText))));
                         let emittedQuickReplyBlock = false;
                         for (const block of parsed.blocks) {
                             if (block.type !== 'text') {
@@ -1491,7 +1571,7 @@ class MyavanaChatbotServer {
                         // Plain-text clients get prose only. Writing aiOutput
                         // straight through dumped the whole ```mya-blocks
                         // fence into the chat as visible JSON.
-                        res.write(repairStoreLinks(stripBlocksFence(aiOutput) || aiOutput));
+                        res.write(formatProseChunk(stripBlocksFence(aiOutput) || aiOutput));
                     }
                 }
                 break;

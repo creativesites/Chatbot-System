@@ -14,6 +14,11 @@ const {
     cleanUrl,
     formatPrice,
     fetchStoreProducts,
+    isMobileAppContext,
+    buildHairAnalysisActionBlock,
+    isHairAiBlock,
+    isHairAssessmentQuestion,
+    stripMobileAssessmentLinks,
     enrichProductBlock,
     productCardKey,
     collectShownProductKeys,
@@ -475,7 +480,15 @@ describe('directing members to the MYAVANA store', () => {
     test('offers the store when the member wants to buy', () => {
         expect(shouldOfferStoreLink('Where can I buy MYAVANA products?')).toBe(true);
         expect(shouldOfferStoreLink('Is there a MYAVANA store?')).toBe(true);
-        expect(shouldOfferStoreLink('I want to purchase HairAI', 1)).toBe(true);
+        expect(shouldOfferStoreLink('I want to purchase the CARE package', 1)).toBe(true);
+    });
+
+    test('never attaches the store card to assessment, analysis, or HairAI questions', () => {
+        expect(shouldOfferStoreLink('Where can I find the assessment link?')).toBe(false);
+        expect(shouldOfferStoreLink('Where can I get a hair analysis?')).toBe(false);
+        expect(shouldOfferStoreLink('How do I take the HairAI assessment?')).toBe(false);
+        expect(shouldOfferStoreLink('I want to purchase HairAI', 1)).toBe(false);
+        expect(shouldOfferStoreLink('Where do I find New Analysis?')).toBe(false);
     });
 
     test('offers the store for a product ask only when no real product card went out', () => {
@@ -497,5 +510,75 @@ describe('directing members to the MYAVANA store', () => {
         expect(block.type).toBe('navigation');
         expect(block.data.url).toBe(STORE_URL);
         expect(block.data.title).toBe('Shop MYAVANA');
+    });
+});
+
+describe('mobile app vs web HairAI routing (S1)', () => {
+    const hairAiBlock = {
+        id: 'svc_hairai',
+        type: 'service_card',
+        data: {
+            title: 'HairAI™ Instant Analysis',
+            brand: 'MYAVANA',
+            description: 'Instant hair assessment.',
+        },
+    };
+
+    test('detects mobile app requests from MyaMobileClient experienceContext or X-Platform header', () => {
+        expect(isMobileAppContext({ channel: 'mobile-sdk', platform: 'react-native-ios' })).toBe(true);
+        expect(isMobileAppContext({ surface: 'myavana_mobile_app' })).toBe(true);
+        expect(isMobileAppContext({}, { 'x-platform': 'react-native-android' })).toBe(true);
+        expect(isMobileAppContext({ surface: 'myhairjourney.ai', platform: 'web' })).toBe(false);
+        expect(isMobileAppContext(null, {})).toBe(false);
+    });
+
+    test('mobile app receives open_hair_analysis host action titled "Start a New Analysis" with no web URL', () => {
+        const out = enrichProductBlock(hairAiBlock, CATALOG, { isMobileApp: true });
+        expect(out.type).toBe('navigation');
+        expect(out.data.title).toBe('Start a New Analysis');
+        expect(out.data.action).toBe('open_hair_analysis');
+        expect(out.data.url).toBeUndefined();
+        expect(out.actions).toEqual([
+            expect.objectContaining({ type: 'open_hair_analysis', label: 'Start a New Analysis' }),
+        ]);
+    });
+
+    test('website and web widget keep the web HairAI assessment link', () => {
+        const out = enrichProductBlock(hairAiBlock, CATALOG, { isMobileApp: false });
+        expect(out.type).toBe('service_card');
+        expect(out.data.url).toBe('https://www.myavana.com/products/hair-assessment');
+        expect(out.data.action).toBeUndefined();
+    });
+
+    test('non-HairAI services remain grounded catalog cards on mobile', () => {
+        const out = enrichProductBlock(
+            { type: 'service_card', data: { title: 'MYAVANA CARE Package' } },
+            CATALOG,
+            { isMobileApp: true }
+        );
+        expect(out.data.url).toBe('https://www.myavana.com/products/myavana-care-package');
+    });
+
+    test('identifies HairAI blocks and assessment questions', () => {
+        expect(isHairAiBlock(hairAiBlock)).toBe(true);
+        expect(isHairAiBlock({ type: 'navigation', data: { url: 'https://www.myavana.com/products/hair-assessment' } })).toBe(true);
+        expect(isHairAiBlock({ type: 'consultation_card', data: { title: 'Too Groovy Salon', url: 'https://www.myavana.com/products/hair-assessment' } })).toBe(false);
+        expect(isHairAssessmentQuestion('Where can I find the assessment link?')).toBe(true);
+        expect(isHairAssessmentQuestion('Tell me about HairAI')).toBe(true);
+        expect(isHairAssessmentQuestion('What is 4C porosity?')).toBe(false);
+    });
+
+    test('strips raw web HairAI assessment URLs from mobile prose only', () => {
+        const prose = 'Start here: https://www.myavana.com/products/hair-assessment today.';
+        expect(stripMobileAssessmentLinks(prose, true)).toBe('Start here: New Analysis on Home in the app today.');
+        expect(stripMobileAssessmentLinks(prose, false)).toBe(prose);
+    });
+
+    test('buildHairAnalysisActionBlock matches the host bridge contract', () => {
+        const block = buildHairAnalysisActionBlock();
+        expect(block.type).toBe('navigation');
+        expect(block.data.title).toBe('Start a New Analysis');
+        expect(block.data.action).toBe('open_hair_analysis');
+        expect(block.data.url).toBeUndefined();
     });
 });

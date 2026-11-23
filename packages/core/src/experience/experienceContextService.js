@@ -6,6 +6,8 @@
  * Injects concise, highly relevant situation awareness into Mya's prompt context.
  */
 
+const { isMobileAppContext } = require('../serviceCatalog');
+
 class ExperienceContextService {
   /**
    * Normalizes raw experience context received in the chat request
@@ -90,6 +92,11 @@ class ExperienceContextService {
       contextualHint = 'The user is on the Today Hub checking daily habits. Offer quick encouragement and checklist guidance.';
     } else if (pageLower.includes('journal')) {
       contextualHint = 'The user is in the Hair Journey Journal. Encourage them to reflect on hair moisture, scalp health, and recent changes.';
+    }
+
+    if (isMobileAppContext(context)) {
+      contextualHint = (contextualHint ? contextualHint + ' ' : '') +
+        'The member is in the MYAVANA mobile app. For HairAI or hair assessment questions, NEVER link to the web assessment URL — tell them to go to New Analysis on Home where they can take the assessment and subscribe in the app.';
     }
 
     if (norm.userName) {

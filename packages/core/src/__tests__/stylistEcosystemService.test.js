@@ -2,30 +2,64 @@
  * Stylist & Salon Ecosystem Service Tests
  */
 
-const path = require("path");
 const StylistEcosystemService = require("../ecosystem/stylistEcosystemService");
 
 describe("StylistEcosystemService", () => {
-  test("loads all 26 verified ecosystem partners", () => {
+  beforeEach(() => {
+    StylistEcosystemService.resetPartnersCache();
+  });
+
+  test("loads all 24 synced ecosystem partners from live directory", () => {
     const partners = StylistEcosystemService.getAllPartners();
     expect(Array.isArray(partners)).toBe(true);
-    expect(partners.length).toBe(26);
+    expect(partners.length).toBe(24);
   });
 
   test("correctly filters salons vs retailers", () => {
     const salons = StylistEcosystemService.getSalonsAndStylists();
     const retailers = StylistEcosystemService.getRetailers();
-    expect(salons.length).toBe(11);
-    expect(retailers.length).toBe(15);
+    expect(salons.length).toBe(12);
+    expect(retailers.length).toBe(12);
     salons.forEach((s) => expect(s.category).toBe("salon"));
     retailers.forEach((r) => expect(r.category).toBe("retailer"));
   });
 
-  test("searches partners by city, state, or name", () => {
-    const atlantaSalons = StylistEcosystemService.searchPartners({ query: "Atlanta", category: "salon" });
-    expect(atlantaSalons.length).toBeGreaterThanOrEqual(3);
-    expect(atlantaSalons.some((s) => s.name === "Too Groovy Salon")).toBe(true);
-    expect(atlantaSalons.some((s) => s.name === "Krush Beauty")).toBe(true);
+  test('searches partners by "City, ST" (Atlanta, GA), city alone, and full state name', () => {
+    const atlantaGa = StylistEcosystemService.searchPartners({ query: "Atlanta, GA", category: "salon" });
+    expect(atlantaGa.length).toBeGreaterThanOrEqual(3);
+    expect(atlantaGa.some((s) => s.name === "MYAVANA Certified Beauty Tech Lab")).toBe(true);
+    expect(atlantaGa.some((s) => s.name === "Krush Beauty")).toBe(true);
+    expect(atlantaGa.some((s) => s.name === "It's a Hair Thang")).toBe(true);
+
+    const atlantaFull = StylistEcosystemService.searchPartners({ query: "Atlanta, Georgia", category: "salon" });
+    expect(atlantaFull.length).toBeGreaterThanOrEqual(3);
+
+    const atlantaOnly = StylistEcosystemService.searchPartners({ query: "Atlanta", category: "salon" });
+    expect(atlantaOnly.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("searches partners by ZIP code", async () => {
+    const res = await StylistEcosystemService.searchByLocation({
+      query: "30308",
+      category: "salon",
+      allowNetwork: false,
+    });
+    expect(res.noLocalPartner).toBe(false);
+    expect(res.partners.length).toBeGreaterThanOrEqual(3);
+    expect(res.partners[0].address.city).toBe("Atlanta");
+  });
+
+  test("returns noLocalPartner with nearest partners and distances for a city without nearby partners", async () => {
+    const res = await StylistEcosystemService.searchByLocation({
+      query: "Seattle, WA",
+      category: "salon",
+      allowNetwork: false,
+    });
+    expect(res.noLocalPartner).toBe(true);
+    expect(res.partners).toEqual([]);
+    expect(res.nearest.length).toBeGreaterThan(0);
+    expect(res.nearest[0].distance_miles).toBeGreaterThan(500);
+    expect(res.nearest[1].distance_miles).toBeGreaterThanOrEqual(res.nearest[0].distance_miles);
   });
 
   test("calculates proximity distance accurately using coordinates", () => {
@@ -35,12 +69,12 @@ describe("StylistEcosystemService", () => {
       longitude: -84.3880,
       category: "salon",
       maxDistanceMiles: 50,
-      limit: 5
+      limit: 5,
     });
 
     expect(nearby.length).toBeGreaterThanOrEqual(3);
-    expect(nearby[0].name).toBe("Too Groovy Salon");
-    expect(nearby[0].distance_miles).toBeLessThan(5);
+    expect(nearby[0].name).toBe("MYAVANA Certified Beauty Tech Lab");
+    expect(nearby[0].distance_miles).toBeLessThan(2);
     expect(nearby[1].distance_miles).toBeGreaterThanOrEqual(nearby[0].distance_miles);
   });
 

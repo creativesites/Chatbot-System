@@ -36,7 +36,7 @@
     "name": "B'Ware Cosmetology",
     "type": "SALON",
     "category": "salon",
-    "lead_stylist_or_founder": "B'Ware Cosmetology Team",
+    "lead_stylist_or_founder": null,
     "services_offered": [
       "Hair Strand Assessment",
       "HairScope Diagnostic Consultation",
@@ -59,7 +59,7 @@
     "contact": {
       "phone": null,
       "email": "Bwarecosmetology@gmail.com",
-      "website": null
+      "website": "https://www.myavana.com/products/hair-assessment"
     },
     "booking_url": "https://www.myavana.com/products/hair-assessment",
     "myavana_certified": true,
@@ -157,7 +157,7 @@
     "contact": {
       "phone": null,
       "email": "different_by_design@yahoo.com",
-      "website": null
+      "website": "https://www.myavana.com/products/hair-assessment"
     },
     "booking_url": "https://www.myavana.com/products/hair-assessment",
     "myavana_certified": true,
@@ -191,41 +191,9 @@
     "contact": {
       "phone": null,
       "email": null,
-      "website": null
+      "website": "https://www.myavana.com/products/hair-assessment"
     },
     "booking_url": "https://www.myavana.com/products/hair-assessment",
-    "myavana_certified": true,
-    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
-  },
-  {
-    "id": "loc_4n6g2w25",
-    "name": "Glow + Flow Beauty - Hawthorne",
-    "type": "RETAILER",
-    "category": "retailer",
-    "lead_stylist_or_founder": "Diann Valentine",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
-    "address": {
-      "street": "4361 W. Rosecrans Ave",
-      "suite": null,
-      "city": "Hawthorne",
-      "state": "CA",
-      "postal_code": "90250",
-      "country": "United States"
-    },
-    "coordinates": {
-      "latitude": 33.90201598,
-      "longitude": -118.35125094
-    },
-    "contact": {
-      "phone": "+16268258445",
-      "email": "dv@glowandflowbeauty.com",
-      "website": "https://glowandflowbeauty.com/"
-    },
-    "booking_url": "https://glowandflowbeauty.com/",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -289,7 +257,7 @@
     "contact": {
       "phone": null,
       "email": "thehairspa498@gmail.com",
-      "website": null
+      "website": "https://www.myavana.com/products/hair-assessment"
     },
     "booking_url": "https://www.myavana.com/products/hair-assessment",
     "myavana_certified": true,
@@ -323,7 +291,7 @@
     "contact": {
       "phone": null,
       "email": "renee@itsahairthang.com",
-      "website": null
+      "website": "https://www.myavana.com/products/hair-assessment"
     },
     "booking_url": "https://www.myavana.com/products/hair-assessment",
     "myavana_certified": true,
@@ -346,8 +314,8 @@
       "street": "2 Veronica Ave",
       "suite": null,
       "city": "Somerset",
-      "state": "NJ 08873",
-      "postal_code": "",
+      "state": "NJ",
+      "postal_code": "08873",
       "country": "USA"
     },
     "coordinates": {
@@ -357,7 +325,7 @@
     "contact": {
       "phone": null,
       "email": "Info@kskyesalon.com",
-      "website": null
+      "website": "https://www.myavana.com/products/hair-assessment"
     },
     "booking_url": "https://www.myavana.com/products/hair-assessment",
     "myavana_certified": true,
@@ -368,7 +336,7 @@
     "name": "Karen Marie Salon",
     "type": "SALON",
     "category": "salon",
-    "lead_stylist_or_founder": "Karen Marie",
+    "lead_stylist_or_founder": null,
     "services_offered": [
       "Hair Strand Assessment",
       "HairScope Diagnostic Consultation",
@@ -391,7 +359,7 @@
     "contact": {
       "phone": null,
       "email": "KarenMarieHair@yahoo.com",
-      "website": null
+      "website": "https://www.myavana.com/products/hair-assessment"
     },
     "booking_url": "https://www.myavana.com/products/hair-assessment",
     "myavana_certified": true,
@@ -425,7 +393,7 @@
       "email": "cdaniel@kinksandcurlsatlanta.com",
       "website": null
     },
-    "booking_url": "https://www.myavana.com/products/hair-assessment",
+    "booking_url": "https://www.myavana.com/pages/myavana-ecosystem",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -498,34 +466,36 @@
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
   {
-    "id": "loc_3e2572ev",
-    "name": "MYAVANA Uganda - Arena Mall",
-    "type": "RETAILER",
-    "category": "retailer",
-    "lead_stylist_or_founder": null,
+    "id": "loc_qzn5rygy",
+    "name": "MYAVANA Certified Beauty Tech Lab",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": "Candace V. Mitchell",
     "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
     ],
     "address": {
-      "street": "Plot 41- 45 Nsambya Road",
+      "street": "170 Mitchell Street SW",
       "suite": null,
-      "city": "Kampala",
-      "state": "",
-      "postal_code": "10101",
-      "country": "Uganda"
+      "city": "Atlanta",
+      "state": "GA",
+      "postal_code": "30303",
+      "country": "United States"
     },
     "coordinates": {
-      "latitude": 0.302003,
-      "longitude": 32.5970987
+      "latitude": 33.75102278,
+      "longitude": -84.39367316
     },
     "contact": {
-      "phone": null,
-      "email": "alex@myavana.com",
-      "website": "https://www.myavana.com/pages/uganda-retail"
+      "phone": "4048608442",
+      "email": "pro@myavana.com",
+      "website": "https://calendly.com/myavana/myavana-certified-hairscope-appointments"
     },
-    "booking_url": "https://www.myavana.com/pages/uganda-retail",
+    "booking_url": "https://calendly.com/myavana/myavana-certified-hairscope-appointments",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -621,39 +591,7 @@
       "email": "teryn@texturedtech.com",
       "website": null
     },
-    "booking_url": "https://www.myavana.com/products/hair-assessment",
-    "myavana_certified": true,
-    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
-  },
-  {
-    "id": "loc_4yjxe9ev",
-    "name": "The Beauty Genie",
-    "type": "RETAILER",
-    "category": "retailer",
-    "lead_stylist_or_founder": "Ebony J Karim",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
-    "address": {
-      "street": "1440 W Taylor",
-      "suite": "Ste 1633",
-      "city": "Chicago",
-      "state": "Illinois",
-      "postal_code": "60607",
-      "country": "United States"
-    },
-    "coordinates": {
-      "latitude": 41.86953013,
-      "longitude": -87.66328813
-    },
-    "contact": {
-      "phone": "+17736787967",
-      "email": "ekarim@thebeautygenie.co",
-      "website": "https://www.beautywishesinabox.com"
-    },
-    "booking_url": "https://www.beautywishesinabox.com",
+    "booking_url": "https://www.myavana.com/pages/myavana-ecosystem",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -722,11 +660,11 @@
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
   {
-    "id": "loc_4wewgz2x",
-    "name": "Too Groovy Salon",
+    "id": "loc_rk2mrwxq",
+    "name": "Thee Hair Bar",
     "type": "SALON",
     "category": "salon",
-    "lead_stylist_or_founder": "Robin D. Groover",
+    "lead_stylist_or_founder": null,
     "services_offered": [
       "Hair Strand Assessment",
       "HairScope Diagnostic Consultation",
@@ -735,23 +673,23 @@
       "Silk Press & Natural Hair Care"
     ],
     "address": {
-      "street": "265 Ponce De Leon Ave NE",
+      "street": "12920 S Western Ave",
       "suite": null,
-      "city": "Atlanta",
-      "state": "GA",
-      "postal_code": "30308",
-      "country": "USA"
+      "city": "Blue Island",
+      "state": "IL",
+      "postal_code": "60406",
+      "country": "United States"
     },
     "coordinates": {
-      "latitude": 33.77177599,
-      "longitude": -84.378516
+      "latitude": 41.65840713,
+      "longitude": -87.68048637
     },
     "contact": {
-      "phone": null,
-      "email": "RobinDGroover@Grooveglobal.com",
-      "website": null
+      "phone": "(708) 400-4729",
+      "email": "theehairbar@yahoo.com",
+      "website": "https://www.facebook.com/theehairbar/?ref=NONE_xav_ig_profile_page_web#"
     },
-    "booking_url": "https://www.myavana.com/products/hair-assessment",
+    "booking_url": "https://www.facebook.com/theehairbar/?ref=NONE_xav_ig_profile_page_web#",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -783,7 +721,7 @@
     "contact": {
       "phone": null,
       "email": "susan@earthtonesnaturals.com",
-      "website": null
+      "website": "https://www.myavana.com/products/hair-assessment"
     },
     "booking_url": "https://www.myavana.com/products/hair-assessment",
     "myavana_certified": true,
@@ -849,7 +787,7 @@
       "email": "yaminah@yanybeauty.co",
       "website": null
     },
-    "booking_url": "https://www.myavana.com/products/hair-assessment",
+    "booking_url": "https://www.myavana.com/pages/myavana-ecosystem",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   }

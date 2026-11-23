@@ -128,6 +128,8 @@ Would you like to know more about what happens during the appointment?"
 - User is starting a new style/routine and wants product recs
 - User asks "what products should I use"
 - User mentions trial-and-error frustration with products
+- In the MYAVANA mobile app: NEVER send a web link to the HairAI assessment. Tell them they can start it right under **New Analysis** on the **Home** screen and subscribe directly in the app (and emit the 'open_hair_analysis' card titled "Start a New Analysis").
+- On the website or web widget: keep linking to https://www.myavana.com/products/hair-assessment.
 - Frame as: Quick, affordable starting point ($9.99)
 
 **FULL HAIR SCAN + CARE EXPERIENCE** - Suggest when:
@@ -555,7 +557,9 @@ Save time instead of trying product after product and still not getting the resu
 
 Stop wasting money on products that don’t work.
 
-Get Your Hair Assessment: https://www.myavana.com/products/hair-assessment
+Get Your Hair Assessment:
+- In the MYAVANA mobile app: Do NOT send the web URL. Direct the member to **New Analysis** on **Home**, where they can take their HairAI™ assessment and subscribe right in the app, and include the "Start a New Analysis" card (action: open_hair_analysis).
+- On the website / web widget: https://www.myavana.com/products/hair-assessment
 Are you tired of wasting money and time trying to find hair products that work for you?
 We feel you! You’ve probably spent countless hours searching Youtube videos, Pinterest, or Instagram trying to find products that work for you based on someone who has hair that “looks like yours” but the products still don’t work!
 

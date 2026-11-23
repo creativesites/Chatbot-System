@@ -9,6 +9,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../../myavana/.env'
 
 const { GoogleGenAI } = require('@google/genai');
 const config = require('../config');
+const { isClaudeModel, sendClaudeMessage } = require('./claudeBackup');
 
 function zodToGeminiSchema(schema) {
     if (!schema) return { type: 'OBJECT', properties: {} };
@@ -316,6 +317,26 @@ class AiCore {
         const model = normalizeModelName(opts.model || 'gemini-3.7-flash');
         const tools = Array.isArray(opts.tools) ? opts.tools : [];
         const temperature = opts.config?.temperature ?? 1.0;
+
+        if (isClaudeModel(model)) {
+            const images = Array.isArray(opts.images) && opts.images.length
+                ? opts.images
+                : (opts.image ? [opts.image] : []);
+            return {
+                send: async (message) =>
+                    sendClaudeMessage({
+                        apiKey: this.opts.anthropicApiKey || config.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
+                        model,
+                        system: opts.system || '',
+                        message,
+                        history: opts.history || [],
+                        tools,
+                        images,
+                        temperature,
+                        timeoutMs: opts.config?.timeoutMs || 25000,
+                    }),
+            };
+        }
 
         const toolMap = new Map();
         const functionDeclarations = [];

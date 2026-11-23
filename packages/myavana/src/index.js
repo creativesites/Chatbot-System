@@ -16,6 +16,7 @@ const {
     isHairAssessmentQuestion, stripMobileAssessmentLinks,
 } = require('myavana-bot-test-core/src/serviceCatalog');
 const { resolveStylistLocationFollowUp } = require('myavana-bot-test-core/src/ecosystem/stylistFollowUp');
+const { getClaudeBackupModels } = require('myavana-bot-test-core/src/ai/claudeBackup');
 const {
     encodeFrame,
     createDeltaFrame,
@@ -859,7 +860,7 @@ class MyavanaChatbotServer {
         } catch (primaryError) {
             console.error('❌❌❌ PRIMARY MODEL FAILED: GEMINI 3.7 FLASH:', primaryError.message);
             ({ aiOutput, modelUsed } = await this.sendFallbackModel({
-                messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel,
+                messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel,
             }));
         }
 
@@ -879,16 +880,18 @@ class MyavanaChatbotServer {
      * @param {object} opts
      * @returns {Promise<{aiOutput: any, modelUsed: string}>}
      */
-    async sendFallbackModel({ messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel = 'kommunicate', images }) {
+    async sendFallbackModel({ messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel = 'kommunicate', images, chatHistory }) {
         if (!aiPrompt) {
             aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
         }
 
-        // gemini-2.5-flash and gemini-2.5-flash-lite now 404 with "no longer
-        // available to new users" - they were dead weight at the end of the
-        // chain, adding two guaranteed-failed round trips to every fallback.
-        // Google's own error points at the 3.x equivalents.
-        const candidateModels = ['gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+        // Gemini fallback chain followed by Claude backup models (Sonnet 5.5 -> Haiku 5.5,
+        // or Opus 5.5 -> Sonnet 5.5 -> Haiku 5.5 for complex tasks) when ANTHROPIC_API_KEY is set.
+        const geminiFallbacks = ['gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+        const claudeBackups = process.env.ANTHROPIC_API_KEY
+            ? getClaudeBackupModels({ message: safeMessage || '', images, chatHistory })
+            : [];
+        const candidateModels = [...geminiFallbacks, ...claudeBackups];
         for (const candidate of candidateModels) {
             console.log(`🔄 ===== TRYING FALLBACK MODEL: ${candidate.toUpperCase()} =====`);
             try {
@@ -1536,9 +1539,9 @@ class MyavanaChatbotServer {
                         res.write(encodeFrame(createDoneFrame({ modelUsed, error: streamError.message })));
                     }
                 } else {
-                    console.log('🔄 No content sent yet — falling back to Gemini 3.6 Flash.');
+                    console.log('🔄 No content sent yet — falling back to backup model chain.');
                     const fallback = await this.sendFallbackModel({
-                        messageWithContext, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel: 'widget', images,
+                        messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel: 'widget', images, chatHistory,
                     });
                     aiOutput = fallback.aiOutput;
                     modelUsed = fallback.modelUsed;

@@ -30,6 +30,7 @@ module.exports = {
     },
     genkitApiKey: process.env.GENKIT_API_KEY,
     openaiApiKey: process.env.OPENAI_API_KEY,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     defaultModel: 'gemini-3.7-flash',
     experimentalModel: 'gemini-3.7-flash',
     temperature: 1.1,

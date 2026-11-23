@@ -52,6 +52,20 @@ WORDPRESS_SERVICE_KEY="${WORDPRESS_SERVICE_KEY:-myavana_secret_service_key_2026}
 echo "🔨 Building and pushing container image via Google Cloud Build..."
 gcloud builds submit --project="${PROJECT_ID}" --tag="${IMAGE_TAG}" .
 
+ENV_VARS="NODE_ENV=production,WORDPRESS_API_BASE=${WORDPRESS_API_BASE},WORDPRESS_SERVICE_KEY=${WORDPRESS_SERVICE_KEY},DB_HOST=${DB_HOST},DB_USER=${DB_USER},DB_PASSWORD=${DB_PASSWORD},DB_NAME=${DB_NAME},DB_PORT=${DB_PORT},REDIS_HOST=${REDIS_HOST},REDIS_PORT=${REDIS_PORT},REDIS_PASSWORD=${REDIS_PASSWORD},REDIS_USERNAME=${REDIS_USERNAME},GENKIT_API_KEY=${GENKIT_API_KEY},GEMINI_API_KEY=${GEMINI_API_KEY},OPENAI_API_KEY=${OPENAI_API_KEY},XAI_API_KEY=${XAI_API_KEY}"
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  ENV_VARS="${ENV_VARS},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+fi
+if [ -n "${CLAUDE_SONNET_MODEL:-}" ]; then
+  ENV_VARS="${ENV_VARS},CLAUDE_SONNET_MODEL=${CLAUDE_SONNET_MODEL}"
+fi
+if [ -n "${CLAUDE_HAIKU_MODEL:-}" ]; then
+  ENV_VARS="${ENV_VARS},CLAUDE_HAIKU_MODEL=${CLAUDE_HAIKU_MODEL}"
+fi
+if [ -n "${CLAUDE_OPUS_MODEL:-}" ]; then
+  ENV_VARS="${ENV_VARS},CLAUDE_OPUS_MODEL=${CLAUDE_OPUS_MODEL}"
+fi
+
 echo "🚀 Deploying revision to Cloud Run service: ${SERVICE_NAME}..."
 gcloud run deploy "${SERVICE_NAME}" \
   --project="${PROJECT_ID}" \
@@ -66,7 +80,12 @@ gcloud run deploy "${SERVICE_NAME}" \
   --min-instances="0" \
   --max-instances="5" \
   --port="8080" \
-  --set-env-vars="NODE_ENV=production,WORDPRESS_API_BASE=${WORDPRESS_API_BASE},WORDPRESS_SERVICE_KEY=${WORDPRESS_SERVICE_KEY},DB_HOST=${DB_HOST},DB_USER=${DB_USER},DB_PASSWORD=${DB_PASSWORD},DB_NAME=${DB_NAME},DB_PORT=${DB_PORT},REDIS_HOST=${REDIS_HOST},REDIS_PORT=${REDIS_PORT},REDIS_PASSWORD=${REDIS_PASSWORD},REDIS_USERNAME=${REDIS_USERNAME},GENKIT_API_KEY=${GENKIT_API_KEY},GEMINI_API_KEY=${GEMINI_API_KEY},OPENAI_API_KEY=${OPENAI_API_KEY},XAI_API_KEY=${XAI_API_KEY}"
+  --update-env-vars="${ENV_VARS}"
+
+gcloud run services update-traffic "${SERVICE_NAME}" \
+  --project="${PROJECT_ID}" \
+  --region="${REGION}" \
+  --to-latest
 
 SERVICE_URL=$(gcloud run services describe "${SERVICE_NAME}" --project="${PROJECT_ID}" --region="${REGION}" --format='value(status.url)')
 

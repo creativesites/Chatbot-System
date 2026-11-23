@@ -175,7 +175,10 @@ function buildStylistCardBlock(partner, index = 0) {
     details.push(`Phone: ${partner.contact.phone}`);
   }
 
-  const bookingUrl = partner.booking_url || partner.contact?.website || ECOSYSTEM_URL;
+  const rawBookingUrl = partner.booking_url || partner.contact?.website || ECOSYSTEM_URL;
+  const hasDirectBookingSite =
+    Boolean(rawBookingUrl) && !/myavana\.com\/products\/hair-assessment/i.test(rawBookingUrl) && rawBookingUrl !== ECOSYSTEM_URL;
+  const bookingUrl = hasDirectBookingSite ? rawBookingUrl : ECOSYSTEM_URL;
 
   return {
     id: `stylist_${partner.id || index}`,
@@ -195,7 +198,7 @@ function buildStylistCardBlock(partner, index = 0) {
     actions: [
       {
         type: 'open_url',
-        label: partner.contact?.website ? 'Book / Visit' : 'View in Ecosystem',
+        label: hasDirectBookingSite ? 'Book / Visit' : 'View in Ecosystem',
         payload: { url: bookingUrl, partnerId: partner.id },
       },
     ],

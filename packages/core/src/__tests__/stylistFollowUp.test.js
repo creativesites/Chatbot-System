@@ -54,6 +54,19 @@ describe('stylistFollowUp (S2)', () => {
     expect(stylistCards[0].data.title).toBeTruthy();
     expect(stylistCards[0].data.address).toBeTruthy();
 
+    // No stylist card should ever link to the web HairAI assessment page
+    for (const card of stylistCards) {
+      expect(card.data.url).not.toMatch(/\/products\/hair-assessment/i);
+      expect(card.actions[0].payload.url).not.toMatch(/\/products\/hair-assessment/i);
+    }
+    const techLabCard = stylistCards.find((c) => c.data.title === 'MYAVANA Certified Beauty Tech Lab');
+    expect(techLabCard.data.url).toMatch(/calendly\.com\/myavana/i);
+    expect(techLabCard.actions[0].label).toBe('Book / Visit');
+
+    const hairThangCard = stylistCards.find((c) => c.data.title === "It's a Hair Thang");
+    expect(hairThangCard.data.url).toBe(ECOSYSTEM_URL);
+    expect(hairThangCard.actions[0].label).toBe('View in Ecosystem');
+
     const ecoNav = result.blocks.find((b) => b.type === 'navigation');
     expect(ecoNav).toBeDefined();
     expect(ecoNav.data.url).toBe(ECOSYSTEM_URL);

@@ -59,7 +59,13 @@ function mapStockistLocation(loc) {
   );
   const lead = ownerField && ownerField.value ? String(ownerField.value).trim() : null;
 
-  const website = loc.website ? String(loc.website).trim() : null;
+  const rawWebsite = loc.website ? String(loc.website).trim() : null;
+  // Salons without their own site/Calendly have Stockist placeholder URL
+  // /products/hair-assessment. Route those to the MYAVANA Ecosystem directory
+  // instead of sending mobile members out to the web HairAI product page.
+  const isHairAssessmentPlaceholder =
+    Boolean(rawWebsite) && /myavana\.com\/products\/hair-assessment/i.test(rawWebsite);
+  const website = isHairAssessmentPlaceholder ? null : rawWebsite;
   const phone = loc.phone ? String(loc.phone).trim() : null;
   const email = loc.email ? String(loc.email).trim() : null;
 

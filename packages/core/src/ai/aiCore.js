@@ -322,19 +322,44 @@ class AiCore {
             const images = Array.isArray(opts.images) && opts.images.length
                 ? opts.images
                 : (opts.image ? [opts.image] : []);
+            const resolvedApiKey =
+                opts.apiKey || this.opts.anthropicApiKey || config.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+            const callClaude = async (message) =>
+                sendClaudeMessage({
+                    apiKey: resolvedApiKey,
+                    model,
+                    system: opts.system || '',
+                    message,
+                    history: opts.history || [],
+                    tools,
+                    images,
+                    temperature,
+                    timeoutMs: opts.config?.timeoutMs || 25000,
+                });
+
             return {
-                send: async (message) =>
-                    sendClaudeMessage({
-                        apiKey: this.opts.anthropicApiKey || config.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
-                        model,
-                        system: opts.system || '',
-                        message,
-                        history: opts.history || [],
-                        tools,
-                        images,
-                        temperature,
-                        timeoutMs: opts.config?.timeoutMs || 25000,
-                    }),
+                send: callClaude,
+                sendStream: (message) => {
+                    let resolveResponse;
+                    let rejectResponse;
+                    const responsePromise = new Promise((resolve, reject) => {
+                        resolveResponse = resolve;
+                        rejectResponse = reject;
+                    });
+                    const streamGenerator = async function* () {
+                        try {
+                            const res = await callClaude(message);
+                            if (res.text) {
+                                yield { text: res.text };
+                            }
+                            resolveResponse(res);
+                        } catch (err) {
+                            rejectResponse(err);
+                            throw err;
+                        }
+                    };
+                    return { stream: streamGenerator(), response: responsePromise };
+                },
             };
         }
 

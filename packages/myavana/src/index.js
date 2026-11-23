@@ -787,34 +787,52 @@ class MyavanaChatbotServer {
         const messageWithContext = messageContext ? `${messageContext}${safeMessage}` : safeMessage;
         if (messageContext) console.log('🎭 Context injected:', messageContext.trim());
 
+        // Layer 1 (default primary while Gemini is unstable): Claude Primary (ANTHROPIC_API_KEY)
+        // Layer 2 (backup): Gemini
+        // Layer 3 (last resort): Claude Backup (ANTHROPIC_BACKUP_API_KEY)
+        const useClaudePrimary = Boolean(process.env.ANTHROPIC_API_KEY) && process.env.PRIMARY_PROVIDER !== 'gemini';
+        const claudePrimaryModels = useClaudePrimary
+            ? getClaudeBackupModels({ message: safeMessage, images, chatHistory })
+            : [];
+        const primaryModel = useClaudePrimary ? claudePrimaryModels[0] : 'gemini-3.7-flash';
+
         const chatConfig = {
-            model: 'gemini-3.7-flash',
+            model: primaryModel,
             tools: chatTools,
-            config: { temperature: 1.1 },
+            config: { temperature: useClaudePrimary ? 0.9 : 1.1 },
             ...(Array.isArray(images) && images.length ? { images } : imageObj ? { image: imageObj } : {}),
         };
-        const chat = cacheResult.cacheName
-            ? session.chat({ ...chatConfig, cache: cacheResult.cacheName })
-            : session.chat({ ...chatConfig, system: aiPrompt });
 
-        return { chat, messageWithContext, cacheResult, aiPrompt, chatTools, messageContext };
+        let chat;
+        if (useClaudePrimary) {
+            chat = core.ai.chat({
+                ...chatConfig,
+                apiKey: process.env.ANTHROPIC_API_KEY,
+                system: aiPrompt,
+                history: chatHistory,
+            });
+        } else {
+            chat = cacheResult.cacheName
+                ? session.chat({ ...chatConfig, cache: cacheResult.cacheName })
+                : session.chat({ ...chatConfig, system: aiPrompt });
+        }
+
+        return { chat, primaryModel, useClaudePrimary, messageWithContext, cacheResult, aiPrompt, chatTools, messageContext };
     }
 
     /**
      * Sends messageWithContext on the primary model (with cache-retry-on-empty-output),
-     * falling back to the secondary model on any failure. Blocking — returns the final
-     * output. Used by the non-streaming routes; the streaming route uses this only for
-     * its fallback branch (sendStream failures fall back to a single blocking response).
+     * falling back through the layered backup chain on any failure.
      *
      * @param {object} opts
      * @returns {Promise<{aiOutput: any, modelUsed: string}>}
      */
-    async sendWithFallback({ chat, messageWithContext, safeMessage, cacheResult, aiPrompt, chatTools, userId, userInfo, allchatsSummary, session, channel = 'kommunicate' }) {
+    async sendWithFallback({ chat, primaryModel = 'gemini-3.7-flash', useClaudePrimary = false, messageWithContext, safeMessage, cacheResult, aiPrompt, chatTools, userId, userInfo, allchatsSummary, session, channel = 'kommunicate', images, chatHistory }) {
         let aiOutput = null;
         let modelUsed = '';
 
         try {
-            console.log('🚀 ===== TRYING PRIMARY MODEL: GEMINI 3.7 FLASH WITH CACHE =====');
+            console.log(`🚀 ===== TRYING PRIMARY MODEL: ${primaryModel.toUpperCase()} (${useClaudePrimary ? 'CLAUDE PRIMARY' : 'GEMINI'}) =====`);
             const { output } = await chat.send(messageWithContext);
 
             const isEmptyOutput =
@@ -824,7 +842,7 @@ class MyavanaChatbotServer {
                 (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
 
             if (isEmptyOutput) {
-                if (cacheResult.cacheName) {
+                if (!useClaudePrimary && cacheResult.cacheName) {
                     console.warn('⚠️ Empty output with cache. Retrying without cache...');
                     if (!aiPrompt) {
                         aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
@@ -850,17 +868,19 @@ class MyavanaChatbotServer {
                     aiOutput = retryOutput;
                     modelUsed = 'gemini37Flash-retry';
                 } else {
-                    throw new Error('Empty AI output from Gemini 3.7 Flash');
+                    throw new Error(`Empty AI output from ${primaryModel}`);
                 }
             } else {
                 aiOutput = output;
-                modelUsed = cacheResult.cacheName ? 'gemini37Flash-cached' : 'gemini37Flash';
+                modelUsed = useClaudePrimary
+                    ? `${primaryModel}-primary`
+                    : (cacheResult.cacheName ? 'gemini37Flash-cached' : 'gemini37Flash');
             }
-            console.log('✅✅✅ GEMINI 3.7 FLASH SUCCESS!');
+            console.log(`✅✅✅ ${primaryModel.toUpperCase()} PRIMARY SUCCESS!`);
         } catch (primaryError) {
-            console.error('❌❌❌ PRIMARY MODEL FAILED: GEMINI 3.7 FLASH:', primaryError.message);
+            console.error(`❌❌❌ PRIMARY MODEL FAILED (${primaryModel}):`, primaryError.message);
             ({ aiOutput, modelUsed } = await this.sendFallbackModel({
-                messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel,
+                messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel, images, chatHistory, useClaudePrimary,
             }));
         }
 
@@ -872,37 +892,66 @@ class MyavanaChatbotServer {
     }
 
     /**
-     * Sends messageWithContext on the secondary model only (Gemini 3.6 Flash, no cache).
-     * Extracted so both sendWithFallback's catch branch and the streaming route's
-     * sendStream-failure branch can reach the fallback model without redundantly
-     * retrying the primary model first.
+     * Layered backup chain:
+     *   Layer 1 remainder: remaining Claude primary models (ANTHROPIC_API_KEY)
+     *   Layer 2: Gemini models (backup)
+     *   Layer 3: Backup Claude account (ANTHROPIC_BACKUP_API_KEY)
      *
      * @param {object} opts
      * @returns {Promise<{aiOutput: any, modelUsed: string}>}
      */
-    async sendFallbackModel({ messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel = 'kommunicate', images, chatHistory }) {
+    async sendFallbackModel({ messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel = 'kommunicate', images, chatHistory, useClaudePrimary }) {
         if (!aiPrompt) {
             aiPrompt = await constructPrompt(userId, userInfo, allchatsSummary, false, channel);
         }
 
-        // Gemini fallback chain followed by Claude backup models (Sonnet 5.5 -> Haiku 5.5,
-        // or Opus 5.5 -> Sonnet 5.5 -> Haiku 5.5 for complex tasks) when ANTHROPIC_API_KEY is set.
-        const geminiFallbacks = ['gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
-        const claudeBackups = process.env.ANTHROPIC_API_KEY
-            ? getClaudeBackupModels({ message: safeMessage || '', images, chatHistory })
-            : [];
-        const candidateModels = [...geminiFallbacks, ...claudeBackups];
-        for (const candidate of candidateModels) {
-            console.log(`🔄 ===== TRYING FALLBACK MODEL: ${candidate.toUpperCase()} =====`);
+        const claudePrimaryActive =
+            useClaudePrimary !== undefined
+                ? Boolean(useClaudePrimary)
+                : Boolean(process.env.ANTHROPIC_API_KEY) && process.env.PRIMARY_PROVIDER !== 'gemini';
+
+        const claudeModels = getClaudeBackupModels({ message: safeMessage || '', images, chatHistory });
+        const candidateSteps = [];
+
+        // Layer 1 remainder (e.g. Haiku 5.5, or Sonnet 5.5 -> Haiku 5.5 after Opus 5.5)
+        if (claudePrimaryActive && process.env.ANTHROPIC_API_KEY) {
+            for (const m of claudeModels.slice(1)) {
+                candidateSteps.push({ model: m, apiKey: process.env.ANTHROPIC_API_KEY, tag: 'claude-primary' });
+            }
+        }
+
+        // Layer 2: Gemini backup
+        const geminiModels = claudePrimaryActive
+            ? ['gemini-3.7-flash', 'gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-3.6-flash']
+            : ['gemini-flash-lite-latest', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+        for (const m of geminiModels) {
+            candidateSteps.push({ model: m, apiKey: undefined, tag: 'gemini-backup' });
+        }
+
+        // If Gemini was primary, try primary Claude key before backup Claude key
+        if (!claudePrimaryActive && process.env.ANTHROPIC_API_KEY) {
+            for (const m of claudeModels) {
+                candidateSteps.push({ model: m, apiKey: process.env.ANTHROPIC_API_KEY, tag: 'claude-primary' });
+            }
+        }
+
+        // Layer 3: Backup Claude account (last resort)
+        if (process.env.ANTHROPIC_BACKUP_API_KEY) {
+            for (const m of claudeModels) {
+                candidateSteps.push({ model: m, apiKey: process.env.ANTHROPIC_BACKUP_API_KEY, tag: 'claude-backup' });
+            }
+        }
+
+        for (const step of candidateSteps) {
+            console.log(`🔄 ===== TRYING FALLBACK MODEL: ${step.model.toUpperCase()} [${step.tag}] =====`);
             try {
                 const fallbackChat = core.ai.chat({
-                    model: candidate,
+                    model: step.model,
+                    ...(step.apiKey ? { apiKey: step.apiKey } : {}),
                     system: aiPrompt,
+                    history: chatHistory,
                     tools: chatTools,
-                    config: { temperature: 1.0 },
-                    // Without this, every fallback answer to a photo was given
-                    // blind - and while the primary is quota-limited, that is
-                    // every photo.
+                    config: { temperature: step.apiKey ? 0.9 : 1.0 },
                     ...(Array.isArray(images) && images.length ? { images } : {}),
                 });
                 const response = await fallbackChat.send(messageWithContext);
@@ -915,11 +964,11 @@ class MyavanaChatbotServer {
                     (typeof output === 'object' && !Array.isArray(output) && Object.keys(output).length === 0);
 
                 if (!isEmptyFallbackOutput) {
-                    console.log(`✅✅✅ ${candidate.toUpperCase()} FALLBACK SUCCESS!`);
-                    return { aiOutput: output, modelUsed: candidate };
+                    console.log(`✅✅✅ ${step.model.toUpperCase()} [${step.tag}] FALLBACK SUCCESS!`);
+                    return { aiOutput: output, modelUsed: `${step.model}:${step.tag}` };
                 }
             } catch (fallbackError) {
-                console.error(`❌❌❌ FALLBACK MODEL FAILED: ${candidate.toUpperCase()}:`, fallbackError.message);
+                console.error(`❌❌❌ FALLBACK MODEL FAILED: ${step.model.toUpperCase()} [${step.tag}]:`, fallbackError.message);
             }
         }
         throw new Error('All AI models failed');
@@ -1125,7 +1174,7 @@ class MyavanaChatbotServer {
             }
 
             // ===== SHARED CHAT-TURN SETUP (cache, prompt, context, tools) =====
-            const { chat, messageWithContext, cacheResult, aiPrompt, chatTools } = await this.prepareChatTurn({
+            const { chat, primaryModel, useClaudePrimary, messageWithContext, cacheResult, aiPrompt, chatTools } = await this.prepareChatTurn({
                 userId, allchatsSummary, userInfo, session, chatHistory, safeMessage, channel: 'kommunicate', imageObj,
             });
 
@@ -1134,9 +1183,9 @@ class MyavanaChatbotServer {
             let responseStartTime = performance.now();
 
             const { aiOutput, modelUsed } = await this.sendWithFallback({
-                chat, messageWithContext, safeMessage, cacheResult,
+                chat, primaryModel, useClaudePrimary, messageWithContext, safeMessage, cacheResult,
                 aiPrompt, chatTools,
-                userId, userInfo, allchatsSummary, session, channel: 'kommunicate',
+                userId, userInfo, allchatsSummary, session, channel: 'kommunicate', chatHistory,
             });
 
             console.log('✅✅✅ AI MODEL SUCCESS!');
@@ -1326,7 +1375,7 @@ class MyavanaChatbotServer {
                 this.prepareChatTurn(turnArgs),
                 loadServiceCatalog().catch(() => []),
             ]);
-            let { chat, messageWithContext, aiPrompt, chatTools } = preparedTurn;
+            let { chat, primaryModel, useClaudePrimary, messageWithContext, aiPrompt, chatTools } = preparedTurn;
             const shownProductKeys = collectShownProductKeys(chatHistory, serviceCatalog);
 
             // Every block the member sees goes out through emitBlock, so the
@@ -1401,7 +1450,7 @@ class MyavanaChatbotServer {
             };
 
             let aiOutput = '';
-            let modelUsed = 'gemini37Flash-stream';
+            let modelUsed = useClaudePrimary ? `${primaryModel}:claude-primary` : `${primaryModel}-stream`;
             let streamedText = '';
             let anyChunkWritten = false;
 
@@ -1410,7 +1459,7 @@ class MyavanaChatbotServer {
             const MAX_PRIMARY_ATTEMPTS = 2;
             for (let attempt = 1; attempt <= MAX_PRIMARY_ATTEMPTS; attempt++) {
             try {
-                console.log(`🚀 ===== STREAMING PRIMARY MODEL: GEMINI 3.7 FLASH (attempt ${attempt}/${MAX_PRIMARY_ATTEMPTS}) =====`);
+                console.log(`🚀 ===== STREAMING PRIMARY MODEL: ${primaryModel.toUpperCase()} (attempt ${attempt}/${MAX_PRIMARY_ATTEMPTS}) =====`);
                 const { stream, response } = chat.sendStream(messageWithContext);
                 let inCodeBlock = false;
                 let pendingProse = '';
@@ -1541,7 +1590,7 @@ class MyavanaChatbotServer {
                 } else {
                     console.log('🔄 No content sent yet — falling back to backup model chain.');
                     const fallback = await this.sendFallbackModel({
-                        messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel: 'widget', images, chatHistory,
+                        messageWithContext, safeMessage, aiPrompt, chatTools, userId, userInfo, allchatsSummary, channel: 'widget', images, chatHistory, useClaudePrimary,
                     });
                     aiOutput = fallback.aiOutput;
                     modelUsed = fallback.modelUsed;

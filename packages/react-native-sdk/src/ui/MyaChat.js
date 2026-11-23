@@ -23,6 +23,7 @@ import {
   StatusBar,
   StyleSheet,
   Alert,
+  Linking,
   Platform,
   AccessibilityInfo,
 } from 'react-native';
@@ -435,7 +436,20 @@ function MyaChatInner({
       }
 
       const handled = onBlockAction ? onBlockAction(actionObj, effectivePayload) : false;
+      const rawUrl = effectivePayload?.url || actionObj?.payload?.url || actionObj?.url;
+      const url = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+      const isUrlAction =
+        actionType === 'open_url' ||
+        actionType === 'open_link' ||
+        (url && /^https?:\/\//i.test(url));
+
       if (!handled) {
+        if (isUrlAction) {
+          if (url && /^https?:\/\//i.test(url) && Linking && typeof Linking.openURL === 'function') {
+            Linking.openURL(url).catch(() => {});
+          }
+          return;
+        }
         const fallbackText =
           typeof effectivePayload === 'string' && effectivePayload.trim()
             ? effectivePayload

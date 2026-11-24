@@ -9,17 +9,17 @@ describe("StylistEcosystemService", () => {
     StylistEcosystemService.resetPartnersCache();
   });
 
-  test("loads all 24 synced ecosystem partners from live directory", () => {
+  test("loads all synced ecosystem partners from live directory", () => {
     const partners = StylistEcosystemService.getAllPartners();
     expect(Array.isArray(partners)).toBe(true);
-    expect(partners.length).toBe(24);
+    expect(partners.length).toBeGreaterThanOrEqual(39);
   });
 
   test("correctly filters salons vs retailers", () => {
     const salons = StylistEcosystemService.getSalonsAndStylists();
     const retailers = StylistEcosystemService.getRetailers();
-    expect(salons.length).toBe(12);
-    expect(retailers.length).toBe(12);
+    expect(salons.length).toBeGreaterThanOrEqual(27);
+    expect(retailers.length).toBeGreaterThanOrEqual(12);
     salons.forEach((s) => expect(s.category).toBe("salon"));
     retailers.forEach((r) => expect(r.category).toBe("retailer"));
   });

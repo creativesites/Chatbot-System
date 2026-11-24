@@ -1,5 +1,39 @@
 [
   {
+    "id": "loc_575pjjnn",
+    "name": "Afronized Haircare",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "Padre Pio House, Level 4",
+      "suite": "Plot 32, Lumumba Avenue",
+      "city": "Kampala",
+      "state": "",
+      "postal_code": "",
+      "country": "Uganda"
+    },
+    "coordinates": {
+      "latitude": 0.3241617,
+      "longitude": 32.5758472
+    },
+    "contact": {
+      "phone": "+256 752 150968",
+      "email": "primabirungi@gmail.com",
+      "website": null
+    },
+    "booking_url": "https://www.myavana.com/pages/myavana-ecosystem",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
     "id": "loc_4n6g2gv5",
     "name": "AHNI Beauty Supply",
     "type": "RETAILER",
@@ -62,6 +96,40 @@
       "website": null
     },
     "booking_url": "https://www.myavana.com/pages/myavana-ecosystem",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_g2v7qjw7",
+    "name": "Beautiful You Hair Salon",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "81 Willoughby St",
+      "suite": "Suite B2",
+      "city": "Brooklyn",
+      "state": "New York",
+      "postal_code": "11201",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 40.692278,
+      "longitude": -73.98585996
+    },
+    "contact": {
+      "phone": "718-415-3355",
+      "email": "beautiyou@outlook.com",
+      "website": "https://booksy.com/en-us/748699_beautiful-you-hair-salon-llc_hair-salon_29902_brooklyn?do=invite&_branch_match_id=1347629350812526838&utm_medium=profile_share_from_profile&_branch_referrer=H4sIAAAAAAAAA8soKSkottLXT07J0UvKz88urtRLzs/VzzJx93f0yXGMikiyrytKTU"
+    },
+    "booking_url": "https://booksy.com/en-us/748699_beautiful-you-hair-salon-llc_hair-salon_29902_brooklyn?do=invite&_branch_match_id=1347629350812526838&utm_medium=profile_share_from_profile&_branch_referrer=H4sIAAAAAAAAA8soKSkottLXT07J0UvKz88urtRLzs/VzzJx93f0yXGMikiyrytKTU",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -264,6 +332,74 @@
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
   {
+    "id": "loc_575p9xwn",
+    "name": "Her Naturally, LLC",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "9531 Currier Rd",
+      "suite": null,
+      "city": "Charlotte",
+      "state": "North Carolina",
+      "postal_code": "28215",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 35.24636989,
+      "longitude": -80.68028051
+    },
+    "contact": {
+      "phone": "843-817-4075",
+      "email": "hello@hernaturallyconnect.com",
+      "website": "https://www.beautynailhairsalons.com/US/Charlotte/339030043324527/HER-Naturally-LLC"
+    },
+    "booking_url": "https://www.beautynailhairsalons.com/US/Charlotte/339030043324527/HER-Naturally-LLC",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_zzw2q6zw",
+    "name": "Hi Texture Hair Salon",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "1860 Atkinson Road",
+      "suite": "Suite 111",
+      "city": "Lawrenceville",
+      "state": "Georgia",
+      "postal_code": "30043",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 33.97507469,
+      "longitude": -84.07932933
+    },
+    "contact": {
+      "phone": null,
+      "email": "info@hitexturehair.com",
+      "website": "https://www.hitexturehair.com/"
+    },
+    "booking_url": "https://www.hitexturehair.com/",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
     "id": "loc_47mwv8zq",
     "name": "It's a Hair Thang",
     "type": "SALON",
@@ -294,6 +430,108 @@
       "website": null
     },
     "booking_url": "https://www.myavana.com/pages/myavana-ecosystem",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_jyp8kmee",
+    "name": "Jac Adu Natural Hair Stylist",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "5900 West Blvd",
+      "suite": null,
+      "city": "Los Angeles",
+      "state": "California",
+      "postal_code": "90043",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 33.98714468,
+      "longitude": -118.33512993
+    },
+    "contact": {
+      "phone": "323-216-6021",
+      "email": "jacfanclub@gmail.com",
+      "website": "https://jacadu.com/"
+    },
+    "booking_url": "https://jacadu.com/",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_n9enk6m5",
+    "name": "Joy Williams Beauty",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "950 Flower Street",
+      "suite": "#718",
+      "city": "Los Angeles",
+      "state": "California",
+      "postal_code": "90015",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 34.04464499,
+      "longitude": -118.26210997
+    },
+    "contact": {
+      "phone": "213-503-6781",
+      "email": "thejoywilliamsbeauty@gmail.com",
+      "website": "https://www.theministrysalon.com/joywilliams"
+    },
+    "booking_url": "https://www.theministrysalon.com/joywilliams",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_g2v7gn27",
+    "name": "K Skye Salon",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "2 Veronica Avenue",
+      "suite": "Suite 5",
+      "city": "Somerset",
+      "state": "New Jersey",
+      "postal_code": "08873",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 40.48770466,
+      "longitude": -74.50216466
+    },
+    "contact": {
+      "phone": null,
+      "email": "belinda@kskyesalon.com",
+      "website": "https://www.kskyesalon.com/"
+    },
+    "booking_url": "https://www.kskyesalon.com/",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -398,6 +636,40 @@
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
   {
+    "id": "loc_qz5j9vmy",
+    "name": "Kolor King",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "451 Bishop Street NW",
+      "suite": "Suite C",
+      "city": "Atlanta",
+      "state": "GA",
+      "postal_code": "30318",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 33.7933948,
+      "longitude": -84.40298503
+    },
+    "contact": {
+      "phone": "205-937-7627",
+      "email": "Kolorking@gmail.com",
+      "website": "https://www.styleseat.com/m/v/kolorkingATL"
+    },
+    "booking_url": "https://www.styleseat.com/m/v/kolorkingATL",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
     "id": "loc_4p9zrzyk",
     "name": "Krush Beauty",
     "type": "SALON",
@@ -462,6 +734,74 @@
       "website": "https://limelighthair.glossgenius.com"
     },
     "booking_url": "https://limelighthair.glossgenius.com",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_g2v7gez7",
+    "name": "MadeSoBeautiful Salon",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "6693 West Fayetteville Road",
+      "suite": null,
+      "city": "Riverdale",
+      "state": "Georgia",
+      "postal_code": "30296",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 33.57239143,
+      "longitude": -84.44966302
+    },
+    "contact": {
+      "phone": "678-900-5860",
+      "email": "madesobeautiful@gmail.com",
+      "website": "https://madesobeautiful.square.site/?utm_id=97758_v0_s00_e0_tv0"
+    },
+    "booking_url": "https://madesobeautiful.square.site/?utm_id=97758_v0_s00_e0_tv0",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_k6wyjg6q",
+    "name": "My Hair Bar",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "22 Warren Street",
+      "suite": null,
+      "city": "London",
+      "state": "",
+      "postal_code": "W1T5LU",
+      "country": "United Kingdom"
+    },
+    "coordinates": {
+      "latitude": 51.52386011,
+      "longitude": -0.14007392
+    },
+    "contact": {
+      "phone": "44 7904 851029",
+      "email": "landublin301@gmail.com",
+      "website": "https://www.instagram.com/myhairbarlondon/?hl=en"
+    },
+    "booking_url": "https://www.instagram.com/myhairbarlondon/?hl=en",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -532,6 +872,74 @@
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
   {
+    "id": "loc_g2v79kx7",
+    "name": "Posh Hair District",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "935 Marietta St NW",
+      "suite": "#030",
+      "city": "Atlanta",
+      "state": "Georgia",
+      "postal_code": "30318",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 33.77795924,
+      "longitude": -84.40848993
+    },
+    "contact": {
+      "phone": "404-585-7674",
+      "email": "posh@poshhairdistrict.com",
+      "website": "http://styleseat.com/m/v/poshp"
+    },
+    "booking_url": "http://styleseat.com/m/v/poshp",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_ex7e92yv",
+    "name": "Salon XO PGH",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "4047 Penn Avenue",
+      "suite": null,
+      "city": "Pittsburgh",
+      "state": "Pennsylvania",
+      "postal_code": "15224",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 40.46564957,
+      "longitude": -79.9561642
+    },
+    "contact": {
+      "phone": "412-208-2227",
+      "email": "salonxopgh@gmail.com",
+      "website": "https://salonxopgh.glossgenius.com/"
+    },
+    "booking_url": "https://salonxopgh.glossgenius.com/",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
     "id": "loc_3xe5r796",
     "name": "Shea Universe",
     "type": "RETAILER",
@@ -560,6 +968,74 @@
       "website": "https://www.sheauniverse.com"
     },
     "booking_url": "https://www.sheauniverse.com",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_95keypky",
+    "name": "Shea Universe - Diagnofirm Medical Laboratories",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "Plot 12583",
+      "suite": "Nyerere Drive Middlestar",
+      "city": "",
+      "state": "Gaborone",
+      "postal_code": "",
+      "country": "Botswana"
+    },
+    "coordinates": {
+      "latitude": -24.6425629,
+      "longitude": 25.9201851
+    },
+    "contact": {
+      "phone": "26771846540",
+      "email": "Ritahadebe@gmail.com",
+      "website": "https://www.instagram.com/thiyehadebe/"
+    },
+    "booking_url": "https://www.instagram.com/thiyehadebe/",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_m72wjm7v",
+    "name": "Signature Beauty Salon",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "2402 Aberdeen Ave",
+      "suite": null,
+      "city": "Toledo",
+      "state": "Ohio",
+      "postal_code": "43614",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 41.61566031,
+      "longitude": -83.60115332
+    },
+    "contact": {
+      "phone": "567-249-9099",
+      "email": "business@signaturebeautysalontoledo.com",
+      "website": "https://signaturebeautysalontoledo.com/"
+    },
+    "booking_url": "https://signaturebeautysalontoledo.com/",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },
@@ -690,6 +1166,40 @@
       "website": "https://www.facebook.com/theehairbar/?ref=NONE_xav_ig_profile_page_web#"
     },
     "booking_url": "https://www.facebook.com/theehairbar/?ref=NONE_xav_ig_profile_page_web#",
+    "myavana_certified": true,
+    "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
+  },
+  {
+    "id": "loc_qz5jx95y",
+    "name": "Thee Hair Bar",
+    "type": "SALON",
+    "category": "salon",
+    "lead_stylist_or_founder": null,
+    "services_offered": [
+      "Hair Strand Assessment",
+      "HairScope Diagnostic Consultation",
+      "Textured Hair Styling & Maintenance",
+      "Healthy Hair Care Regimens",
+      "Silk Press & Natural Hair Care"
+    ],
+    "address": {
+      "street": "12920 S. Western",
+      "suite": null,
+      "city": "Blue Island",
+      "state": "Illinois",
+      "postal_code": "60406",
+      "country": "United States"
+    },
+    "coordinates": {
+      "latitude": 41.65840713,
+      "longitude": -87.68048637
+    },
+    "contact": {
+      "phone": "708-477-1647",
+      "email": "theehairbar@yahoo.com",
+      "website": "https://koloredbyqwan.as.me/schedule/5a0ba987"
+    },
+    "booking_url": "https://koloredbyqwan.as.me/schedule/5a0ba987",
     "myavana_certified": true,
     "partnership_status": "ACTIVE_ECOSYSTEM_PARTNER"
   },

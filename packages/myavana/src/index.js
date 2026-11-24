@@ -2,7 +2,7 @@
 const core = require('myavana-bot-test-core');
 const express = require('express');
 const { performance } = require('perf_hooks');
-const { constructPrompt } = require('./constructPrompt');
+const { constructPrompt, clearStaticCatalogCache } = require('./constructPrompt');
 const { handleWelcomeEvent, handleImageMessage } = require('./eventHandlers');
 const { buildMessageContext } = require('myavana-bot-test-core/src/messageContextBuilder');
 const { globalTools, createUserTools } = require('myavana-bot-test-core/src/agentTools');
@@ -14,7 +14,9 @@ const {
     shouldOfferStoreLink, buildStoreLinkBlock, repairStoreLinks, PRODUCT_BLOCK_TYPES, STORE_URL,
     isMobileAppContext, buildHairAnalysisActionBlock, isHairAiBlock,
     isHairAssessmentQuestion, stripMobileAssessmentLinks, linkifyProseUrls,
+    resetServiceCatalogCache,
 } = require('myavana-bot-test-core/src/serviceCatalog');
+const { getAppPrompts, clearAppPromptsCache } = require('myavana-bot-test-core/src/appPrompts');
 const { resolveStylistLocationFollowUp } = require('myavana-bot-test-core/src/ecosystem/stylistFollowUp');
 const StylistEcosystemService = require('myavana-bot-test-core/src/ecosystem/stylistEcosystemService');
 const { getClaudeBackupModels } = require('myavana-bot-test-core/src/ai/claudeBackup');
@@ -620,20 +622,70 @@ class MyavanaChatbotServer {
             await this.handleLiveVoiceCommitRequest(req, res);
         });
 
-        // Prompt Cache Invalidation & Hot-Reload (invoked by Dashboard when Candace saves directives)
+        const isAuthorizedAdmin = (req) => {
+            const expected = process.env.ADMIN_API_KEY;
+            if (!expected) return true;
+            const headerKey = req.headers['x-admin-key'];
+            const authHeader = String(req.headers['authorization'] || '');
+            const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+            return headerKey === expected || bearer === expected;
+        };
+
+        // Prompt Cache Invalidation & Hot-Reload (invoked by Dashboard when Candace saves directives/FAQs/training/corrections)
         this.app.post('/admin/cache/invalidate', async (req, res) => {
-            console.log('🔄 Received prompt cache invalidation request from Dashboard');
+            if (!isAuthorizedAdmin(req)) {
+                return res.status(401).json({ error: true, message: 'Unauthorized admin request' });
+            }
+            console.log('🔄 Received full cache invalidation request from Dashboard');
             try {
                 if (core.cacheManager && typeof core.cacheManager.invalidateAllCaches === 'function') {
                     await core.cacheManager.invalidateAllCaches();
                 }
+                clearStaticCatalogCache();
+                resetServiceCatalogCache();
+                clearAppPromptsCache();
+                verifiedPartnerHostsCache = null;
                 return res.json({
                     success: true,
-                    message: 'Prompt cache purged successfully. Active master directives are now live.',
+                    message: 'All prompt, catalog, and app-prompt caches purged. Updates are now live.',
                     timestamp: new Date().toISOString(),
                 });
             } catch (err) {
                 console.error('Error clearing prompt cache:', err);
+                return res.status(500).json({ error: true, message: err.message });
+            }
+        });
+
+        // Live Ecosystem Directory status & instant Sync Now (invoked by Dashboard)
+        this.app.get('/admin/ecosystem/status', (req, res) => {
+            if (!isAuthorizedAdmin(req)) {
+                return res.status(401).json({ error: true, message: 'Unauthorized admin request' });
+            }
+            return res.json({ success: true, ...StylistEcosystemService.getSyncStatus() });
+        });
+
+        this.app.post('/admin/ecosystem/sync', async (req, res) => {
+            if (!isAuthorizedAdmin(req)) {
+                return res.status(401).json({ error: true, message: 'Unauthorized admin request' });
+            }
+            try {
+                const status = await StylistEcosystemService.refreshFromLiveDirectory({ force: true });
+                verifiedPartnerHostsCache = null;
+                return res.json({ success: true, ...status });
+            } catch (err) {
+                console.error('Error syncing ecosystem directory:', err);
+                return res.status(500).json({ error: true, message: err.message });
+            }
+        });
+
+        // Self-serve App Prompts config for the mobile app (cached 60s, backed by Postgres + defaults)
+        this.app.get('/config/app-prompts', async (req, res) => {
+            try {
+                const payload = await getAppPrompts();
+                res.setHeader('Cache-Control', 'public, max-age=60');
+                return res.json({ success: true, ...payload });
+            } catch (err) {
+                console.error('Error serving /config/app-prompts:', err);
                 return res.status(500).json({ error: true, message: err.message });
             }
         });

@@ -39,6 +39,7 @@ function buildBudgetedPromptContext({
     allTestimonials = [],
     trainingData = [],
     additionalInstructions = [],
+    recentCorrections = [],
 }) {
     // 1. User Info & Conversation Summary (~1,500 tokens / 6,000 chars)
     const userInfoClean = userDetails
@@ -89,6 +90,14 @@ function buildBudgetedPromptContext({
         ? `Bot Guidelines:\n${JSON.stringify(additionalInstructions.slice(0, 5), null, 1)}`
         : '';
 
+    const cleanCorrections = (Array.isArray(recentCorrections) ? recentCorrections : [])
+        .map((c) => truncate(typeof c === 'string' ? c : (c && c.correction_note) || '', 240))
+        .filter(Boolean)
+        .slice(0, 10);
+    const correctionsStr = cleanCorrections.length > 0
+        ? `Coaching Corrections from MYAVANA Leadership (MUST follow):\n${cleanCorrections.map((c) => `- ${c}`).join('\n')}`
+        : '';
+
     // 6. Testimonials & Videos (lightweight, top 3 each)
     const cleanVideos = allVideos.slice(0, 3).map(v => ({
         title: v.title || v.video_title,
@@ -110,6 +119,7 @@ function buildBudgetedPromptContext({
         faqsStr,
         trainingStr,
         instructionsStr,
+        correctionsStr,
         videosStr,
         testimonialsStr,
     ].filter(Boolean);

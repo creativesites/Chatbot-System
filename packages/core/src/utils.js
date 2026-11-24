@@ -93,6 +93,25 @@ async function getTrainingData(limit = 50) {
   }
 }
 
+async function getRecentCorrections(limit = 15) {
+  try {
+    const result = await pgClient.query(
+      `SELECT correction_note, created_at
+         FROM corrections
+        WHERE correction_note IS NOT NULL AND TRIM(correction_note) <> ''
+        ORDER BY created_at DESC
+        LIMIT $1`,
+      [limit]
+    );
+    return result.rows || [];
+  } catch (error) {
+    if (error.code !== '42P01') {
+      console.error("Error fetching corrections:", error.message);
+    }
+    return [];
+  }
+}
+
 async function getChatbotWelcomeSettings() {
   try {
     const result = await pgClient.query(
@@ -111,6 +130,7 @@ module.exports = {
   getAllTestimonials,
   getAdditionalInstructions,
   getTrainingData,
+  getRecentCorrections,
   getChatbotWelcomeSettings,
   getProductByName,
   addProductRecommendation

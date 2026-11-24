@@ -9,9 +9,32 @@ const path = require("path");
 const fs = require("fs");
 
 const ECOSYSTEM_URL = "https://www.myavana.com/pages/myavana-ecosystem";
+const STOCKIST_MAP_TAG = process.env.STOCKIST_MAP_TAG || "map_93e65xvq";
+const ECOSYSTEM_TTL_MS = parseInt(process.env.ECOSYSTEM_SYNC_TTL_MS || String(30 * 60 * 1000), 10);
 const GEOCODE_TIMEOUT_MS = 2500;
+const LIVE_SYNC_TIMEOUT_MS = 6000;
+
+const SALON_SERVICES = [
+  "Hair Strand Assessment",
+  "HairScope Diagnostic Consultation",
+  "Textured Hair Styling & Maintenance",
+  "Healthy Hair Care Regimens",
+  "Silk Press & Natural Hair Care",
+];
+
+const RETAILER_SERVICES = [
+  "Healthy Hair Products Retail",
+  "MYAVANA Hair Kits",
+  "Textured Hair Supplies",
+];
 
 let partnersCache = null;
+let syncState = {
+  source: "snapshot",
+  lastSyncedAt: 0,
+  lastError: null,
+  inFlight: null,
+};
 
 // Canonical US state + DC + Canadian province + AU state map (abbr -> full lowercase name)
 const STATE_ABBR_TO_NAME = {
@@ -125,12 +148,159 @@ const ZIP3_COORDINATES = {
   "199": { lat: 39.1566, lon: -75.5242, label: "Dover, DE" },
 };
 
+function normalizeBookingUrl(rawUrl) {
+  const trimmed = rawUrl ? String(rawUrl).trim() : "";
+  if (!trimmed) return null;
+  if (/myavana\.com\/products\/hair-assessment/i.test(trimmed)) return null;
+  // Upgrade http:// to https:// for modern booking/salon hosts to avoid iOS ATS issues
+  if (/^http:\/\//i.test(trimmed)) {
+    return trimmed.replace(/^http:\/\//i, "https://");
+  }
+  return trimmed;
+}
+
+function mapStockistLocation(loc) {
+  const desc = String(loc.description || "").trim().toUpperCase();
+  const isRetailer = desc === "RETAILER";
+  const type = isRetailer ? "RETAILER" : "SALON";
+  const category = isRetailer ? "retailer" : "salon";
+
+  const customFields = Array.isArray(loc.custom_fields) ? loc.custom_fields : [];
+  const ownerField = customFields.find(
+    (f) => f && /owner|founder|stylist/i.test(String(f.name || ""))
+  );
+  const lead = ownerField && ownerField.value ? String(ownerField.value).trim() : null;
+
+  const website = normalizeBookingUrl(loc.website);
+  const phone = loc.phone ? String(loc.phone).trim() : null;
+  const email = loc.email ? String(loc.email).trim() : null;
+
+  let state = String(loc.state || "").trim();
+  let postalCode = String(loc.postal_code || "").trim();
+  if (!postalCode) {
+    const stateZip = state.match(/^([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+    if (stateZip) {
+      state = stateZip[1].toUpperCase();
+      postalCode = stateZip[2];
+    }
+  }
+
+  return {
+    id: String(loc.id || "").trim(),
+    name: String(loc.name || "").trim(),
+    type,
+    category,
+    lead_stylist_or_founder: lead,
+    services_offered: isRetailer ? [...RETAILER_SERVICES] : [...SALON_SERVICES],
+    address: {
+      street: String(loc.address_line_1 || "").trim(),
+      suite: loc.address_line_2 ? String(loc.address_line_2).trim() : null,
+      city: String(loc.city || "").trim(),
+      state,
+      postal_code: postalCode,
+      country: String(loc.country || "").trim(),
+    },
+    coordinates: {
+      latitude: parseFloat(loc.latitude),
+      longitude: parseFloat(loc.longitude),
+    },
+    contact: {
+      phone,
+      email,
+      website,
+    },
+    booking_url: website || ECOSYSTEM_URL,
+    myavana_certified: true,
+    partnership_status: "ACTIVE_ECOSYSTEM_PARTNER",
+  };
+}
+
+async function refreshFromLiveDirectory({ force = false, fetchImpl = globalThis.fetch, tag = STOCKIST_MAP_TAG } = {}) {
+  const now = Date.now();
+  if (!force && syncState.lastSyncedAt > 0 && now - syncState.lastSyncedAt < ECOSYSTEM_TTL_MS && partnersCache) {
+    return getSyncStatus();
+  }
+  if (syncState.inFlight && !force) {
+    return syncState.inFlight;
+  }
+  if (typeof fetchImpl !== "function") {
+    syncState.lastError = "fetch unavailable";
+    return getSyncStatus();
+  }
+
+  const run = (async () => {
+    try {
+      const signal =
+        typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+          ? AbortSignal.timeout(LIVE_SYNC_TIMEOUT_MS)
+          : undefined;
+      const apiUrl = `https://stockist.co/api/v1/${tag}/locations/all`;
+      const res = await fetchImpl(apiUrl, { headers: { Accept: "application/json" }, signal });
+      if (!res || !res.ok) {
+        throw new Error(`Stockist HTTP ${res ? res.status : "no response"}`);
+      }
+      const locations = await res.json();
+      if (!Array.isArray(locations) || locations.length === 0) {
+        throw new Error("Stockist returned empty locations array");
+      }
+      partnersCache = locations
+        .filter((loc) => loc && loc.id && loc.name)
+        .map(mapStockistLocation)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      syncState.source = "live_stockist";
+      syncState.lastSyncedAt = Date.now();
+      syncState.lastError = null;
+      console.log(`🔄 [StylistEcosystemService] Synced ${partnersCache.length} live partners from Stockist (${tag})`);
+    } catch (err) {
+      syncState.lastError = err.message;
+      console.warn("[StylistEcosystemService] Live Stockist sync failed (keeping cached/snapshot):", err.message);
+    } finally {
+      syncState.inFlight = null;
+    }
+    return getSyncStatus();
+  })();
+
+  syncState.inFlight = run;
+  return run;
+}
+
+function getSyncStatus() {
+  const list = loadPartners();
+  return {
+    count: list.length,
+    salons: list.filter((p) => p.category === "salon").length,
+    retailers: list.filter((p) => p.category === "retailer").length,
+    source: syncState.source,
+    lastSyncedAt: syncState.lastSyncedAt ? new Date(syncState.lastSyncedAt).toISOString() : null,
+    lastError: syncState.lastError,
+    ttlMs: ECOSYSTEM_TTL_MS,
+  };
+}
+
 function loadPartners() {
-  if (partnersCache) return partnersCache;
+  if (partnersCache) {
+    // Non-blocking TTL background refresh in non-test environments
+    if (
+      process.env.NODE_ENV !== "test" &&
+      !syncState.inFlight &&
+      Date.now() - syncState.lastSyncedAt >= ECOSYSTEM_TTL_MS
+    ) {
+      refreshFromLiveDirectory().catch(() => {});
+    }
+    return partnersCache;
+  }
   try {
     const filePath = path.resolve(__dirname, "../../data/myavana_stylists_ecosystem.json");
     if (fs.existsSync(filePath)) {
-      partnersCache = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      partnersCache = JSON.parse(fs.readFileSync(filePath, "utf8")).map((p) => ({
+        ...p,
+        booking_url: normalizeBookingUrl(p.booking_url) || ECOSYSTEM_URL,
+        contact: p.contact ? { ...p.contact, website: normalizeBookingUrl(p.contact.website) } : p.contact,
+      }));
+      syncState.source = "snapshot";
+      if (process.env.NODE_ENV !== "test") {
+        refreshFromLiveDirectory().catch(() => {});
+      }
       return partnersCache;
     }
   } catch (err) {
@@ -142,6 +312,7 @@ function loadPartners() {
 
 function resetPartnersCache() {
   partnersCache = null;
+  syncState = { source: "snapshot", lastSyncedAt: 0, lastError: null, inFlight: null };
 }
 
 function calculateHaversineDistanceMiles(lat1, lon1, lat2, lon2) {
@@ -334,7 +505,10 @@ async function resolveLocationCoordinates(query, options = {}) {
 
 const StylistEcosystemService = {
   ECOSYSTEM_URL,
+  ECOSYSTEM_TTL_MS,
   resetPartnersCache,
+  refreshFromLiveDirectory,
+  getSyncStatus,
   parseLocationQuery,
   resolveLocationCoordinates,
 

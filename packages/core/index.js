@@ -55,6 +55,7 @@ const modules = {
     getAllTestimonials: safeRequire('./src/utils', 'utils')?.getAllTestimonials,
     getAdditionalInstructions: safeRequire('./src/utils', 'utils')?.getAdditionalInstructions,
     getTrainingData: safeRequire('./src/utils', 'utils')?.getTrainingData,
+    getRecentCorrections: safeRequire('./src/utils', 'utils')?.getRecentCorrections,
     getChatbotWelcomeSettings: safeRequire('./src/utils', 'utils')?.getChatbotWelcomeSettings,
     buildBudgetedPromptContext: safeRequire('./src/context/promptBudgetManager', 'promptBudgetManager')?.buildBudgetedPromptContext,
 };

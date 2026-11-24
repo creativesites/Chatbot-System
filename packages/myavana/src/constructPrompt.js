@@ -1,7 +1,7 @@
 //constructPrompt.js
 const systemPrompt = require("./system");
 const {getHairIssuesForUser} = require("myavana-bot-test-core");
-const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions, getTrainingData, buildBudgetedPromptContext, HairMediaService } = require('myavana-bot-test-core');
+const { getAllProducts, getAllFaqs, getAllYoutubeVideos, getAllTestimonials, getAdditionalInstructions, getTrainingData, getRecentCorrections, buildBudgetedPromptContext, HairMediaService } = require('myavana-bot-test-core');
 
 
 const STATIC_CATALOG_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -10,6 +10,10 @@ let staticCatalogCache = {
     data: null,
     inFlight: null,
 };
+
+function clearStaticCatalogCache() {
+    staticCatalogCache = { expiresAt: 0, data: null, inFlight: null };
+}
 
 async function getStaticCatalogData() {
     const useCache = process.env.NODE_ENV !== 'test';
@@ -27,7 +31,8 @@ async function getStaticCatalogData() {
         getAllTestimonials(),
         getTrainingData(20),
         getAdditionalInstructions(),
-    ]).then(([allProducts, allFaqs, allYoutubeVideos, allTestimonials, trainingData, additionalInstructions]) => {
+        typeof getRecentCorrections === 'function' ? getRecentCorrections(15) : Promise.resolve([]),
+    ]).then(([allProducts, allFaqs, allYoutubeVideos, allTestimonials, trainingData, additionalInstructions, recentCorrections]) => {
         const data = {
             allProducts: allProducts || [],
             allFaqs: allFaqs || [],
@@ -35,6 +40,7 @@ async function getStaticCatalogData() {
             allTestimonials: allTestimonials || [],
             trainingData: trainingData || [],
             additionalInstructions: additionalInstructions || [],
+            recentCorrections: recentCorrections || [],
         };
         if (useCache) {
             staticCatalogCache.data = data;
@@ -98,6 +104,7 @@ async function constructPrompt(userId, userDetails, allConversationsSummary, onE
             allTestimonials,
             trainingData,
             additionalInstructions,
+            recentCorrections,
         } = staticData;
 
         const dataFetchTime = Date.now() - startTime;
@@ -116,6 +123,7 @@ async function constructPrompt(userId, userDetails, allConversationsSummary, onE
             allTestimonials,
             trainingData,
             additionalInstructions,
+            recentCorrections,
         });
 
         console.log('🏗️ Building final prompt...');
@@ -505,5 +513,6 @@ Enclose your ENTIRE response within the following basic HTML boilerplate structu
 }
 module.exports = {
     constructPrompt,
-    imageAnalysisPrompt
+    imageAnalysisPrompt,
+    clearStaticCatalogCache,
 }

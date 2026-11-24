@@ -594,6 +594,56 @@ function repairStoreLinks(text) {
         .replace(/(^|[^/\w.])(?:www\.){2,}myavana\.com\b/gi, '$1www.myavana.com');
 }
 
+/**
+ * Wrap bare https:// URLs (and bare verified partner domains) in prose into
+ * explicit Markdown links `[label](https://...)` so existing mobile builds
+ * render them as tappable hyperlinks immediately. Existing Markdown links
+ * `[text](https://...)` are preserved untouched.
+ */
+function linkifyProseUrls(text) {
+    if (typeof text !== 'string' || !text) return text;
+
+    // 1. Protect existing Markdown links `[label](url)` using placeholders
+    const placeholders = [];
+    let out = text.replace(/\[[^\]]+\]\([^)]+\)/g, (match) => {
+        const idx = placeholders.push(match) - 1;
+        return `\u0000MDLINK_${idx}\u0000`;
+    });
+
+    // 2. Convert bare http(s):// URLs into Markdown links
+    out = out.replace(/https?:\/\/[^\s<>)\]]+/gi, (rawUrl) => {
+        // Strip trailing sentence punctuation (.,;:)
+        const trailingMatch = rawUrl.match(/([.,;:!?]+)$/);
+        const trailing = trailingMatch ? trailingMatch[1] : '';
+        const url = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl;
+        let label;
+        if (/calendly\.com|glossgenius\.com|booksy\.com|vagaro\.com|acuityscheduling\.com/i.test(url)) {
+            label = 'Book online';
+        } else if (/myavana\.com\/pages\/myavana-ecosystem/i.test(url)) {
+            label = 'MYAVANA Ecosystem';
+        } else {
+            try {
+                label = new URL(url).hostname.replace(/^www\./i, '');
+            } catch {
+                label = url;
+            }
+        }
+        return `[${label}](${url})${trailing}`;
+    });
+
+    // 3. Convert bare www.<domain> references (not already linked)
+    out = out.replace(/(^|[\s(])(www\.[a-z0-9-]+(?:\.[a-z0-9-]+)+[^\s<>)\]]*)/gi, (full, prefix, rawDomain) => {
+        const trailingMatch = rawDomain.match(/([.,;:!?]+)$/);
+        const trailing = trailingMatch ? trailingMatch[1] : '';
+        const domain = trailing ? rawDomain.slice(0, -trailing.length) : rawDomain;
+        const label = domain.replace(/^www\./i, '');
+        return `${prefix}[${label}](https://${domain})${trailing}`;
+    });
+
+    // 4. Restore protected Markdown links
+    return out.replace(/\u0000MDLINK_(\d+)\u0000/g, (_, idx) => placeholders[Number(idx)] || '');
+}
+
 /** Test hook - clear the in-memory catalog cache. */
 function resetServiceCatalogCache() {
     cache = { rows: null, loadedAt: 0 };
@@ -613,6 +663,7 @@ module.exports = {
     isHairAiBlock,
     isHairAssessmentQuestion,
     stripMobileAssessmentLinks,
+    linkifyProseUrls,
     enrichProductBlock,
     productCardKey,
     collectShownProductKeys,

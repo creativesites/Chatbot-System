@@ -13,7 +13,7 @@ const {
     loadServiceCatalog, enrichProductBlock, productCardKey, collectShownProductKeys,
     shouldOfferStoreLink, buildStoreLinkBlock, repairStoreLinks, PRODUCT_BLOCK_TYPES, STORE_URL,
     isMobileAppContext, buildHairAnalysisActionBlock, isHairAiBlock,
-    isHairAssessmentQuestion, stripMobileAssessmentLinks,
+    isHairAssessmentQuestion, stripMobileAssessmentLinks, linkifyProseUrls,
 } = require('myavana-bot-test-core/src/serviceCatalog');
 const { resolveStylistLocationFollowUp } = require('myavana-bot-test-core/src/ecosystem/stylistFollowUp');
 const StylistEcosystemService = require('myavana-bot-test-core/src/ecosystem/stylistEcosystemService');
@@ -1377,7 +1377,8 @@ class MyavanaChatbotServer {
 
             let chatHistory = normalizeHistoryTurns(rawHistory);
             const isMobileApp = isMobileAppContext(experienceContext, req.headers);
-            const formatProseChunk = (chunk) => stripMobileAssessmentLinks(repairStoreLinks(chunk), isMobileApp);
+            const formatProseChunk = (chunk) =>
+                linkifyProseUrls(stripMobileAssessmentLinks(repairStoreLinks(chunk), isMobileApp));
 
             // Deterministic stylist location follow-up: when Mya asked for a city/zip/location
             // to find a stylist and the member replied with a location, query StylistEcosystemService

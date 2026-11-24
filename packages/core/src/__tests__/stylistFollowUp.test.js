@@ -67,6 +67,11 @@ describe('stylistFollowUp (S2)', () => {
     expect(hairThangCard.data.url).toBe(ECOSYSTEM_URL);
     expect(hairThangCard.actions[0].label).toBe('View in Ecosystem');
 
+    // Prose includes clickable Markdown links for partner booking/websites
+    expect(result.text).toMatch(/\[Book online\]\(https:\/\/calendly\.com\/myavana\/myavana-certified-hairscope-appointments\)/);
+    expect(result.text).toMatch(/\[krushonyourbeauty\.com\]\(https:\/\/www\.krushonyourbeauty\.com\)/);
+    expect(result.text).toMatch(/\[MYAVANA Ecosystem directory\]\(https:\/\/www\.myavana\.com\/pages\/myavana-ecosystem\)/);
+
     const ecoNav = result.blocks.find((b) => b.type === 'navigation');
     expect(ecoNav).toBeDefined();
     expect(ecoNav.data.url).toBe(ECOSYSTEM_URL);

@@ -226,11 +226,33 @@ function buildEcosystemNavigationBlock() {
   };
 }
 
+function formatPartnerLink(p) {
+  const rawBookingUrl = p.booking_url || p.contact?.website || ECOSYSTEM_URL;
+  const hasDirectBookingSite =
+    Boolean(rawBookingUrl) &&
+    !/myavana\.com\/products\/hair-assessment/i.test(rawBookingUrl) &&
+    rawBookingUrl !== ECOSYSTEM_URL;
+  if (!hasDirectBookingSite) {
+    return `[View in Ecosystem](${ECOSYSTEM_URL})`;
+  }
+  const url = /^https?:\/\//i.test(rawBookingUrl) ? rawBookingUrl : `https://${rawBookingUrl}`;
+  if (/calendly\.com|glossgenius\.com|booksy\.com|vagaro\.com|acuityscheduling\.com/i.test(url)) {
+    return `[Book online](${url})`;
+  }
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, '');
+    return `[${host}](${url})`;
+  } catch {
+    return `[Book / Visit](${url})`;
+  }
+}
+
 function formatPartnerBullet(p) {
   const loc = [p.address?.city, p.address?.state].filter(Boolean).join(', ');
   const lead = p.lead_stylist_or_founder ? ` (Lead: ${p.lead_stylist_or_founder})` : '';
   const dist = p.distance_miles != null ? ` — ${p.distance_miles} mi away` : '';
-  return `- **${p.name}**${lead}${loc ? `, ${loc}` : ''}${dist}`;
+  const link = formatPartnerLink(p);
+  return `- **${p.name}**${lead}${loc ? `, ${loc}` : ''}${dist} · ${link}`;
 }
 
 /**
@@ -292,7 +314,7 @@ async function resolveStylistLocationFollowUp({
     const text =
       `Here ${partners.length === 1 ? 'is a certified MYAVANA salon' : `are ${partners.length} certified MYAVANA salons`} near **${displayLoc}**:\n\n` +
       `${listText}\n\n` +
-      `Tap any card below to book or view details, or explore the full MYAVANA Ecosystem directory.`;
+      `Tap any link or card below to book or view details, or browse the full [MYAVANA Ecosystem directory](${ECOSYSTEM_URL}).`;
 
     const blocks = [
       ...partners.map((p, idx) => buildStylistCardBlock(p, idx)),

@@ -19,6 +19,7 @@ const {
     isHairAiBlock,
     isHairAssessmentQuestion,
     stripMobileAssessmentLinks,
+    linkifyProseUrls,
     enrichProductBlock,
     productCardKey,
     collectShownProductKeys,
@@ -580,5 +581,21 @@ describe('mobile app vs web HairAI routing (S1)', () => {
         expect(block.data.title).toBe('Start a New Analysis');
         expect(block.data.action).toBe('open_hair_analysis');
         expect(block.data.url).toBeUndefined();
+    });
+
+    test('linkifyProseUrls converts bare booking/partner URLs into Markdown hyperlinks without double-wrapping', () => {
+        expect(linkifyProseUrls('Book at https://www.krushonyourbeauty.com.')).toBe(
+            'Book at [krushonyourbeauty.com](https://www.krushonyourbeauty.com).'
+        );
+        expect(
+            linkifyProseUrls('Schedule at https://calendly.com/myavana/myavana-certified-hairscope-appointments!')
+        ).toBe(
+            'Schedule at [Book online](https://calendly.com/myavana/myavana-certified-hairscope-appointments)!'
+        );
+        expect(linkifyProseUrls('Visit www.krushonyourbeauty.com today')).toBe(
+            'Visit [krushonyourbeauty.com](https://www.krushonyourbeauty.com) today'
+        );
+        const alreadyLinked = 'Book via [Krush Beauty](https://www.krushonyourbeauty.com).';
+        expect(linkifyProseUrls(alreadyLinked)).toBe(alreadyLinked);
     });
 });

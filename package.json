@@ -11,6 +11,7 @@
     "start:dev": "NODE_ENV=development LOG_LEVEL=debug node packages/myavana/src/index.js",
     "start:myavana": "node packages/myavana/src/index.js",
     "start:sienna": "node packages/sienna-naturals/src/index.js",
+    "ecosystem:snapshot": "node scripts/sync-ecosystem-snapshot.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

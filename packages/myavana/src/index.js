@@ -17,6 +17,7 @@ const {
     resetServiceCatalogCache,
 } = require('myavana-bot-test-core/src/serviceCatalog');
 const { getAppPrompts, clearAppPromptsCache } = require('myavana-bot-test-core/src/appPrompts');
+const { isAuthorizedAdmin } = require('./adminAuth');
 const { resolveStylistLocationFollowUp } = require('myavana-bot-test-core/src/ecosystem/stylistFollowUp');
 const StylistEcosystemService = require('myavana-bot-test-core/src/ecosystem/stylistEcosystemService');
 const { getClaudeBackupModels } = require('myavana-bot-test-core/src/ai/claudeBackup');
@@ -621,15 +622,6 @@ class MyavanaChatbotServer {
             console.log('💾 Received POST request to /chat/live/commit');
             await this.handleLiveVoiceCommitRequest(req, res);
         });
-
-        const isAuthorizedAdmin = (req) => {
-            const expected = process.env.ADMIN_API_KEY;
-            if (!expected) return true;
-            const headerKey = req.headers['x-admin-key'];
-            const authHeader = String(req.headers['authorization'] || '');
-            const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-            return headerKey === expected || bearer === expected;
-        };
 
         // Prompt Cache Invalidation & Hot-Reload (invoked by Dashboard when Candace saves directives/FAQs/training/corrections)
         this.app.post('/admin/cache/invalidate', async (req, res) => {

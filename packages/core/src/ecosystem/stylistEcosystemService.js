@@ -506,6 +506,8 @@ async function resolveLocationCoordinates(query, options = {}) {
 const StylistEcosystemService = {
   ECOSYSTEM_URL,
   ECOSYSTEM_TTL_MS,
+  STOCKIST_MAP_TAG,
+  mapStockistLocation,
   resetPartnersCache,
   refreshFromLiveDirectory,
   getSyncStatus,

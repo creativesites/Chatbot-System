@@ -49,10 +49,18 @@ XAI_API_KEY="${XAI_API_KEY:?XAI_API_KEY must be set in environment}"
 WORDPRESS_API_BASE="${WORDPRESS_API_BASE:-https://myhairjourney.ai}"
 WORDPRESS_SERVICE_KEY="${WORDPRESS_SERVICE_KEY:?WORDPRESS_SERVICE_KEY must be set in environment}"
 
+# Protects /admin/* (cache invalidation, ecosystem sync). The server rejects all
+# admin requests in production without it; the Dashboard must send the same value
+# as CHATBOT_ADMIN_API_KEY.
+ADMIN_API_KEY="${ADMIN_API_KEY:?ADMIN_API_KEY must be set in environment}"
+
+echo "🗺️  Refreshing the MYAVANA Ecosystem snapshot from the live map..."
+node "$(dirname "$0")/sync-ecosystem-snapshot.js" || echo "⚠️  Snapshot refresh failed; deploying with the existing snapshot."
+
 echo "🔨 Building and pushing container image via Google Cloud Build..."
 gcloud builds submit --project="${PROJECT_ID}" --tag="${IMAGE_TAG}" .
 
-ENV_VARS="NODE_ENV=production,WORDPRESS_API_BASE=${WORDPRESS_API_BASE},WORDPRESS_SERVICE_KEY=${WORDPRESS_SERVICE_KEY},DB_HOST=${DB_HOST},DB_USER=${DB_USER},DB_PASSWORD=${DB_PASSWORD},DB_NAME=${DB_NAME},DB_PORT=${DB_PORT},REDIS_HOST=${REDIS_HOST},REDIS_PORT=${REDIS_PORT},REDIS_PASSWORD=${REDIS_PASSWORD},REDIS_USERNAME=${REDIS_USERNAME},GENKIT_API_KEY=${GENKIT_API_KEY},GEMINI_API_KEY=${GEMINI_API_KEY},OPENAI_API_KEY=${OPENAI_API_KEY},XAI_API_KEY=${XAI_API_KEY}"
+ENV_VARS="NODE_ENV=production,WORDPRESS_API_BASE=${WORDPRESS_API_BASE},WORDPRESS_SERVICE_KEY=${WORDPRESS_SERVICE_KEY},DB_HOST=${DB_HOST},DB_USER=${DB_USER},DB_PASSWORD=${DB_PASSWORD},DB_NAME=${DB_NAME},DB_PORT=${DB_PORT},REDIS_HOST=${REDIS_HOST},REDIS_PORT=${REDIS_PORT},REDIS_PASSWORD=${REDIS_PASSWORD},REDIS_USERNAME=${REDIS_USERNAME},GENKIT_API_KEY=${GENKIT_API_KEY},GEMINI_API_KEY=${GEMINI_API_KEY},OPENAI_API_KEY=${OPENAI_API_KEY},XAI_API_KEY=${XAI_API_KEY},ADMIN_API_KEY=${ADMIN_API_KEY}"
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
   ENV_VARS="${ENV_VARS},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
 fi

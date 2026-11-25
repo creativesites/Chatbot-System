@@ -85,3 +85,36 @@ describe("StylistEcosystemService", () => {
     expect(partner.category).toBe("retailer");
   });
 });
+
+describe('mapStockistLocation services and profile', () => {
+  const S = require('../ecosystem/stylistEcosystemService');
+  const base = { id: 'loc_1', name: 'Test Salon', latitude: '33.7', longitude: '-84.3' };
+
+  test('takes services from a Services custom field and keeps the owner as lead', () => {
+    const p = S.mapStockistLocation({
+      ...base,
+      description: 'SALON',
+      custom_fields: [
+        { name: 'Owner/Founder', value: 'Jane Doe' },
+        { name: 'Services', value: 'Silk press, Color | Trims\nLocs' },
+      ],
+    });
+    expect(p.lead_stylist_or_founder).toBe('Jane Doe');
+    expect(p.services_offered).toEqual(['Silk press', 'Color', 'Trims', 'Locs']);
+    expect(p.about).toBeNull();
+  });
+
+  test('keeps profile text as about and never invents default services', () => {
+    const p = S.mapStockistLocation({ ...base, description: 'Master Colorist' });
+    expect(p.type).toBe('SALON');
+    expect(p.about).toBe('Master Colorist');
+    expect(p.services_offered).toEqual([]);
+  });
+
+  test('a bare RETAILER description sets the type only', () => {
+    const p = S.mapStockistLocation({ ...base, description: 'RETAILER' });
+    expect(p.category).toBe('retailer');
+    expect(p.about).toBeNull();
+    expect(p.services_offered).toEqual([]);
+  });
+});

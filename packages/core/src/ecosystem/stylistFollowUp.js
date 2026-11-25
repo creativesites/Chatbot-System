@@ -148,6 +148,15 @@ function extractLocationFromTurn(message, experienceContext = {}, reqBody = {}) 
   return { type: 'city', query: cleaned };
 }
 
+// What the partner's own listing says they offer: listed services first, else
+// their profile text. Returns null when the listing states neither.
+function partnerOffering(partner, maxLen = 160) {
+  const services = Array.isArray(partner?.services_offered) ? partner.services_offered.filter(Boolean) : [];
+  const text = services.length ? services.join(', ') : String(partner?.about || '').replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  return text.length > maxLen ? `${text.slice(0, maxLen - 1).trimEnd()}…` : text;
+}
+
 function formatPartnerAddress(partner) {
   const a = partner?.address || {};
   const line1 = [a.street, a.suite].filter(Boolean).join(', ');
@@ -173,6 +182,10 @@ function buildStylistCardBlock(partner, index = 0) {
   }
   if (partner.contact?.phone) {
     details.push(`Phone: ${partner.contact.phone}`);
+  }
+  const offering = partnerOffering(partner);
+  if (offering) {
+    details.push(offering);
   }
 
   const rawBookingUrl = partner.booking_url || partner.contact?.website || ECOSYSTEM_URL;
@@ -252,7 +265,8 @@ function formatPartnerBullet(p) {
   const lead = p.lead_stylist_or_founder ? ` (Lead: ${p.lead_stylist_or_founder})` : '';
   const dist = p.distance_miles != null ? ` — ${p.distance_miles} mi away` : '';
   const link = formatPartnerLink(p);
-  return `- **${p.name}**${lead}${loc ? `, ${loc}` : ''}${dist} · ${link}`;
+  const offering = partnerOffering(p, 120);
+  return `- **${p.name}**${lead}${loc ? `, ${loc}` : ''}${dist} · ${link}${offering ? `\n  ${offering}` : ''}`;
 }
 
 /**

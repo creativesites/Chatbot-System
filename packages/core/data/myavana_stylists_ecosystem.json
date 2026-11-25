@@ -5,13 +5,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "Padre Pio House, Level 4",
       "suite": "Plot 32, Lumumba Avenue",
@@ -39,11 +34,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "LaShaundra Harris",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "6420 brandon ave",
       "suite": null,
@@ -71,13 +63,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "15475 Annapolis Rd",
       "suite": null,
@@ -105,13 +92,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Haircare | Styling | Design | Weaving | Coloring 🦋 Helping you enhance your unique features.",
     "address": {
       "street": "81 Willoughby St",
       "suite": "Suite B2",
@@ -139,11 +121,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Frankesha Watkins",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "4135 Belt line Rd",
       "suite": "Suite 110",
@@ -171,11 +150,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Tomasina Boone",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "Shop 1, 1271 Botany Road",
       "suite": null,
@@ -203,13 +179,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "440 E McCullough Dr",
       "suite": null,
@@ -237,13 +208,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "3309 Rogers Rd",
       "suite": null,
@@ -271,11 +237,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Diann Valentine",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "933 N. LaBrea Ave",
       "suite": null,
@@ -303,13 +266,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "20 Grand Ave",
       "suite": null,
@@ -337,13 +295,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Coach Nina | I help busy professional women achieve healthy hair and empower hairstylists to create a NEW standard of excellence through their craft.",
     "address": {
       "street": "9531 Currier Rd",
       "suite": null,
@@ -371,13 +324,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "With an unwavering passion for beauty and a commitment to excellence, India has established Hi Texture Salon as more than just a place to get your hair done – it's a sanctuary where chic meets comfort and where every curl, coil, and kink is celebrated.",
     "address": {
       "street": "1860 Atkinson Road",
       "suite": "Suite 111",
@@ -405,13 +353,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "1151 Hammond Dr",
       "suite": null,
@@ -439,13 +382,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Dedicated beauty professional and spiritual practitioner whose journey spans education, cosmetology, and spiritual leadership. Her lifelong quest for oneness with God and passion for beauty have shaped a multifaceted career marked by community service and artistic achievement.",
     "address": {
       "street": "5900 West Blvd",
       "suite": null,
@@ -473,13 +411,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "LA Hairstylist\n➿Texture Educator | Kinky+Curly HairPro\n3X Miss USA/Miss Universe Stylist\nMiss America 2027 Stylist\nTVR Collaborative Coach",
     "address": {
       "street": "950 Flower Street",
       "suite": "#718",
@@ -507,13 +440,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Healthy Hair In The Making ✨ Appointments Only",
     "address": {
       "street": "2 Veronica Avenue",
       "suite": "Suite 5",
@@ -541,13 +469,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "2 Veronica Ave",
       "suite": null,
@@ -575,13 +498,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "3000 Windy Hill Rd SE",
       "suite": null,
@@ -609,11 +527,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Crystal Sheppard",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "3157 Sugarloaf Pkwy",
       "suite": "Ste 190",
@@ -641,13 +556,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Master Colorist",
     "address": {
       "street": "451 Bishop Street NW",
       "suite": "Suite C",
@@ -675,13 +585,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": "Taliah Miller",
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "493 Flat Shoals Ave",
       "suite": "Ste. c",
@@ -709,13 +614,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": "Anastasia Felton",
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "637 kenwood ave",
       "suite": null,
@@ -743,13 +643,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "I teach you why and what your hair needs. Personalized Haircare Regimens. Stop guessing with your hair!",
     "address": {
       "street": "6693 West Fayetteville Road",
       "suite": null,
@@ -777,13 +672,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Award winning shabby chic hair boutique, specialising in #AfroHair #NaturalHair #RelaxedHair #KeratinTreatments #Weaves #Wigs #Braids #Barbering",
     "address": {
       "street": "22 Warren Street",
       "suite": null,
@@ -811,13 +701,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": "Candace V. Mitchell",
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "HairScope Appointments Only",
     "address": {
       "street": "170 Mitchell Street SW",
       "suite": null,
@@ -845,11 +730,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Stella Webb",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "8011 Merrill Rd, Ste 8",
       "suite": null,
@@ -877,13 +759,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Atlanta's Luxury Extensions Specialist | K-tips | Microlinks | Tape-ins | Color | Cecred Pro Affiliate",
     "address": {
       "street": "935 Marietta St NW",
       "suite": "#030",
@@ -911,13 +788,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Elevated care for textured hair + scalp health. Pittsburgh based Cosmetologist + Trichologist helping you retain length & love your hair💚",
     "address": {
       "street": "4047 Penn Avenue",
       "suite": null,
@@ -945,11 +817,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Rita Hadebe",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "8 The Green",
       "suite": null,
@@ -977,13 +846,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Rooted Alchemist 🌿 Healing crown, voice & legacy",
     "address": {
       "street": "Plot 12583",
       "suite": "Nyerere Drive Middlestar",
@@ -1011,13 +875,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Our upscale hair and nail salon in Toledo, OH specializes in providing top-quality services for healthy haircare. Our team of experts offers customized deep conditioning treatments, hair coloring, and bridal/special occasion styling.",
     "address": {
       "street": "2402 Aberdeen Ave",
       "suite": null,
@@ -1045,11 +904,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Teryn McElroy",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "441 E. Carson St",
       "suite": "Unit C & D",
@@ -1077,11 +933,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Keisha Woodrup",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "28155 Tomball Pkwy",
       "suite": "Suite 1C",
@@ -1109,11 +962,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Dena Meredith",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "816 E Princeton Dr",
       "suite": "103",
@@ -1141,13 +991,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "12920 S Western Ave",
       "suite": null,
@@ -1175,13 +1020,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": "Licensed Cosmetologist | Colorist & Natural Haircare & Growth Specialist |\nBlue Island | Chicago",
     "address": {
       "street": "12920 S. Western",
       "suite": null,
@@ -1209,13 +1049,8 @@
     "type": "SALON",
     "category": "salon",
     "lead_stylist_or_founder": null,
-    "services_offered": [
-      "Hair Strand Assessment",
-      "HairScope Diagnostic Consultation",
-      "Textured Hair Styling & Maintenance",
-      "Healthy Hair Care Regimens",
-      "Silk Press & Natural Hair Care"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "845 Westney Rd S",
       "suite": null,
@@ -1243,11 +1078,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Yarné Glascoe",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "1110 oak dr SE",
       "suite": null,
@@ -1275,11 +1107,8 @@
     "type": "RETAILER",
     "category": "retailer",
     "lead_stylist_or_founder": "Yaminah Childress",
-    "services_offered": [
-      "Healthy Hair Products Retail",
-      "MYAVANA Hair Kits",
-      "Textured Hair Supplies"
-    ],
+    "services_offered": [],
+    "about": null,
     "address": {
       "street": "448 Crosstown Drive",
       "suite": null,

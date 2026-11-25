@@ -14,19 +14,19 @@ const ECOSYSTEM_TTL_MS = parseInt(process.env.ECOSYSTEM_SYNC_TTL_MS || String(30
 const GEOCODE_TIMEOUT_MS = 2500;
 const LIVE_SYNC_TIMEOUT_MS = 6000;
 
-const SALON_SERVICES = [
-  "Hair Strand Assessment",
-  "HairScope Diagnostic Consultation",
-  "Textured Hair Styling & Maintenance",
-  "Healthy Hair Care Regimens",
-  "Silk Press & Natural Hair Care",
-];
+// Stockist "description" holds either a bare listing type ("SALON" /
+// "RETAILER") or the partner's own profile text (specialties, bio). A custom
+// field named like "Services" / "Specialties" holds a list of services.
+const LISTING_TYPE_RE = /^(?:salon|retailer)$/i;
+const SERVICES_FIELD_RE = /service|specialt/i;
+const LEAD_FIELD_RE = /owner|founder|stylist/i;
 
-const RETAILER_SERVICES = [
-  "Healthy Hair Products Retail",
-  "MYAVANA Hair Kits",
-  "Textured Hair Supplies",
-];
+function splitServices(value) {
+  return String(value || "")
+    .split(/[\n,;|•]+/)
+    .map((s) => s.replace(/^[-*#\s]+/, "").trim())
+    .filter(Boolean);
+}
 
 let partnersCache = null;
 let syncState = {
@@ -160,16 +160,20 @@ function normalizeBookingUrl(rawUrl) {
 }
 
 function mapStockistLocation(loc) {
-  const desc = String(loc.description || "").trim().toUpperCase();
-  const isRetailer = desc === "RETAILER";
+  const description = String(loc.description || "").trim();
+  const isRetailer = description.toUpperCase() === "RETAILER";
   const type = isRetailer ? "RETAILER" : "SALON";
   const category = isRetailer ? "retailer" : "salon";
+  const about = description && !LISTING_TYPE_RE.test(description) ? description : null;
 
-  const customFields = Array.isArray(loc.custom_fields) ? loc.custom_fields : [];
-  const ownerField = customFields.find(
-    (f) => f && /owner|founder|stylist/i.test(String(f.name || ""))
+  const customFields = (Array.isArray(loc.custom_fields) ? loc.custom_fields : []).filter(
+    (f) => f && f.value != null && String(f.value).trim()
   );
-  const lead = ownerField && ownerField.value ? String(ownerField.value).trim() : null;
+  const servicesField = customFields.find((f) => SERVICES_FIELD_RE.test(String(f.name || "")));
+  const ownerField = customFields.find(
+    (f) => f !== servicesField && LEAD_FIELD_RE.test(String(f.name || ""))
+  );
+  const lead = ownerField ? String(ownerField.value).trim() : null;
 
   const website = normalizeBookingUrl(loc.website);
   const phone = loc.phone ? String(loc.phone).trim() : null;
@@ -191,7 +195,9 @@ function mapStockistLocation(loc) {
     type,
     category,
     lead_stylist_or_founder: lead,
-    services_offered: isRetailer ? [...RETAILER_SERVICES] : [...SALON_SERVICES],
+    // Only what the partner's listing states; empty means "not listed", never a default.
+    services_offered: servicesField ? splitServices(servicesField.value) : [],
+    about,
     address: {
       street: String(loc.address_line_1 || "").trim(),
       suite: loc.address_line_2 ? String(loc.address_line_2).trim() : null,

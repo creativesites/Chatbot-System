@@ -13,6 +13,8 @@ const STOCKIST_MAP_TAG = process.env.STOCKIST_MAP_TAG || "map_93e65xvq";
 const ECOSYSTEM_TTL_MS = parseInt(process.env.ECOSYSTEM_SYNC_TTL_MS || String(30 * 60 * 1000), 10);
 const GEOCODE_TIMEOUT_MS = 2500;
 const LIVE_SYNC_TIMEOUT_MS = 6000;
+// After a failed sync, wait this long before the next background attempt.
+const SYNC_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
 
 // Stockist "description" holds either a bare listing type ("SALON" /
 // "RETAILER") or the partner's own profile text (specialties, bio). A custom
@@ -32,6 +34,7 @@ let partnersCache = null;
 let syncState = {
   source: "snapshot",
   lastSyncedAt: 0,
+  lastAttemptAt: 0,
   lastError: null,
   inFlight: null,
 };
@@ -234,6 +237,7 @@ async function refreshFromLiveDirectory({ force = false, fetchImpl = globalThis.
     return getSyncStatus();
   }
 
+  syncState.lastAttemptAt = now;
   const run = (async () => {
     try {
       const signal =
@@ -246,7 +250,10 @@ async function refreshFromLiveDirectory({ force = false, fetchImpl = globalThis.
         throw new Error(`Stockist HTTP ${res ? res.status : "no response"}`);
       }
       const locations = await res.json();
-      if (!Array.isArray(locations) || locations.length === 0) {
+      if (!Array.isArray(locations)) {
+        throw new Error(`Stockist returned a non-list response: ${JSON.stringify(locations).slice(0, 120)}`);
+      }
+      if (locations.length === 0) {
         throw new Error("Stockist returned empty locations array");
       }
       partnersCache = locations
@@ -270,8 +277,12 @@ async function refreshFromLiveDirectory({ force = false, fetchImpl = globalThis.
   return run;
 }
 
+// Must not call loadPartners(): it can start a refresh, and refresh reports
+// this status when it finishes, so a failed sync would retry forever.
 function getSyncStatus() {
-  const list = loadPartners();
+  // First call only: load the snapshot (its one refresh reports back here
+  // with partnersCache already set, so this cannot recurse).
+  const list = partnersCache || loadPartners();
   return {
     count: list.length,
     salons: list.filter((p) => p.category === "salon").length,
@@ -283,14 +294,16 @@ function getSyncStatus() {
   };
 }
 
+function isBackgroundRefreshDue(now = Date.now()) {
+  if (syncState.inFlight) return false;
+  const wait = syncState.lastError ? SYNC_FAILURE_BACKOFF_MS : ECOSYSTEM_TTL_MS;
+  return now - syncState.lastAttemptAt >= wait;
+}
+
 function loadPartners() {
   if (partnersCache) {
     // Non-blocking TTL background refresh in non-test environments
-    if (
-      process.env.NODE_ENV !== "test" &&
-      !syncState.inFlight &&
-      Date.now() - syncState.lastSyncedAt >= ECOSYSTEM_TTL_MS
-    ) {
+    if (process.env.NODE_ENV !== "test" && isBackgroundRefreshDue()) {
       refreshFromLiveDirectory().catch(() => {});
     }
     return partnersCache;
@@ -318,7 +331,7 @@ function loadPartners() {
 
 function resetPartnersCache() {
   partnersCache = null;
-  syncState = { source: "snapshot", lastSyncedAt: 0, lastError: null, inFlight: null };
+  syncState = { source: "snapshot", lastSyncedAt: 0, lastAttemptAt: 0, lastError: null, inFlight: null };
 }
 
 function calculateHaversineDistanceMiles(lat1, lon1, lat2, lon2) {

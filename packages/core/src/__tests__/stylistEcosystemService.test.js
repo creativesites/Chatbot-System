@@ -118,3 +118,31 @@ describe('mapStockistLocation services and profile', () => {
     expect(p.services_offered).toEqual([]);
   });
 });
+
+describe('live Stockist sync failure handling', () => {
+  const S = require('../ecosystem/stylistEcosystemService');
+  const flush = () => new Promise((r) => setTimeout(r, 20));
+  let env;
+  beforeEach(() => { env = process.env.NODE_ENV; process.env.NODE_ENV = 'production'; S.resetPartnersCache(); });
+  afterEach(() => { process.env.NODE_ENV = env; S.resetPartnersCache(); });
+
+  test('a failed sync does not retrigger itself and backs off', async () => {
+    let calls = 0;
+    const failing = async () => { calls += 1; return { ok: true, json: async () => ({ error: 'nope' }) }; };
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = failing;
+    try {
+      const status = await S.refreshFromLiveDirectory({ force: true, fetchImpl: failing });
+      await flush();
+      expect(status.lastError).toMatch(/non-list response/);
+      const afterFirst = calls;
+      expect(afterFirst).toBeLessThanOrEqual(2); // forced call + at most the snapshot's initial load
+      for (let i = 0; i < 50; i += 1) S.getAllPartners();
+      await flush();
+      expect(calls).toBe(afterFirst);
+      expect(S.getAllPartners().length).toBeGreaterThan(0); // snapshot still served
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});

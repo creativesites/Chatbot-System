@@ -32,22 +32,22 @@ fi
 # Database and Service Configurations
 DB_HOST="${DB_HOST:-34.60.246.147}"
 DB_USER="${DB_USER:-myavana}"
-DB_PASSWORD="${DB_PASSWORD:-higibertigibet}"
+DB_PASSWORD="${DB_PASSWORD:?DB_PASSWORD must be set in environment}"
 DB_NAME="${DB_NAME:-myavana-dashboard-bot}"
 DB_PORT="${DB_PORT:-5432}"
 
 REDIS_HOST="${REDIS_HOST:-redis-15330.c1.us-central1-2.gce.redns.redis-cloud.com}"
 REDIS_PORT="${REDIS_PORT:-15330}"
-REDIS_PASSWORD="${REDIS_PASSWORD:-OyLRjkTPuCGzQ2mNzA3Uhx5HIqWza8QC}"
+REDIS_PASSWORD="${REDIS_PASSWORD:?REDIS_PASSWORD must be set in environment}"
 REDIS_USERNAME="${REDIS_USERNAME:-default}"
 
-GENKIT_API_KEY="${GENKIT_API_KEY:-AIzaSyBLiBl-a9AK-jKvf_NeFQmoRknUV3Z5I0s}"
-GEMINI_API_KEY="${GEMINI_API_KEY:-AQ.Ab8RN6KG98D-_N6u9KjPt5C1ihzcKeaiE31aGZwmjsn-zVBThA}"
-OPENAI_API_KEY="${OPENAI_API_KEY:-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}"
-XAI_API_KEY="${XAI_API_KEY:-xai-sMYdIE1XDDSE90ltnZKRL8wiD9rfW55YuPIwuaiqaR8tHiJ91EUkGKUryYpFt8wzltQ8VkP0VH2W4KSu}"
+GENKIT_API_KEY="${GENKIT_API_KEY:?GENKIT_API_KEY must be set in environment}"
+GEMINI_API_KEY="${GEMINI_API_KEY:?GEMINI_API_KEY must be set in environment}"
+OPENAI_API_KEY="${OPENAI_API_KEY:?OPENAI_API_KEY must be set in environment}"
+XAI_API_KEY="${XAI_API_KEY:?XAI_API_KEY must be set in environment}"
 
 WORDPRESS_API_BASE="${WORDPRESS_API_BASE:-https://myhairjourney.ai}"
-WORDPRESS_SERVICE_KEY="${WORDPRESS_SERVICE_KEY:-myavana_secret_service_key_2026}"
+WORDPRESS_SERVICE_KEY="${WORDPRESS_SERVICE_KEY:?WORDPRESS_SERVICE_KEY must be set in environment}"
 
 echo "🔨 Building and pushing container image via Google Cloud Build..."
 gcloud builds submit --project="${PROJECT_ID}" --tag="${IMAGE_TAG}" .

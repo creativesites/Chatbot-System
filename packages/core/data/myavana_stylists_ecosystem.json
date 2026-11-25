@@ -555,9 +555,9 @@
     "name": "Kolor King",
     "type": "SALON",
     "category": "salon",
-    "lead_stylist_or_founder": null,
+    "lead_stylist_or_founder": "Oliver Adams",
     "services_offered": [],
-    "about": "Master Colorist",
+    "about": "Highly trained master hair colorist, silk press specialist, editorial stylist, and international educator",
     "address": {
       "street": "451 Bishop Street NW",
       "suite": "Suite C",
